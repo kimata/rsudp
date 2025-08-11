@@ -1,4 +1,4 @@
-image: docker:24.0
+image: gitlab.green-rabbit.net:5050/kimata/local-ubuntu:250706_043ea01d
 
 stages:
     - generate-tag
