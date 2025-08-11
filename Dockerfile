@@ -39,7 +39,10 @@ RUN git clone https://github.com/raspishake/rsudp.git \
 RUN bash rsudp/unix-install-rsudp.sh
 
 COPY c_plots.diff c_plots.diff
-RUN cd rsudp && patch -p1 < ../c_plots.diff && rm ../c_plots.diff
+COPY healthz.diff healthz.diff
+COPY src rsudp/
+
+RUN cd rsudp && patch -p1 < ../c_plots.diff && patch -p1 < ../healthz.diff && rm ../c_plots.diff ../healthz.diff
 
 RUN jq '.settings.station = "Shake" \
       | .settings.output_dir = "/opt/rsudp/data" \
@@ -48,7 +51,9 @@ RUN jq '.settings.station = "Shake" \
       | .rsam.enabled = true \
       | .rsam.deconvolve = true \
       | .rsam.fwaddr = false \
-      | .rsam.fwport = false' \
+      | .rsam.fwport = false \
+      | .health.enabled = true \
+      | .health.interval = 30' \
     /home/ubuntu/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \
  && mv /tmp/rsudp_settings.json /home/ubuntu/.config/rsudp/rsudp_settings.json
 
