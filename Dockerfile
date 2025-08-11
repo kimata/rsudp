@@ -47,8 +47,8 @@ RUN jq '.settings.station = "Shake" \
       | .plot.eq_screenshots = true \
       | .rsam.enabled = true \
       | .rsam.deconvolve = true \
-      | del(.rsam.fwaddr) \
-      | del(.rsam.fwport)' \
+      | .rsam.fwaddr = false \
+      | .rsam.fwport = false' \
     /home/ubuntu/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \
  && mv /tmp/rsudp_settings.json /home/ubuntu/.config/rsudp/rsudp_settings.json
 
