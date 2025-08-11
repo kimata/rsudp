@@ -25,11 +25,8 @@ RUN git clone https://github.com/raspishake/rsudp.git \
 
 RUN bash rsudp/unix-install-rsudp.sh
 
-RUN /root/miniconda3/bin/conda run -n rsudp pip install pyqt5
-
-# Apply patch to fix headless environment issue
-COPY c_plots.diff /tmp/c_plots.diff
-RUN cd rsudp && patch -p1 < /tmp/c_plots.diff
+COPY c_plots.diff c_plots.diff
+RUN cd rsudp && patch -p1 < ../c_plots.diff
 
 RUN jq '.settings.station = "R503C" | .settings.output_dir = "/opt/rsudp/data" | .write.enabled = true | .plot.eq_screenshots = true' \
     /root/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \

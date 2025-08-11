@@ -3,7 +3,9 @@ repos:
       rev: v5.0.0
       hooks:
           - id: trailing-whitespace
+            exclude: \.(diff|patch)$
           - id: end-of-file-fixer
+            exclude: \.(diff|patch)$
           - id: check-added-large-files
             args:
                 - --maxkb=4096
