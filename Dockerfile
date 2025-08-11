@@ -24,11 +24,12 @@ RUN --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install --no-install-recommends --assume-yes \
     jq wget ffmpeg
 
-USER ubuntu
-
 WORKDIR /opt
 
-COPY --chown=ubuntu:ubuntu . .
+RUN chown ubuntu:ubuntu /opt
+
+USER ubuntu
+
 
 ARG RSUDP_COMMIT=e4bf7abbbe4db4e70e04150d436e7d68dd16312a
 
@@ -48,8 +49,8 @@ RUN jq '.settings.station = "Shake" \
       | .rsam.deconvolve = true \
       | del(.rsam.fwaddr) \
       | del(.rsam.fwport)' \
-    /root/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \
- && mv /tmp/rsudp_settings.json /root/.config/rsudp/rsudp_settings.json
+    /home/ubuntu/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \
+ && mv /tmp/rsudp_settings.json /home/ubuntu/.config/rsudp/rsudp_settings.json
 
 EXPOSE 8888/udp
 
