@@ -7,6 +7,8 @@ default:
 stages:
     - generate-tag
     - build
+    - tag-latest
+    - deploy
 
 generate-tag:
     stage: generate-tag
@@ -46,3 +48,52 @@ build-image:
             --tag ${CI_REGISTRY_IMAGE}:${TAG} --push .
     # after_script:
     #     - docker buildx rm ${BUILDER} || true
+
+tag-latest:
+    stage: tag-latest
+
+    needs:
+        - generate-tag
+        - build-image
+
+    script:
+        - 'echo "Tagging multi-arch image ${CI_REGISTRY_IMAGE}:${TAG} as latest"'
+        - docker buildx imagetools create -t ${CI_REGISTRY_IMAGE}:latest ${CI_REGISTRY_IMAGE}:${TAG}
+
+    rules:
+        - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+          when: never
+        - when: on_success
+
+deploy:
+    stage: deploy
+
+    needs:
+        - generate-tag
+        - build-image
+
+    image:
+        name: gitlab.green-rabbit.net:5050/kimata/local-kubectl:250715_c88f3965
+
+    before_script: []
+
+    script:
+        - 'IMAGE="${CI_REGISTRY_IMAGE}:${TAG}"'
+        - 'echo "Deploying image: $IMAGE"'
+
+        - kubectl config get-contexts
+        - kubectl config use-context kimata/rsudp:pod-rollout
+
+        - kubectl -n sensor set image deployment/rsudp rsudp=${IMAGE}
+
+        - kubectl -n sensor rollout status deployment/rsudp --timeout=300s
+
+        - 'echo "✓ All deployments updated successfully to $TAG"'
+
+    rules:
+        # NOTE: 自動実行ではデプロイしない
+        - if: $CI_PIPELINE_SOURCE == "schedule"
+          when: never
+        - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+          when: never
+        - when: on_success
