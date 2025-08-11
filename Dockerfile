@@ -28,6 +28,8 @@ USER ubuntu
 
 WORKDIR /opt
 
+COPY --chown=ubuntu:ubuntu . .
+
 ARG RSUDP_COMMIT=e4bf7abbbe4db4e70e04150d436e7d68dd16312a
 
 RUN git clone https://github.com/raspishake/rsudp.git \
