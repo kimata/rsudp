@@ -11,6 +11,14 @@ RUN --mount=type=cache,target=/var/lib/apt,sharing=locked \
     language-pack-ja \
     tzdata
 
+ENV TZ=Asia/Tokyo \
+    LANG=ja_JP.UTF-8 \
+    LANGUAGE=ja_JP:ja \
+    LC_ALL=ja_JP.UTF-8
+
+RUN locale-gen en_US.UTF-8
+RUN locale-gen ja_JP.UTF-8
+
 RUN --mount=type=cache,target=/var/lib/apt,sharing=locked \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install --no-install-recommends --assume-yes \
