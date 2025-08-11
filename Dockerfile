@@ -36,7 +36,7 @@ RUN bash rsudp/unix-install-rsudp.sh
 COPY c_plots.diff c_plots.diff
 RUN cd rsudp && patch -p1 < ../c_plots.diff && rm ../c_plots.diff
 
-RUN jq '.settings.station = "Shake" | .settings.output_dir = "/opt/rsudp/data" | .write.enabled = true | .plot.eq_screenshots = true | .rsam.enabled = true | .rsam.deconvolve = true | del(.rsam.fwaddr)' \
+RUN jq '.settings.station = "Shake" | .settings.output_dir = "/opt/rsudp/data" | .write.enabled = true | .plot.eq_screenshots = true | .rsam.enabled = true | .rsam.deconvolve = true | del(.rsam.fwaddr) | del(.rsam.fwport)' \
     /root/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \
  && mv /tmp/rsudp_settings.json /root/.config/rsudp/rsudp_settings.json
 
