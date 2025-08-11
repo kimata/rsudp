@@ -6,7 +6,7 @@ default:
 
 stages:
     - generate-tag
-    - build-image
+    - build
 
 generate-tag:
     stage: generate-tag
