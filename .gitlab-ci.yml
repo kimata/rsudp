@@ -1,0 +1,56 @@
+image: docker:24.0
+
+stages:
+    - generate-tag
+    - build-image
+
+generate-tag:
+    stage: generate-tag
+    script:
+        - echo "TAG=$(date +%y%m%d)_${CI_COMMIT_SHORT_SHA}" > tag.env
+    artifacts:
+        reports:
+            dotenv: tag.env
+        expire_in: 1 hour
+
+build-image:
+    stage: build-image
+    needs:
+        - generate-tag
+
+    variables:
+        BUILDER: builder
+        BUILD_KIT_IMAGE: gitlab.green-rabbit.net:5050/kimata/local-buildkit:250705_7cc0d1c
+
+    before_script:
+        - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+
+    script:
+        - 'echo "Building: ${CI_REGISTRY_IMAGE}:${TAG}"'
+
+        - cp -f buildkitd.toml /etc/buildkitd.toml
+        - cp -f local-ca.crt /usr/local/share/ca-certificates/
+        - update-ca-certificates
+
+        - |
+            docker buildx create \
+                --name ${BUILDER} \
+                --driver-opt image=${BUILD_KIT_IMAGE} \
+                --use \
+                --config /etc/buildkitd.toml
+
+        - docker buildx use ${BUILDER}
+        - docker buildx inspect --bootstrap
+
+        - docker buildx build
+          --provenance=false
+          --progress=plain
+          --platform linux/amd64
+          --cache-from type=registry,ref=${CI_REGISTRY_IMAGE}:cache
+          --cache-from type=registry,ref=${CI_REGISTRY_IMAGE}:latest
+          --cache-to type=inline
+          --cache-to type=registry,ref=${CI_REGISTRY_IMAGE}:cache,mode=max
+          --build-arg IMAGE_BUILD_DATE=$(date --iso-8601=seconds)
+          --tag ${CI_REGISTRY_IMAGE}:${TAG}
+          --tag ${CI_REGISTRY_IMAGE}:latest
+          --push .

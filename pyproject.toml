@@ -1,0 +1,17 @@
+[project]
+name = "rsudp"
+version = "0.1.0"
+description = "rsudp を Docker で動かすためのパッケージ"
+authors = [
+    { name = "KIMATA Tetsuya", email = "kimata@green-rabbit.net" }
+]
+
+requires-python = ">= 3.10"
+
+dependencies = [
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit >= 4.2.0",
+]
