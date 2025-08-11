@@ -28,7 +28,7 @@ RUN bash rsudp/unix-install-rsudp.sh
 COPY c_plots.diff c_plots.diff
 RUN cd rsudp && patch -p1 < ../c_plots.diff
 
-RUN jq '.settings.station = "R503C" | .settings.output_dir = "/opt/rsudp/data" | .write.enabled = true | .plot.eq_screenshots = true' \
+RUN jq '.settings.station = "Raspberry Shake" | .settings.output_dir = "/opt/rsudp/data" | .write.enabled = true | .plot.eq_screenshots = true' \
     /root/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \
  && mv /tmp/rsudp_settings.json /root/.config/rsudp/rsudp_settings.json
 
