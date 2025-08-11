@@ -24,6 +24,8 @@ RUN --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install --no-install-recommends --assume-yes \
     jq wget ffmpeg
 
+USER ubuntu
+
 WORKDIR /opt
 
 ARG RSUDP_COMMIT=e4bf7abbbe4db4e70e04150d436e7d68dd16312a
