@@ -26,7 +26,7 @@ RUN git clone https://github.com/raspishake/rsudp.git \
 RUN bash rsudp/unix-install-rsudp.sh
 
 COPY c_plots.diff c_plots.diff
-RUN cd rsudp && patch -p1 < ../c_plots.diff
+RUN cd rsudp && patch -p1 < ../c_plots.diff && rm ../c_plots.diff
 
 RUN jq '.settings.station = "Raspberry Shake" | .settings.output_dir = "/opt/rsudp/data" | .write.enabled = true | .plot.eq_screenshots = true' \
     /root/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \
