@@ -132,14 +132,21 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   };
 
   // 全画面表示の切り替え
-  const toggleFullscreen = () => {
+  const toggleFullscreen = (e?: React.MouseEvent) => {
+    // イベントの伝播を停止
+    e?.stopPropagation();
+
     if (!document.fullscreenElement) {
       if (imageContainerRef.current?.requestFullscreen) {
-        imageContainerRef.current.requestFullscreen();
+        imageContainerRef.current.requestFullscreen().catch(err => {
+          console.error('Fullscreen error:', err);
+        });
         setIsFullscreen(true);
       }
     } else {
-      document.exitFullscreen();
+      document.exitFullscreen().catch(err => {
+        console.error('Exit fullscreen error:', err);
+      });
       setIsFullscreen(false);
     }
   };
@@ -180,26 +187,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     }
   };
 
-  // ナビゲーションボタンのハンドラー
-  const handlePrevious = () => {
-    const currentIndex = currentImage
-      ? allImages.findIndex(img => img.filename === currentImage.filename)
-      : -1;
-    if (currentIndex > 0) {
-      setIsTransitioning(true);
-      onNavigate(allImages[currentIndex - 1]);
-    }
-  };
-
-  const handleNext = () => {
-    const currentIndex = currentImage
-      ? allImages.findIndex(img => img.filename === currentImage.filename)
-      : -1;
-    if (currentIndex < allImages.length - 1) {
-      setIsTransitioning(true);
-      onNavigate(allImages[currentIndex + 1]);
-    }
-  };
 
   if (!currentImage) {
     return (
@@ -255,7 +242,9 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           position: 'relative',
           marginBottom: '1rem',
           minHeight: '400px',
-          backgroundColor: isFullscreen ? '#000' : 'transparent'
+          backgroundColor: isFullscreen ? '#000' : 'transparent',
+          width: '100%',
+          boxSizing: 'border-box'
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -323,9 +312,10 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             height: isFullscreen ? '100vh' : 'auto',
-            overflow: isFullscreen ? 'auto' : 'visible'
+            overflow: isFullscreen ? 'auto' : 'visible',
+            width: '100%'
           }}
-          onClick={toggleFullscreen}
+          onClick={(e) => toggleFullscreen(e)}
         >
           <img
             ref={currentImageRef}
@@ -345,32 +335,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             onError={handleImageError}
           />
         </figure>
-      </div>
-
-      {/* モバイル向けナビゲーションボタン */}
-      <div className="is-hidden-desktop" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-        <div className="buttons is-centered">
-          <button
-            className="button is-primary"
-            onClick={handlePrevious}
-            disabled={allImages.findIndex(img => img.filename === currentImage.filename) === 0}
-          >
-            <span className="icon">
-              <i className="fas fa-chevron-left"></i>
-            </span>
-            <span>前へ</span>
-          </button>
-          <button
-            className="button is-primary"
-            onClick={handleNext}
-            disabled={allImages.findIndex(img => img.filename === currentImage.filename) === allImages.length - 1}
-          >
-            <span>次へ</span>
-            <span className="icon">
-              <i className="fas fa-chevron-right"></i>
-            </span>
-          </button>
-        </div>
       </div>
 
       <div className="content is-small has-text-centered" style={{ marginTop: '1rem' }}>
