@@ -28,7 +28,11 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   const [imageError, setImageError] = useState(false);
   const [preloadedImages, setPreloadedImages] = useState<Map<string, HTMLImageElement>>(new Map());
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const currentImageRef = useRef<HTMLImageElement>(null);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
 
   // 画像の事前読み込み
   const preloadImage = (filename: string): Promise<HTMLImageElement> => {
@@ -97,13 +101,68 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     }
   }, [currentImage]);
 
+  // タッチ操作のハンドラー
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!currentImage) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchStartX.current - touchEndX;
+    const deltaY = Math.abs(touchStartY.current - touchEndY);
+
+    // 横方向のスワイプが縦方向より大きい場合のみ処理
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > deltaY) {
+      const currentIndex = allImages.findIndex(img => img.filename === currentImage.filename);
+
+      if (deltaX > 0 && currentIndex < allImages.length - 1) {
+        // 左スワイプ → 次の画像
+        setIsTransitioning(true);
+        onNavigate(allImages[currentIndex + 1]);
+      } else if (deltaX < 0 && currentIndex > 0) {
+        // 右スワイプ → 前の画像
+        setIsTransitioning(true);
+        onNavigate(allImages[currentIndex - 1]);
+      }
+    }
+  };
+
+  // 全画面表示の切り替え
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (imageContainerRef.current?.requestFullscreen) {
+        imageContainerRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      }
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  // 全画面状態の監視
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
       const currentIndex = currentImage
         ? allImages.findIndex(img => img.filename === currentImage.filename)
         : -1;
       if (currentIndex > 0) {
-        setIsTransitioning(true); // ナビゲーション時のみtransitioningを設定
+        setIsTransitioning(true);
         onNavigate(allImages[currentIndex - 1]);
       }
     } else if (e.key === 'ArrowRight') {
@@ -111,9 +170,34 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         ? allImages.findIndex(img => img.filename === currentImage.filename)
         : -1;
       if (currentIndex < allImages.length - 1) {
-        setIsTransitioning(true); // ナビゲーション時のみtransitioningを設定
+        setIsTransitioning(true);
         onNavigate(allImages[currentIndex + 1]);
       }
+    } else if (e.key === 'Escape' && isFullscreen) {
+      document.exitFullscreen();
+    } else if (e.key === 'f' || e.key === 'F') {
+      toggleFullscreen();
+    }
+  };
+
+  // ナビゲーションボタンのハンドラー
+  const handlePrevious = () => {
+    const currentIndex = currentImage
+      ? allImages.findIndex(img => img.filename === currentImage.filename)
+      : -1;
+    if (currentIndex > 0) {
+      setIsTransitioning(true);
+      onNavigate(allImages[currentIndex - 1]);
+    }
+  };
+
+  const handleNext = () => {
+    const currentIndex = currentImage
+      ? allImages.findIndex(img => img.filename === currentImage.filename)
+      : -1;
+    if (currentIndex < allImages.length - 1) {
+      setIsTransitioning(true);
+      onNavigate(allImages[currentIndex + 1]);
     }
   };
 
@@ -164,7 +248,18 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         </div>
       </div>
 
-      <div className="image-container" style={{ position: 'relative', marginBottom: '1rem', minHeight: '400px' }}>
+      <div
+        ref={imageContainerRef}
+        className="image-container"
+        style={{
+          position: 'relative',
+          marginBottom: '1rem',
+          minHeight: '400px',
+          backgroundColor: isFullscreen ? '#000' : 'transparent'
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {(imageLoading || isTransitioning) && (
           <div
             className="has-text-centered"
@@ -222,8 +317,14 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           style={{
             opacity: (imageLoading || isTransitioning) ? 0.3 : 1,
             transition: 'opacity 0.2s ease-in-out',
-            minHeight: '300px'
+            minHeight: '300px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: isFullscreen ? '100vh' : 'auto'
           }}
+          onClick={toggleFullscreen}
         >
           <img
             ref={currentImageRef}
@@ -231,8 +332,10 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             alt={currentImage.filename}
             style={{
               maxWidth: '100%',
+              maxHeight: isFullscreen ? '100vh' : 'auto',
               height: 'auto',
-              display: 'block'
+              display: 'block',
+              margin: '0 auto'
             }}
             onLoad={handleImageLoad}
             onError={handleImageError}
@@ -240,8 +343,35 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         </figure>
       </div>
 
+      {/* モバイル向けナビゲーションボタン */}
+      <div className="is-hidden-desktop" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+        <div className="buttons is-centered">
+          <button
+            className="button is-primary"
+            onClick={handlePrevious}
+            disabled={allImages.findIndex(img => img.filename === currentImage.filename) === 0}
+          >
+            <span className="icon">
+              <i className="fas fa-chevron-left"></i>
+            </span>
+            <span>前へ</span>
+          </button>
+          <button
+            className="button is-primary"
+            onClick={handleNext}
+            disabled={allImages.findIndex(img => img.filename === currentImage.filename) === allImages.length - 1}
+          >
+            <span>次へ</span>
+            <span className="icon">
+              <i className="fas fa-chevron-right"></i>
+            </span>
+          </button>
+        </div>
+      </div>
+
       <div className="content is-small has-text-centered" style={{ marginTop: '1rem' }}>
-        <p>🎹 矢印キー←→でナビゲーションができます</p>
+        <p className="is-hidden-touch">🎹 矢印キー←→でナビゲーション / Fキーで全画面表示</p>
+        <p className="is-hidden-desktop">📱 左右スワイプでナビゲーション / タップで全画面表示</p>
       </div>
     </div>
   );

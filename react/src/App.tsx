@@ -152,13 +152,17 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="container is-fluid" style={{ padding: '1rem' }}>
+    <div className="container is-fluid" style={{ padding: '0.5rem' }}>
       <nav className="navbar is-dark" role="navigation">
         <div className="navbar-brand">
           <div className="navbar-item">
             <h1 className="title is-4 has-text-white">
               <span style={{ marginLeft: '0.5rem', marginRight: '0.5rem' }}>📸</span>
-              RSUDP スクリーンショットビューア
+              <span className="is-hidden-mobile">RSUDP スクリーンショットビューア</span>
+              <span className="is-hidden-tablet">
+                RSUDP<br />
+                <span style={{ fontSize: '0.9em' }}>スクリーンショットビューア</span>
+              </span>
             </h1>
           </div>
         </div>
@@ -185,8 +189,45 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* モバイル表示時: 画像を先に表示 */}
+      <div className="is-hidden-tablet">
+        <div style={{ marginTop: '0.5rem' }}>
+          {loading && !currentScreenshot ? (
+            <div className="box has-text-centered" style={{ minHeight: '400px' }}>
+              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
+                <div>
+                  <span className="icon is-large">
+                    <i className="fas fa-spinner fa-pulse fa-3x"></i>
+                  </span>
+                  <p className="subtitle" style={{ marginTop: '1rem' }}>⏳ スクリーンショットを読み込み中...</p>
+                </div>
+              </div>
+            </div>
+          ) : !currentScreenshot && allScreenshots.length === 0 && !loading ? (
+            <div className="box has-text-centered" style={{ minHeight: '400px' }}>
+              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
+                <div>
+                  <span className="icon is-large has-text-grey">
+                    <i className="fas fa-camera fa-3x"></i>
+                  </span>
+                  <p className="subtitle mt-3">📸 スクリーンショットがありません</p>
+                  <p className="is-size-7 has-text-grey">地震データが記録されるとここに表示されます</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <ImageViewer
+              currentImage={currentScreenshot}
+              allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+              onNavigate={handleNavigate}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* デスクトップ表示時: 従来のレイアウト */}
       <div className="columns is-desktop" style={{ marginTop: '1rem' }}>
-        <div className="column is-4-desktop is-12-tablet">
+        <div className="column is-4-desktop is-12-tablet is-hidden-mobile">
           <DateSelector
             years={years}
             months={months}
@@ -250,6 +291,39 @@ const App: React.FC = () => {
             />
           )}
         </div>
+      </div>
+
+      {/* モバイル表示時: DateSelectorとFileListを画像の下に配置 */}
+      <div className="is-hidden-tablet" style={{ marginTop: '1rem' }}>
+        <DateSelector
+          years={years}
+          months={months}
+          days={days}
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          selectedDay={selectedDay}
+          onYearChange={handleYearChange}
+          onMonthChange={handleMonthChange}
+          onDayChange={handleDayChange}
+          loading={loading}
+          currentScreenshot={currentScreenshot}
+          allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+          onNavigate={handleNavigate}
+        />
+
+        <div className="box">
+          <h2 className="title is-5">📊 統計情報</h2>
+          <div className="content">
+            <p>全スクリーンショット数: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
+            <p>フィルタ後: <strong>{filteredScreenshots.length.toLocaleString()}</strong></p>
+          </div>
+        </div>
+
+        <FileList
+          allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+          currentImage={currentScreenshot}
+          onImageSelect={handleNavigate}
+        />
       </div>
 
       <Footer />
