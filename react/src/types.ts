@@ -1,28 +1,28 @@
 export interface Screenshot {
-  filename: string;
-  prefix: string;
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-  second: number;
-  timestamp: string;
+    filename: string;
+    prefix: string;
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    second: number;
+    timestamp: string;
 }
 
 export interface ScreenshotListResponse {
-  screenshots: Screenshot[];
-  total: number;
+    screenshots: Screenshot[];
+    total: number;
 }
 
 export interface YearsResponse {
-  years: number[];
+    years: number[];
 }
 
 export interface MonthsResponse {
-  months: number[];
+    months: number[];
 }
 
 export interface DaysResponse {
-  days: number[];
+    days: number[];
 }

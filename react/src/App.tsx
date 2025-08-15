@@ -10,15 +10,15 @@ const App: React.FC = () => {
   const [years, setYears] = useState<number[]>([]);
   const [months, setMonths] = useState<number[]>([]);
   const [days, setDays] = useState<number[]>([]);
-  
+
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  
+
   const [allScreenshots, setAllScreenshots] = useState<Screenshot[]>([]);
   const [filteredScreenshots, setFilteredScreenshots] = useState<Screenshot[]>([]);
   const [currentScreenshot, setCurrentScreenshot] = useState<Screenshot | null>(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,11 +62,11 @@ const App: React.FC = () => {
         screenshotApi.getAllScreenshots(),
         screenshotApi.getYears()
       ]);
-      
+
       console.log('API Response - Screenshots:', screenshotsData.length, 'Years:', yearsData);
       setAllScreenshots(screenshotsData);
       setYears(yearsData);
-      
+
       // Set the latest screenshot as current
       if (screenshotsData.length > 0) {
         setCurrentScreenshot(screenshotsData[0]);
@@ -106,7 +106,7 @@ const App: React.FC = () => {
 
   const filterScreenshots = () => {
     let filtered = [...allScreenshots];
-    
+
     if (selectedYear) {
       filtered = filtered.filter(s => s.year === selectedYear);
     }
@@ -116,9 +116,9 @@ const App: React.FC = () => {
     if (selectedDay) {
       filtered = filtered.filter(s => s.day === selectedDay);
     }
-    
+
     setFilteredScreenshots(filtered);
-    
+
     // Update current screenshot if it's not in filtered list
     if (filtered.length > 0 && (!currentScreenshot || !filtered.includes(currentScreenshot))) {
       setCurrentScreenshot(filtered[0]);
@@ -163,8 +163,8 @@ const App: React.FC = () => {
         </div>
         <div className="navbar-end">
           <div className="navbar-item">
-            <button 
-              className="button is-light" 
+            <button
+              className="button is-light"
               onClick={handleRefresh}
               disabled={loading}
             >
@@ -201,7 +201,7 @@ const App: React.FC = () => {
             allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
             onNavigate={handleNavigate}
           />
-          
+
           <div className="box">
             <h2 className="title is-5">📊 統計情報</h2>
             <div className="content">

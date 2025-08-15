@@ -26,14 +26,14 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 }) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
-      const currentIndex = currentImage 
+      const currentIndex = currentImage
         ? allImages.findIndex(img => img.filename === currentImage.filename)
         : -1;
       if (currentIndex > 0) {
         onNavigate(allImages[currentIndex - 1]);
       }
     } else if (e.key === 'ArrowRight') {
-      const currentIndex = currentImage 
+      const currentIndex = currentImage
         ? allImages.findIndex(img => img.filename === currentImage.filename)
         : -1;
       if (currentIndex < allImages.length - 1) {
@@ -55,10 +55,10 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     const localDate = utcDate.local();
     const now = dayjs();
     const relativeTimeStr = localDate.from(now);
-    
+
     // 2005年2月1日 01時02分34秒 の形式
     const formatted = localDate.format('YYYY年M月D日 HH時mm分ss秒');
-    
+
     return {
       formatted,
       relative: relativeTimeStr
@@ -66,7 +66,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   };
 
   const dateTime = formatDateTime(currentImage);
-  
+
   return (
     <div className="box" onKeyDown={handleKeyDown} tabIndex={0}>
       <div className="level is-mobile">
@@ -91,8 +91,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
       <div className="image-container" style={{ position: 'relative', marginBottom: '1rem' }}>
         <figure className="image">
-          <img 
-            src={screenshotApi.getImageUrl(currentImage.filename)} 
+          <img
+            src={screenshotApi.getImageUrl(currentImage.filename)}
             alt={currentImage.filename}
             style={{ maxWidth: '100%', height: 'auto' }}
           />

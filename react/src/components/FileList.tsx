@@ -29,33 +29,33 @@ const FileList: React.FC<FileListProps> = ({
   // スクロール関数を定義
   const scrollToCurrentItem = (immediate = false) => {
     if (!currentImage || !containerRef.current) return;
-    
+
     const timer = setTimeout(() => {
       const container = containerRef.current;
       if (!container) return;
-      
+
       // 現在の画像のインデックスを取得
       const currentIndex = allImages.findIndex(img => img.filename === currentImage.filename);
       if (currentIndex === -1) return;
-      
+
       // 実際のDOM要素から高さを取得
       const firstItem = container.querySelector('.file-list-item') as HTMLElement;
       const itemHeight = firstItem ? firstItem.offsetHeight : 60;
-      
+
       const targetScrollTop = currentIndex * itemHeight;
-      
+
       // コンテナの中央に来るように調整
       const containerHeight = container.clientHeight;
       const centeredScrollTop = targetScrollTop - (containerHeight / 2) + (itemHeight / 2);
-      
+
       console.log('Scrolling to index:', currentIndex, 'filename:', currentImage.filename, 'itemHeight:', itemHeight, 'scrollTop:', centeredScrollTop);
-      
+
       container.scrollTo({
         top: Math.max(0, centeredScrollTop),
         behavior: immediate ? 'auto' : 'smooth'
       });
     }, immediate ? 0 : 100);
-    
+
     return () => clearTimeout(timer);
   };
 
@@ -73,7 +73,7 @@ const FileList: React.FC<FileListProps> = ({
       const timer = setTimeout(() => {
         scrollToCurrentItem(true);
       }, 200); // より長い遅延で確実にレンダリング完了を待つ
-      
+
       return () => clearTimeout(timer);
     }
   }, [allImages.length]); // allImagesが設定された時
@@ -83,10 +83,10 @@ const FileList: React.FC<FileListProps> = ({
     const localDate = utcDate.local();
     const now = dayjs();
     const relativeTimeStr = localDate.from(now);
-    
+
     // 簡潔な表示: MM/DD HH:mm:ss
     const formatted = localDate.format('MM/DD HH:mm:ss');
-    
+
     return {
       formatted,
       relative: relativeTimeStr
@@ -120,11 +120,11 @@ const FileList: React.FC<FileListProps> = ({
   return (
     <div className="box">
       <h2 className="title is-5">📄 ファイル一覧</h2>
-      <div 
+      <div
         ref={containerRef}
         className="file-list-container"
-        style={{ 
-          height: '400px', 
+        style={{
+          height: '400px',
           overflowY: 'auto',
           border: '1px solid #dbdbdb',
           borderRadius: '4px'
@@ -133,7 +133,7 @@ const FileList: React.FC<FileListProps> = ({
         {allImages.map((image, index) => {
           const isCurrentImage = currentImage?.filename === image.filename;
           const dateTime = formatFileDateTime(image);
-          
+
           return (
             <div
               key={image.filename}
@@ -173,10 +173,10 @@ const FileList: React.FC<FileListProps> = ({
                       <span className="has-text-weight-semibold" style={{ fontSize: '0.85rem' }}>
                         {dateTime.formatted}
                       </span>
-                      <span 
-                        style={{ 
-                          fontSize: '0.7rem', 
-                          opacity: 0.7, 
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          opacity: 0.7,
                           marginLeft: '0.25rem',
                           color: isCurrentImage ? 'rgba(255,255,255,0.8)' : '#666'
                         }}
@@ -184,9 +184,9 @@ const FileList: React.FC<FileListProps> = ({
                         ({dateTime.relative})
                       </span>
                     </div>
-                    <span 
+                    <span
                       className="tag is-small"
-                      style={{ 
+                      style={{
                         backgroundColor: isCurrentImage ? 'rgba(255,255,255,0.2)' : '#e8e8e8',
                         color: isCurrentImage ? 'white' : 'inherit'
                       }}

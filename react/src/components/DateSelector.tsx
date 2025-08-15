@@ -37,7 +37,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
     '7月', '8月', '9月', '10月', '11月', '12月'
   ];
 
-  const currentIndex = currentScreenshot 
+  const currentIndex = currentScreenshot
     ? allImages.findIndex(img => img.filename === currentScreenshot.filename)
     : -1;
 
@@ -60,7 +60,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
         <h2 className="title is-5">🎮 ナビゲーション</h2>
         <div className="field is-grouped is-grouped-centered">
           <p className="control">
-            <button 
+            <button
               className="button is-info"
               onClick={handlePrevious}
               disabled={currentIndex <= 0 || loading}
@@ -77,7 +77,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
             </span>
           </p>
           <p className="control">
-            <button 
+            <button
               className="button is-info"
               onClick={handleNext}
               disabled={currentIndex >= allImages.length - 1 || loading}
@@ -94,7 +94,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
       {/* 日付フィルタ */}
       <div className="box">
         <h2 className="title is-5">📅 日付フィルタ</h2>
-      
+
       {/* Year Selector */}
       <div className="field">
         <label className="label">年</label>
