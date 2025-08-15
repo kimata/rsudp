@@ -54,6 +54,10 @@ RUN jq '.settings.station = "Shake" \
  && mv /tmp/rsudp_settings.json /home/ubuntu/.config/rsudp/rsudp_settings.json
 
 # NOTE: 以下はビューワー用
+RUN mkdir webui
+
+WORKDIR /opt/webui
+
 ENV PATH="/home/ubuntu/.local/bin:$PATH"
 ENV UV_LINK_MODE=copy \
     UV_NO_SYNC=1
@@ -81,4 +85,5 @@ EXPOSE 8888/udp
 EXPOSE 5000
 
 # NOTE: デフォルトでは rsudp を実行
+WORKDIR /opt
 CMD ["bash", "rsudp/unix-start-rsudp.sh"]
