@@ -29,8 +29,6 @@ WORKDIR /opt
 RUN chown ubuntu:ubuntu /opt
 
 USER ubuntu
-
-
 ARG RSUDP_COMMIT=e4bf7abbbe4db4e70e04150d436e7d68dd16312a
 
 RUN git clone https://github.com/raspishake/rsudp.git \
@@ -55,6 +53,32 @@ RUN jq '.settings.station = "Shake" \
     /home/ubuntu/.config/rsudp/rsudp_settings.json > /tmp/rsudp_settings.json \
  && mv /tmp/rsudp_settings.json /home/ubuntu/.config/rsudp/rsudp_settings.json
 
-EXPOSE 8888/udp
+# NOTE: 以下はビューワー用
+ENV PATH="/home/ubuntu/.local/bin:$PATH"
+ENV UV_LINK_MODE=copy \
+    UV_NO_SYNC=1
 
+# ubuntu ユーザーで uv をインストール
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+RUN --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=.python-version,target=.python-version \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=README.md,target=README.md \
+    --mount=type=cache,target=/home/ubuntu/.cache/uv,uid=1000,gid=1000 \
+    uv sync --no-install-project --no-editable --no-group dev --compile-bytecode
+
+ARG IMAGE_BUILD_DATE
+ENV IMAGE_BUILD_DATE=${IMAGE_BUILD_DATE}
+
+COPY --chown=ubuntu:ubuntu . .
+
+# プロジェクトをインストール
+RUN --mount=type=cache,target=/home/ubuntu/.cache/uv,uid=1000,gid=1000 \
+    uv sync --no-group dev --compile-bytecode
+
+EXPOSE 8888/udp
+EXPOSE 5000
+
+# NOTE: デフォルトでは rsudp を実行
 CMD ["bash", "rsudp/unix-start-rsudp.sh"]
