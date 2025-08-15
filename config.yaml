@@ -1,0 +1,6 @@
+plot:
+  screenshot:
+    path: data/screenshots
+
+webapp:
+    static_dir_path: react/dist

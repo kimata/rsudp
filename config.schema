@@ -1,0 +1,40 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "plot": {
+            "type": "object",
+            "properties": {
+                "screenshot": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "path"
+                    ]
+                }
+            },
+            "required": [
+                "screenshot"
+            ]
+        },
+        "webapp": {
+            "type": "object",
+            "properties": {
+                "static_dir_path": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "static_dir_path"
+            ]
+        }
+    },
+    "required": [
+        "plot",
+        "webapp"
+    ]
+}
