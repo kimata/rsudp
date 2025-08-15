@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ja';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -26,24 +26,76 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 }) => {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [preloadedImages, setPreloadedImages] = useState<Map<string, HTMLImageElement>>(new Map());
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const currentImageRef = useRef<HTMLImageElement>(null);
+
+  // 画像の事前読み込み
+  const preloadImage = (filename: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = screenshotApi.getImageUrl(filename);
+    });
+  };
+
+  // 隣接する画像を事前読み込み
+  useEffect(() => {
+    if (!currentImage || allImages.length === 0) return;
+
+    const currentIndex = allImages.findIndex(img => img.filename === currentImage.filename);
+    const imagesToPreload: string[] = [];
+
+    // 前後の画像を事前読み込み対象に追加
+    if (currentIndex > 0) {
+      imagesToPreload.push(allImages[currentIndex - 1].filename);
+    }
+    if (currentIndex < allImages.length - 1) {
+      imagesToPreload.push(allImages[currentIndex + 1].filename);
+    }
+
+    // 事前読み込み実行
+    imagesToPreload.forEach(async (filename) => {
+      if (!preloadedImages.has(filename)) {
+        try {
+          const img = await preloadImage(filename);
+          setPreloadedImages(prev => new Map(prev).set(filename, img));
+        } catch (error) {
+          console.warn('Failed to preload image:', filename, error);
+        }
+      }
+    });
+  }, [currentImage, allImages, preloadedImages]);
 
   const handleImageLoad = () => {
     setImageLoading(false);
     setImageError(false);
+    setIsTransitioning(false);
   };
 
   const handleImageError = () => {
     setImageLoading(false);
     setImageError(true);
+    setIsTransitioning(false);
   };
 
-  // Reset loading state when current image changes
-  React.useEffect(() => {
+  // 現在の画像が変更された時の処理
+  useEffect(() => {
     if (currentImage) {
-      setImageLoading(true);
-      setImageError(false);
+      // 事前読み込み済みの場合は即座に表示
+      if (preloadedImages.has(currentImage.filename)) {
+        setImageLoading(false);
+        setImageError(false);
+        setIsTransitioning(false);
+      } else {
+        // 未読み込みの場合は読み込み状態に
+        setImageLoading(true);
+        setImageError(false);
+        setIsTransitioning(true);
+      }
     }
-  }, [currentImage]);
+  }, [currentImage, preloadedImages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
@@ -111,8 +163,20 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       </div>
 
       <div className="image-container" style={{ position: 'relative', marginBottom: '1rem', minHeight: '400px' }}>
-        {imageLoading && (
-          <div className="has-text-centered" style={{ padding: '2rem' }}>
+        {(imageLoading || isTransitioning) && (
+          <div
+            className="has-text-centered"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 2,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              padding: '2rem'
+            }}
+          >
             <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
               <div>
                 <span className="icon is-large">
@@ -124,7 +188,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           </div>
         )}
 
-        {imageError && !imageLoading && (
+        {imageError && !imageLoading && !isTransitioning && (
           <div className="has-text-centered" style={{ padding: '2rem' }}>
             <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
               <div>
@@ -138,6 +202,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                   onClick={() => {
                     setImageLoading(true);
                     setImageError(false);
+                    setIsTransitioning(true);
                   }}
                 >
                   <span className="icon">
@@ -150,17 +215,27 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           </div>
         )}
 
-        {!imageError && (
-          <figure className="image" style={{ display: imageLoading ? 'none' : 'block' }}>
-            <img
-              src={screenshotApi.getImageUrl(currentImage.filename)}
-              alt={currentImage.filename}
-              style={{ maxWidth: '100%', height: 'auto' }}
-              onLoad={handleImageLoad}
-              onError={handleImageError}
-            />
-          </figure>
-        )}
+        <figure
+          className="image"
+          style={{
+            opacity: (imageLoading || isTransitioning) ? 0.3 : 1,
+            transition: 'opacity 0.2s ease-in-out',
+            minHeight: '300px'
+          }}
+        >
+          <img
+            ref={currentImageRef}
+            src={screenshotApi.getImageUrl(currentImage.filename)}
+            alt={currentImage.filename}
+            style={{
+              maxWidth: '100%',
+              height: 'auto',
+              display: 'block'
+            }}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+        </figure>
       </div>
 
       <div className="content is-small has-text-centered" style={{ marginTop: '1rem' }}>
