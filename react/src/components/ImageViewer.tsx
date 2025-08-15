@@ -30,7 +30,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const currentImageRef = useRef<HTMLImageElement>(null);
-  const imageContainerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
 
@@ -131,37 +130,25 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     }
   };
 
-  // 全画面表示の切り替え
+  // 全画面表示の切り替え（シンプルな実装に変更）
   const toggleFullscreen = (e?: React.MouseEvent) => {
-    // イベントの伝播を停止
     e?.stopPropagation();
-
-    if (!document.fullscreenElement) {
-      if (imageContainerRef.current?.requestFullscreen) {
-        imageContainerRef.current.requestFullscreen().catch(err => {
-          console.error('Fullscreen error:', err);
-        });
-        setIsFullscreen(true);
-      }
-    } else {
-      document.exitFullscreen().catch(err => {
-        console.error('Exit fullscreen error:', err);
-      });
-      setIsFullscreen(false);
-    }
+    setIsFullscreen(!isFullscreen);
   };
 
-  // 全画面状態の監視
+  // ESCキーで全画面解除
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleEsc);
+      return () => document.removeEventListener('keydown', handleEsc);
+    }
+  }, [isFullscreen]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
@@ -181,7 +168,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         onNavigate(allImages[currentIndex + 1]);
       }
     } else if (e.key === 'Escape' && isFullscreen) {
-      document.exitFullscreen();
+      setIsFullscreen(false);
     } else if (e.key === 'f' || e.key === 'F') {
       toggleFullscreen();
     }
@@ -213,6 +200,44 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   const dateTime = formatDateTime(currentImage);
 
+  // 全画面表示時は別の構造で表示
+  if (isFullscreen) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: '#000',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+      >
+        <img
+          src={screenshotApi.getImageUrl(currentImage.filename)}
+          alt={currentImage.filename}
+          style={{
+            maxWidth: '95%',
+            maxHeight: '95vh',
+            width: 'auto',
+            height: 'auto',
+            objectFit: 'contain',
+            cursor: 'pointer'
+          }}
+          onClick={(e) => toggleFullscreen(e)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="box" onKeyDown={handleKeyDown} tabIndex={0}>
       <div className="level is-mobile">
@@ -236,15 +261,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       </div>
 
       <div
-        ref={imageContainerRef}
         className="image-container"
         style={{
           position: 'relative',
           marginBottom: '1rem',
           minHeight: '400px',
-          backgroundColor: isFullscreen ? '#000' : 'transparent',
-          width: '100%',
-          boxSizing: 'border-box'
+          width: '100%'
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
