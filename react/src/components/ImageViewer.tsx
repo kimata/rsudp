@@ -216,9 +216,16 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           zIndex: 9999,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          cursor: 'pointer'
         }}
         onKeyDown={handleKeyDown}
+        onClick={(e) => {
+          // 背景クリックで全画面解除
+          if (e.target === e.currentTarget) {
+            setIsFullscreen(false);
+          }
+        }}
         tabIndex={0}
       >
         <img
@@ -230,9 +237,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             width: 'auto',
             height: 'auto',
             objectFit: 'contain',
-            cursor: 'pointer'
+            cursor: 'zoom-out'
           }}
-          onClick={(e) => toggleFullscreen(e)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsFullscreen(false);
+          }}
         />
       </div>
     );
@@ -329,12 +339,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             opacity: (imageLoading || isTransitioning) ? 0.3 : 1,
             transition: 'opacity 0.2s ease-in-out',
             minHeight: '300px',
-            cursor: 'pointer',
+            cursor: 'zoom-in',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            height: isFullscreen ? '100vh' : 'auto',
-            overflow: isFullscreen ? 'auto' : 'visible',
+            height: 'auto',
+            overflow: 'visible',
             width: '100%'
           }}
           onClick={(e) => toggleFullscreen(e)}
@@ -344,9 +354,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             src={screenshotApi.getImageUrl(currentImage.filename)}
             alt={currentImage.filename}
             style={{
-              maxWidth: isFullscreen ? '95%' : '100%',
-              maxHeight: isFullscreen ? '95vh' : 'auto',
-              width: 'auto',
+              maxWidth: '100%',
               height: 'auto',
               display: 'block',
               margin: '0 auto',
