@@ -244,6 +244,12 @@ const App: React.FC = () => {
             onNavigate={handleNavigate}
           />
 
+          <FileList
+            allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+            currentImage={currentScreenshot}
+            onImageSelect={handleNavigate}
+          />
+
           <div className="box">
             <h2 className="title is-5">📊 統計情報</h2>
             <div className="content">
@@ -251,12 +257,6 @@ const App: React.FC = () => {
               <p>フィルタ後: <strong>{filteredScreenshots.length.toLocaleString()}</strong></p>
             </div>
           </div>
-
-          <FileList
-            allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
-            currentImage={currentScreenshot}
-            onImageSelect={handleNavigate}
-          />
         </div>
 
         <div className="column is-8-desktop is-12-tablet">
@@ -311,6 +311,12 @@ const App: React.FC = () => {
           onNavigate={handleNavigate}
         />
 
+        <FileList
+          allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+          currentImage={currentScreenshot}
+          onImageSelect={handleNavigate}
+        />
+
         <div className="box">
           <h2 className="title is-5">📊 統計情報</h2>
           <div className="content">
@@ -318,12 +324,6 @@ const App: React.FC = () => {
             <p>フィルタ後: <strong>{filteredScreenshots.length.toLocaleString()}</strong></p>
           </div>
         </div>
-
-        <FileList
-          allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
-          currentImage={currentScreenshot}
-          onImageSelect={handleNavigate}
-        />
       </div>
 
       <Footer />
