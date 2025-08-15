@@ -220,11 +220,27 @@ const App: React.FC = () => {
 
         <div className="column is-8-desktop is-12-tablet">
           {loading && !currentScreenshot ? (
-            <div className="box has-text-centered">
-              <span className="icon is-large">
-                <i className="fas fa-spinner fa-pulse fa-3x"></i>
-              </span>
-              <p className="subtitle" style={{ marginTop: '1rem' }}>⏳ スクリーンショットを読み込み中...</p>
+            <div className="box has-text-centered" style={{ minHeight: '400px' }}>
+              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
+                <div>
+                  <span className="icon is-large">
+                    <i className="fas fa-spinner fa-pulse fa-3x"></i>
+                  </span>
+                  <p className="subtitle" style={{ marginTop: '1rem' }}>⏳ スクリーンショットを読み込み中...</p>
+                </div>
+              </div>
+            </div>
+          ) : !currentScreenshot && allScreenshots.length === 0 && !loading ? (
+            <div className="box has-text-centered" style={{ minHeight: '400px' }}>
+              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
+                <div>
+                  <span className="icon is-large has-text-grey">
+                    <i className="fas fa-camera fa-3x"></i>
+                  </span>
+                  <p className="subtitle mt-3">📸 スクリーンショットがありません</p>
+                  <p className="is-size-7 has-text-grey">地震データが記録されるとここに表示されます</p>
+                </div>
+              </div>
             </div>
           ) : (
             <ImageViewer

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ja';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -24,6 +24,27 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   allImages,
   onNavigate,
 }) => {
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    setImageLoading(false);
+    setImageError(true);
+  };
+
+  // Reset loading state when current image changes
+  React.useEffect(() => {
+    if (currentImage) {
+      setImageLoading(true);
+      setImageError(false);
+    }
+  }, [currentImage]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
       const currentIndex = currentImage
@@ -89,14 +110,57 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         </div>
       </div>
 
-      <div className="image-container" style={{ position: 'relative', marginBottom: '1rem' }}>
-        <figure className="image">
-          <img
-            src={screenshotApi.getImageUrl(currentImage.filename)}
-            alt={currentImage.filename}
-            style={{ maxWidth: '100%', height: 'auto' }}
-          />
-        </figure>
+      <div className="image-container" style={{ position: 'relative', marginBottom: '1rem', minHeight: '400px' }}>
+        {imageLoading && (
+          <div className="has-text-centered" style={{ padding: '2rem' }}>
+            <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
+              <div>
+                <span className="icon is-large">
+                  <i className="fas fa-spinner fa-pulse fa-3x"></i>
+                </span>
+                <p className="subtitle mt-3">⏳ 画像を読み込み中...</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {imageError && !imageLoading && (
+          <div className="has-text-centered" style={{ padding: '2rem' }}>
+            <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
+              <div>
+                <span className="icon is-large has-text-danger">
+                  <i className="fas fa-exclamation-triangle fa-3x"></i>
+                </span>
+                <p className="subtitle mt-3">❌ 画像の読み込みに失敗しました</p>
+                <p className="is-size-7 has-text-grey">ファイル: {currentImage.filename}</p>
+                <button
+                  className="button is-small is-primary mt-2"
+                  onClick={() => {
+                    setImageLoading(true);
+                    setImageError(false);
+                  }}
+                >
+                  <span className="icon">
+                    <i className="fas fa-redo"></i>
+                  </span>
+                  <span>再試行</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!imageError && (
+          <figure className="image" style={{ display: imageLoading ? 'none' : 'block' }}>
+            <img
+              src={screenshotApi.getImageUrl(currentImage.filename)}
+              alt={currentImage.filename}
+              style={{ maxWidth: '100%', height: 'auto' }}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+            />
+          </figure>
+        )}
       </div>
 
       <div className="content is-small has-text-centered" style={{ marginTop: '1rem' }}>
