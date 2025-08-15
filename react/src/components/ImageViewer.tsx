@@ -89,13 +89,13 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         setImageError(false);
         setIsTransitioning(false);
       } else {
-        // 未読み込みの場合は読み込み状態に
+        // 未読み込みの場合は読み込み状態に（初期表示時は transitioningを使わない）
         setImageLoading(true);
         setImageError(false);
-        setIsTransitioning(true);
+        // setIsTransitioning(false); は現在の値を保持
       }
     }
-  }, [currentImage, preloadedImages]);
+  }, [currentImage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
@@ -103,6 +103,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         ? allImages.findIndex(img => img.filename === currentImage.filename)
         : -1;
       if (currentIndex > 0) {
+        setIsTransitioning(true); // ナビゲーション時のみtransitioningを設定
         onNavigate(allImages[currentIndex - 1]);
       }
     } else if (e.key === 'ArrowRight') {
@@ -110,6 +111,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         ? allImages.findIndex(img => img.filename === currentImage.filename)
         : -1;
       if (currentIndex < allImages.length - 1) {
+        setIsTransitioning(true); // ナビゲーション時のみtransitioningを設定
         onNavigate(allImages[currentIndex + 1]);
       }
     }
