@@ -33,6 +33,7 @@ Raspberry Shake の地震データをリアルタイムで監視・解析する�
 - 🔔 **アラート機能** - 地震検知時の自動通知
 - 💾 **データ記録** - miniSEED形式でのデータ保存
 - 📱 **SNS連携** - Twitter/Telegram通知対応
+- 🖼️ **Web画像ビューワー** - React製のスクリーンショット閲覧インターface
 
 ## 🖼️ スクリーンショット
 
@@ -50,9 +51,11 @@ flowchart TD
     DC --> ALERT[🚨 Alert Module<br/>地震検知]
     DC --> WRITE[💾 Writer Module<br/>データ記録]
     DC --> NOTIF[📱 Notification<br/>Twitter/Telegram]
+    DC --> WEBUI[🌐 Web UI<br/>Flask API + React]
 
     WRITE --> OUTPUT[📁 /opt/rsudp/data<br/>miniSEEDファイル]
     PLOT --> IMGS[🖼️ スクリーンショット<br/>PNG画像]
+    WEBUI --> VIEWER[📱 Screenshot Viewer<br/>日付フィルタ・ナビゲーション]
 
     subgraph "🐋 Docker Environment"
         DC
@@ -60,11 +63,16 @@ flowchart TD
         ALERT
         WRITE
         NOTIF
+        WEBUI
     end
 
     subgraph "💾 Data Output"
         OUTPUT
         IMGS
+    end
+
+    subgraph "🌐 Web Interface"
+        VIEWER
     end
 ```
 
@@ -97,8 +105,8 @@ docker build -t rsudp .
 # フォアグラウンドで実行
 docker run --rm -p 8888:8888/udp -v $(pwd)/data:/opt/rsudp/data rsudp
 
-# バックグラウンドで実行
-docker run -d --name rsudp-monitor -p 8888:8888/udp -v $(pwd)/data:/opt/rsudp/data rsudp
+# Web UIポートも公開してバックグラウンドで実行
+docker run -d --name rsudp-monitor -p 8888:8888/udp -p 5000:5000 -v $(pwd)/data:/opt/rsudp/data rsudp
 
 # ログの確認
 docker logs -f rsudp-monitor
@@ -119,8 +127,8 @@ docker stop rsudp-monitor
 カスタム設定で実行する場合：
 
 ```bash
-# 設定ファイルをマウントして実行
-docker run --rm -p 8888:8888/udp \
+# 設定ファイルをマウントして実行（Web UIポート含む）
+docker run --rm -p 8888:8888/udp -p 5000:5000 \
   -v $(pwd)/data:/opt/rsudp/data \
   -v $(pwd)/custom_settings.json:/root/.config/rsudp/rsudp_settings.json \
   rsudp
@@ -134,6 +142,19 @@ docker run --rm -p 8888:8888/udp \
 - **スクリーンショット**: 地震検知時に `./data/` に PNG 形式で保存
 - **ログファイル**: コンテナログとして出力
 
+### Web画像ビューワー
+
+スクリーンショットをブラウザで閲覧できるWebインターフェースが利用可能です：
+
+- **アクセス**: `http://localhost:5000/rsudp` （コンテナ起動時にポート5000を公開）
+- **機能**:
+    - 年/月/日による階層的日付フィルタリング
+    - ファイル名パース（PREFIX-YYYY-MM-DD-HHMMSS.png形式）
+    - 相対時間表示（「1日前」等）
+    - 矢印キーによるナビゲーション
+    - レスポンシブデザイン（PC・モバイル対応）
+- **技術**: React + TypeScript + Bulma CSS + Flask API
+
 ### ファイル名の形式
 
 ```
@@ -142,8 +163,9 @@ AM_R503C_00_EHZ.ms  # Z軸（垂直）成分
 AM_R503C_00_EHE.ms  # E軸（東西）成分
 AM_R503C_00_EHN.ms  # N軸（南北）成分
 
-# スクリーンショット
-R503C-2024-01-15-143052.png  # 日時付きファイル名
+# スクリーンショット（Web画像ビューワー対応形式）
+SHAKE-2025-08-15-104524.png  # PREFIX-YYYY-MM-DD-HHMMSS.png
+ALERT-2025-08-14-091523.png  # イベントタイプ別プレフィックス
 ```
 
 ## 🔧 カスタマイズ
