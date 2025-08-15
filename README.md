@@ -37,7 +37,7 @@ Raspberry Shake の地震データをリアルタイムで監視・解析する�
 
 ## 🖼️ スクリーンショット
 
-![rsudp Plot](https://raw.githubusercontent.com/raspishake/rsudp/master/docs/_static/4d-event.png)
+![rsudp Plot](img/screenshot.png)
 
 _Raspberry Shake 4Dで記録された地震波形の例_
 

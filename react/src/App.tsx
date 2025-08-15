@@ -4,6 +4,7 @@ import { screenshotApi } from './api';
 import DateSelector from './components/DateSelector';
 import ImageViewer from './components/ImageViewer';
 import FileList from './components/FileList';
+import Footer from './components/Footer';
 import 'bulma/css/bulma.min.css';
 
 const App: React.FC = () => {
@@ -234,6 +235,8 @@ const App: React.FC = () => {
           )}
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 };

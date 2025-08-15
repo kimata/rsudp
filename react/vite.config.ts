@@ -5,6 +5,9 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
     base: "/rsudp",
     plugins: [react()],
+    define: {
+        "import.meta.env.VITE_BUILD_DATE": JSON.stringify(new Date().toISOString()),
+    },
     server: {
         proxy: {
             "/rsudp/api/screenshot": {
