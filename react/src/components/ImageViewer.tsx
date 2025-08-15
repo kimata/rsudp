@@ -322,7 +322,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            height: isFullscreen ? '100vh' : 'auto'
+            height: isFullscreen ? '100vh' : 'auto',
+            overflow: isFullscreen ? 'auto' : 'visible'
           }}
           onClick={toggleFullscreen}
         >
@@ -331,11 +332,14 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             src={screenshotApi.getImageUrl(currentImage.filename)}
             alt={currentImage.filename}
             style={{
-              maxWidth: '100%',
-              maxHeight: isFullscreen ? '100vh' : 'auto',
+              maxWidth: isFullscreen ? '95%' : '100%',
+              maxHeight: isFullscreen ? '95vh' : 'auto',
+              width: 'auto',
               height: 'auto',
               display: 'block',
-              margin: '0 auto'
+              margin: '0 auto',
+              objectFit: 'contain',
+              touchAction: 'manipulation'
             }}
             onLoad={handleImageLoad}
             onError={handleImageError}

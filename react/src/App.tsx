@@ -226,8 +226,8 @@ const App: React.FC = () => {
       </div>
 
       {/* デスクトップ表示時: 従来のレイアウト */}
-      <div className="columns is-desktop" style={{ marginTop: '1rem' }}>
-        <div className="column is-4-desktop is-12-tablet is-hidden-mobile">
+      <div className="columns is-desktop is-hidden-touch" style={{ marginTop: '1rem' }}>
+        <div className="column is-4-desktop is-12-tablet">
           <DateSelector
             years={years}
             months={months}
