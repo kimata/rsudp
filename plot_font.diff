@@ -1,8 +1,8 @@
 diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
-index 2187ba2..037d2e8 100644
+index 2187ba2..2c98eb3 100644
 --- a/rsudp/c_plots.py
 +++ b/rsudp/c_plots.py
-@@ -47,7 +47,81 @@ try:
+@@ -47,7 +47,75 @@ try:
      import matplotlib.image as mpimg
      from matplotlib import rcParams
      from matplotlib.ticker import EngFormatter
@@ -13,18 +13,12 @@ index 2187ba2..037d2e8 100644
 +    
 +    # Set default font to FrutigerNeueLTW1G-Medium with fallbacks
 +    try:
-+        # Clear matplotlib font cache to ensure fresh font detection
-+        import shutil
-+        cache_dir = fm.get_cachedir()
-+        if os.path.exists(cache_dir):
-+            try:
-+                shutil.rmtree(cache_dir)
-+                printM('Cleared matplotlib font cache', 'Plot')
-+            except:
-+                pass
-+        
 +        # Refresh font cache to ensure newly installed fonts are available
-+        fm._rebuild()
++        try:
++            fm._rebuild()
++            printM('Refreshed matplotlib font cache', 'Plot')
++        except Exception as rebuild_error:
++            printM(f'Font cache rebuild warning: {rebuild_error}', 'Plot')
 +        
 +        # Search for the desired font in system fonts
 +        font_found = False
