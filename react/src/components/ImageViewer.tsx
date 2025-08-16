@@ -16,7 +16,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   allImages,
   onNavigate,
 }) => {
-  const [imageLoading, setImageLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [preloadedImages, setPreloadedImages] = useState<Map<string, HTMLImageElement>>(new Map());
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -90,11 +90,16 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         setImageError(false);
         setIsTransitioning(false);
       } else {
-        // 未読み込みの場合は読み込み状態に（初期表示時は transitioningを使わない）
+        // 未読み込みの場合は読み込み状態に
         setImageLoading(true);
         setImageError(false);
-        // setIsTransitioning(false); は現在の値を保持
+        setIsTransitioning(false);
       }
+    } else {
+      // currentImageがnullの場合はローディング状態をリセット
+      setImageLoading(false);
+      setImageError(false);
+      setIsTransitioning(false);
     }
   }, [currentImage]);
 
@@ -201,7 +206,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       >
         <img
           src={screenshotApi.getImageUrl(currentImage.filename)}
-          alt={currentImage.filename}
+          alt={currentImage.filename.replace(/\.[^.]*$/, '')}
           style={{
             maxWidth: '95%',
             maxHeight: '95vh',
@@ -322,7 +327,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           <img
             ref={currentImageRef}
             src={screenshotApi.getImageUrl(currentImage.filename)}
-            alt={currentImage.filename}
+            alt={currentImage.filename.replace(/\.[^.]*$/, '')}
             style={{
               maxWidth: '100%',
               height: 'auto',
