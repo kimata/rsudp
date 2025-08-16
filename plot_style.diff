@@ -24,7 +24,7 @@ index 2187ba2..3fb601d 100644
          else:
              h = self.fig.get_size_inches()[1] * self.fig.dpi
 -        plt.tight_layout(pad=0, h_pad=0.1, w_pad=0, rect=[0.02, 0.01, 0.98, 0.90 + 0.045 * (h / 1080)])  # [left, bottom, right, top]
-+        plt.tight_layout(pad=0, h_pad=0.1, w_pad=0, rect=[0.02, 0.01, 0.98, 0.95 + 0.015 * (h / 1080)])  # [left, bottom, right, top]
++        plt.tight_layout(pad=0, h_pad=0.1, w_pad=0, rect=[0.02, 0.01, 0.98, 0.94 + 0.015 * (h / 1080)])  # [left, bottom, right, top]
  
      def deconvolve(self):
          '''
@@ -33,7 +33,7 @@ index 2187ba2..3fb601d 100644
          Sets the figure title back to something that makes sense for the live viewer.
          '''
 -        self.fig.suptitle(f'Raspberry Shake {self.stn} Live Data - Detected Events: {events}', fontsize=14, color=self.fgcolor, x=0.52)
-+        self.fig.suptitle(f'Raspberry Shake {self.stn} Live Data - Detected Events: {events}', fontsize=14, color=self.fgcolor, x=0.52, y=0.987)
++        self.fig.suptitle(f'Raspberry Shake {self.stn} Live Data - Detected Events: {events}', fontsize=14, color=self.fgcolor, x=0.52, y=0.975)
  
      def setup_fig_manager(self):
          '''
@@ -42,7 +42,7 @@ index 2187ba2..3fb601d 100644
          # temporarily set title for this event
          self.fig.suptitle(f'{self.stn} Detected Event - {title_time_str} UTC',
 -                        fontsize=14, color=self.fgcolor, x=0.52)
-+                        fontsize=14, color=self.fgcolor, x=0.52, y=0.987)
++                        fontsize=14, color=self.fgcolor, x=0.52, y=0.975)
  
          # save the figure with STA/LTA metadata
          self.savefig(event_time=event_time, event_time_str=event_time_str, sta_val=sta_val, lta_val=lta_val)
@@ -60,7 +60,7 @@ index 2187ba2..3fb601d 100644
          self.fig.suptitle('Raspberry Shake %s Live Data%s'  # title
                            % (self.stn, self.event_text),
 -                          fontsize=14, color=self.fgcolor, x=0.52)
-+                          fontsize=14, color=self.fgcolor, x=0.52, y=0.987)
++                          fontsize=14, color=self.fgcolor, x=0.52, y=0.975)
          self.ax, self.lines = [], []  # list for subplot axes and lines artists
          self.mult = 1  # spectrogram selection multiplier
          if self.spectrogram:
@@ -69,7 +69,7 @@ index 2187ba2..3fb601d 100644
  
          im = mpimg.imread(pr.resource_filename('rsudp', os.path.join('img', 'version1-01-small.png')))
 -        self.imax = self.fig.add_axes([0.015, 0.944, 0.2, 0.056], anchor='NW')  # [left, bottom, right, top]
-+        self.imax = self.fig.add_axes([0.015, 0.965, 0.2, 0.056], anchor='NW')  # [left, bottom, right, top]
++        self.imax = self.fig.add_axes([0.015, 0.920, 0.2, 0.056], anchor='NW')  # [left, bottom, right, top]
          self.imax.imshow(im, aspect='equal', interpolation='bilinear')
          self.imax.axis('off')
          # set up axes and artists
@@ -78,7 +78,7 @@ index 2187ba2..3fb601d 100644
              self.fig.suptitle('Raspberry Shake %s Live Data - Detected Events: %s'  # title
                                % (self.stn, self.events),
 -                              fontsize=14, color=self.fgcolor, x=0.52)
-+                              fontsize=14, color=self.fgcolor, x=0.52, y=0.987)
++                              fontsize=14, color=self.fgcolor, x=0.52, y=0.975)
              self.fig.canvas.manager.set_window_title('(%s) %s - Raspberry Shake Monitor' % (self.events, self.stn))
  
          if rs.getCHN(d) in self.chans:
