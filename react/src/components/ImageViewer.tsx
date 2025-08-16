@@ -67,7 +67,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         }
       }
     });
-  }, [currentImage, allImages, preloadedImages]);
+  }, [currentImage, allImages]); // preloadedImagesを依存配列から削除
 
   const handleImageLoad = () => {
     setImageLoading(false);
@@ -100,6 +100,14 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       setImageLoading(false);
       setImageError(false);
       setIsTransitioning(false);
+    }
+  }, [currentImage]);
+
+  // 画像要素がマウントされた後、キャッシュ済みの画像の場合はすぐに表示
+  useEffect(() => {
+    if (currentImageRef.current && currentImageRef.current.complete && currentImage) {
+      // 画像が既に読み込まれている（キャッシュされている）場合
+      handleImageLoad();
     }
   }, [currentImage]);
 
