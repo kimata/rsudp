@@ -24,6 +24,9 @@ RUN --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install --no-install-recommends --assume-yes \
     jq wget ffmpeg
 
+COPY font/FrutigerNeueLTW1G-Medium.otf /usr/share/fonts/
+RUN fc-cache -fv
+
 WORKDIR /opt
 
 RUN chown ubuntu:ubuntu /opt
@@ -80,9 +83,6 @@ ARG IMAGE_BUILD_DATE
 ENV IMAGE_BUILD_DATE=${IMAGE_BUILD_DATE}
 
 COPY --chown=ubuntu:ubuntu . .
-
-COPY font/FrutigerNeueLTW1G-Medium.otf /usr/share/fonts/
-RUN fc-cache -fv
 
 # プロジェクトをインストール
 RUN --mount=type=cache,target=/home/ubuntu/.cache/uv,uid=1000,gid=1000 \
