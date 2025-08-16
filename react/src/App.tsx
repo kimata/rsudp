@@ -166,7 +166,9 @@ const App: React.FC = () => {
             </h1>
           </div>
         </div>
-        <div className="navbar-end">
+
+        {/* デスクトップ表示時 */}
+        <div className="navbar-end is-hidden-touch">
           <div className="navbar-item">
             <button
               className="button is-light"
@@ -177,6 +179,22 @@ const App: React.FC = () => {
                 <i className="fas fa-sync"></i>
               </span>
               <span>更新</span>
+            </button>
+          </div>
+        </div>
+
+        {/* モバイル/タブレット表示時 */}
+        <div className="navbar-end is-hidden-desktop">
+          <div className="navbar-item">
+            <button
+              className="button is-light is-small"
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              <span className="icon">
+                <i className="fas fa-sync"></i>
+              </span>
+              <span className="is-hidden-mobile">更新</span>
             </button>
           </div>
         </div>

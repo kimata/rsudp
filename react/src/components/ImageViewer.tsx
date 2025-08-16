@@ -260,8 +260,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 <span className="title is-6" style={{ marginLeft: '0.25rem' }}>
                   {dateTime.formatted}
                 </span>
-                <br className="is-hidden-tablet" />
-                <span className="subtitle is-7 has-text-grey" style={{ marginLeft: '0.25rem' }}>
+                <span className="subtitle is-7 has-text-grey" style={{ marginLeft: '0.5rem' }}>
                   ({dateTime.relative})
                 </span>
               </div>
