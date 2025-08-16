@@ -98,50 +98,88 @@ const DateSelector: React.FC<DateSelectorProps> = ({
       {/* Year Selector */}
       <div className="field">
         <label className="label">年</label>
-        <div className="buttons">
-          <button
-            className={`button is-small ${!selectedYear ? 'is-primary' : ''}`}
-            onClick={() => onYearChange(null)}
-            disabled={loading}
-          >
-            全て
-          </button>
-          {years.map(year => (
+        {years.length > 5 ? (
+          <div className="control">
+            <div className="select is-fullwidth">
+              <select
+                value={selectedYear || ''}
+                onChange={(e) => onYearChange(e.target.value ? Number(e.target.value) : null)}
+                disabled={loading}
+              >
+                <option value="">全ての年</option>
+                {years.map(year => (
+                  <option key={year} value={year}>
+                    {year}年
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ) : (
+          <div className="buttons">
             <button
-              key={year}
-              className={`button is-small ${selectedYear === year ? 'is-primary' : ''}`}
-              onClick={() => onYearChange(year)}
+              className={`button is-small ${!selectedYear ? 'is-primary' : ''}`}
+              onClick={() => onYearChange(null)}
               disabled={loading}
             >
-              {year}
+              全て
             </button>
-          ))}
-        </div>
+            {years.map(year => (
+              <button
+                key={year}
+                className={`button is-small ${selectedYear === year ? 'is-primary' : ''}`}
+                onClick={() => onYearChange(year)}
+                disabled={loading}
+              >
+                {year}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Month Selector */}
       {selectedYear && months.length > 0 && (
         <div className="field">
           <label className="label">月</label>
-          <div className="buttons">
-            <button
-              className={`button is-small ${!selectedMonth ? 'is-primary' : ''}`}
-              onClick={() => onMonthChange(null)}
-              disabled={loading}
-            >
-              全て
-            </button>
-            {months.map(month => (
+          {months.length > 6 ? (
+            <div className="control">
+              <div className="select is-fullwidth">
+                <select
+                  value={selectedMonth || ''}
+                  onChange={(e) => onMonthChange(e.target.value ? Number(e.target.value) : null)}
+                  disabled={loading}
+                >
+                  <option value="">全ての月</option>
+                  {months.map(month => (
+                    <option key={month} value={month}>
+                      {monthNames[month]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="buttons">
               <button
-                key={month}
-                className={`button is-small ${selectedMonth === month ? 'is-primary' : ''}`}
-                onClick={() => onMonthChange(month)}
+                className={`button is-small ${!selectedMonth ? 'is-primary' : ''}`}
+                onClick={() => onMonthChange(null)}
                 disabled={loading}
               >
-                {monthNames[month]}
+                全て
               </button>
-            ))}
-          </div>
+              {months.map(month => (
+                <button
+                  key={month}
+                  className={`button is-small ${selectedMonth === month ? 'is-primary' : ''}`}
+                  onClick={() => onMonthChange(month)}
+                  disabled={loading}
+                >
+                  {monthNames[month]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -149,25 +187,44 @@ const DateSelector: React.FC<DateSelectorProps> = ({
       {selectedYear && selectedMonth && days.length > 0 && (
         <div className="field">
           <label className="label">日</label>
-          <div className="buttons are-small">
-            <button
-              className={`button is-small ${!selectedDay ? 'is-primary' : ''}`}
-              onClick={() => onDayChange(null)}
-              disabled={loading}
-            >
-              全て
-            </button>
-            {days.map(day => (
+          {days.length > 10 ? (
+            <div className="control">
+              <div className="select is-fullwidth">
+                <select
+                  value={selectedDay || ''}
+                  onChange={(e) => onDayChange(e.target.value ? Number(e.target.value) : null)}
+                  disabled={loading}
+                >
+                  <option value="">全ての日</option>
+                  {days.map(day => (
+                    <option key={day} value={day}>
+                      {day}日
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="buttons are-small">
               <button
-                key={day}
-                className={`button is-small ${selectedDay === day ? 'is-primary' : ''}`}
-                onClick={() => onDayChange(day)}
+                className={`button is-small ${!selectedDay ? 'is-primary' : ''}`}
+                onClick={() => onDayChange(null)}
                 disabled={loading}
               >
-                {day}
+                全て
               </button>
-            ))}
-          </div>
+              {days.map(day => (
+                <button
+                  key={day}
+                  className={`button is-small ${selectedDay === day ? 'is-primary' : ''}`}
+                  onClick={() => onDayChange(day)}
+                  disabled={loading}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       </div>
