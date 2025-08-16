@@ -41,11 +41,11 @@ RUN bash rsudp/unix-install-rsudp.sh
 
 COPY c_plots.diff c_plots.diff
 COPY plot_meta.diff plot_meta.diff
-COPY plot_font.diff plot_font.diff
+COPY plot_style.diff plot_style.diff
 
-RUN cd rsudp && patch -p1 < ../c_plots.diff && rm ../c_plots.diff
-RUN cd rsudp && patch -p1 < ../plot_meta.diff && rm ../plot_meta.diff
-RUN cd rsudp && patch -p1 < ../plot_font.diff && rm ../plot_font.diff
+RUN cd rsudp && patch -p1 < ../c_plots.diff && rm -f ../c_plots.diff
+RUN cd rsudp && patch -p1 < ../plot_meta.diff && rm -f ../plot_meta.diff
+RUN cd rsudp && patch -p1 < ../plot_style.diff && rm -f ../plot_style.diff
 
 RUN jq '.settings.station = "Shake" \
       | .settings.output_dir = "/opt/rsudp/data" \

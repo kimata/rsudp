@@ -1,8 +1,8 @@
 diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
-index 2187ba2..bc15625 100644
+index 2187ba2..339ce9a 100644
 --- a/rsudp/c_plots.py
 +++ b/rsudp/c_plots.py
-@@ -47,7 +47,75 @@ try:
+@@ -47,7 +47,16 @@ try:
      import matplotlib.image as mpimg
      from matplotlib import rcParams
      from matplotlib.ticker import EngFormatter
@@ -11,74 +11,15 @@ index 2187ba2..bc15625 100644
 +    # Configure matplotlib settings
      rcParams['toolbar'] = 'None'
 +    
-+    # Set default font to FrutigerNeueLTW1G-Medium with fallbacks
-+    try:
-+        # Refresh font cache to ensure newly installed fonts are available
-+        try:
-+            fm._rebuild()
-+            printM('Refreshed matplotlib font cache', 'Plot')
-+        except Exception as rebuild_error:
-+            printM(f'Font cache rebuild warning: {rebuild_error}', 'Plot')
-+        
-+        # Search for the desired font in system fonts
-+        font_found = False
-+        font_family = None
-+        target_font_path = None
-+        
-+        # Check all available fonts for FrutigerNeueLTW1G-Medium
-+        for font in fm.fontManager.ttflist:
-+            font_name = font.name
-+            font_path = font.fname
-+            
-+            # Look for exact match first - check both name patterns
-+            if ('Frutiger Neue LT W1G' in font_name and 'Medium' in font_name) or \
-+               ('FrutigerNeueLTW1G' in font_name and 'Medium' in font_name) or \
-+               ('FrutigerNeueLTW1G-Medium' in font_path):
-+                font_family = font_name
-+                target_font_path = font_path
-+                font_found = True
-+                printM(f'Found target font: {font_family} at {font_path}', 'Plot')
-+                break
-+        
-+        # Fallback to any Frutiger font
-+        if not font_found:
-+            for font in fm.fontManager.ttflist:
-+                if 'Frutiger' in font.name or 'Frutiger' in font.fname:
-+                    font_family = font.name
-+                    target_font_path = font.fname
-+                    font_found = True
-+                    printM(f'Using Frutiger fallback: {font_family}', 'Plot')
-+                    break
-+        
-+        # Set font configuration
-+        if font_found and font_family:
-+            # Set multiple font parameters to ensure the font is used
-+            rcParams['font.family'] = 'sans-serif'
-+            rcParams['font.sans-serif'] = [font_family, 'DejaVu Sans', 'Arial', 'Liberation Sans', 'sans-serif']
-+            
-+            # Also try to register the font explicitly if we have the path
-+            if target_font_path and os.path.exists(target_font_path):
-+                try:
-+                    fm.fontManager.addfont(target_font_path)
-+                    printM(f'Registered font: {target_font_path}', 'Plot')
-+                except:
-+                    pass
-+            
-+            printM(f'Font configuration set to: {font_family}', 'Plot')
-+        else:
-+            printM('Frutiger font not found, using system default fonts', 'Plot')
-+            rcParams['font.family'] = 'sans-serif'
-+            rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Liberation Sans', 'sans-serif']
-+        
-+    except Exception as e:
-+        printW(f'Font configuration failed: {e}, using default fonts', 'Plot')
-+        rcParams['font.family'] = 'sans-serif'
-+        rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'sans-serif']
++    # Set default font to Frutiger Neue LT W1G Medium
++    rcParams['font.family'] = 'sans-serif'
++    rcParams['font.sans-serif'] = ['Frutiger Neue LT W1G', 'DejaVu Sans', 'Arial', 'sans-serif']
++    rcParams['font.size'] = 10
 +    
      plt.ion()
      MPL = True
  
-@@ -181,7 +249,7 @@ class AbcPlot():
+@@ -181,7 +190,7 @@ class AbcPlot():
              h = evt.height
          else:
              h = self.fig.get_size_inches()[1] * self.fig.dpi
@@ -87,7 +28,7 @@ index 2187ba2..bc15625 100644
  
      def deconvolve(self):
          '''
-@@ -236,7 +304,7 @@ class AbcPlot():
+@@ -236,7 +245,7 @@ class AbcPlot():
          '''
          Sets the figure title back to something that makes sense for the live viewer.
          '''
@@ -96,7 +37,7 @@ index 2187ba2..bc15625 100644
  
      def setup_fig_manager(self):
          '''
-@@ -414,7 +482,7 @@ class Plot(AbcPlot):
+@@ -414,7 +423,7 @@ class Plot(AbcPlot):
  
          # temporarily set title for this event
          self.fig.suptitle(f'{self.stn} Detected Event - {title_time_str} UTC',
@@ -105,7 +46,7 @@ index 2187ba2..bc15625 100644
  
          # save the figure with STA/LTA metadata
          self.savefig(event_time=event_time, event_time_str=event_time_str, sta_val=sta_val, lta_val=lta_val)
-@@ -426,7 +494,7 @@ class Plot(AbcPlot):
+@@ -426,7 +435,7 @@ class Plot(AbcPlot):
          '''
          Initialize plot elements and calculate parameters.
          '''
@@ -114,7 +55,7 @@ index 2187ba2..bc15625 100644
          self.fig.canvas.mpl_connect('close_event', self.handle_close)
          self.fig.canvas.mpl_connect('resize_event', self.handle_resize)
  
-@@ -436,7 +504,7 @@ class Plot(AbcPlot):
+@@ -436,7 +445,7 @@ class Plot(AbcPlot):
          self.fig.patch.set_facecolor(self.bgcolor)  # background color
          self.fig.suptitle('Raspberry Shake %s Live Data%s'  # title
                            % (self.stn, self.event_text),
@@ -123,7 +64,7 @@ index 2187ba2..bc15625 100644
          self.ax, self.lines = [], []  # list for subplot axes and lines artists
          self.mult = 1  # spectrogram selection multiplier
          if self.spectrogram:
-@@ -493,7 +561,7 @@ class Plot(AbcPlot):
+@@ -493,7 +502,7 @@ class Plot(AbcPlot):
          end = np.datetime64(self.stream[0].stats.endtime)  # numpy time
  
          im = mpimg.imread(pr.resource_filename('rsudp', os.path.join('img', 'version1-01-small.png')))
@@ -132,7 +73,7 @@ index 2187ba2..bc15625 100644
          self.imax.imshow(im, aspect='equal', interpolation='bilinear')
          self.imax.axis('off')
          # set up axes and artists
-@@ -804,7 +872,7 @@ class Plot(AbcPlot):
+@@ -804,7 +813,7 @@ class Plot(AbcPlot):
                  self.save.append(event_info)  # append the event to the save list
              self.fig.suptitle('Raspberry Shake %s Live Data - Detected Events: %s'  # title
                                % (self.stn, self.events),
