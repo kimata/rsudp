@@ -245,7 +245,7 @@ const App: React.FC = () => {
 
       {/* デスクトップ表示時: 従来のレイアウト */}
       <div className="columns is-desktop is-hidden-touch" style={{ marginTop: '1rem' }}>
-        <div className="column is-4-desktop is-12-tablet">
+        <div className="column is-4-desktop is-12-tablet" style={{ minWidth: '350px', maxWidth: '400px' }}>
           <DateSelector
             years={years}
             months={months}
@@ -266,9 +266,10 @@ const App: React.FC = () => {
             allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
             currentImage={currentScreenshot}
             onImageSelect={handleNavigate}
+            loading={loading}
           />
 
-          <div className="box">
+          <div className="box" style={{ minHeight: '120px' }}>
             <h2 className="title is-5">📊 統計情報</h2>
             <div className="content">
               <p>全スクリーンショット数: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
@@ -333,9 +334,10 @@ const App: React.FC = () => {
           allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
           currentImage={currentScreenshot}
           onImageSelect={handleNavigate}
+          loading={loading}
         />
 
-        <div className="box">
+        <div className="box" style={{ minHeight: '120px' }}>
           <h2 className="title is-5">📊 統計情報</h2>
           <div className="content">
             <p>全スクリーンショット数: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
