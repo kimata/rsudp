@@ -7,12 +7,14 @@ interface FileListProps {
   allImages: Screenshot[];
   currentImage: Screenshot | null;
   onImageSelect: (screenshot: Screenshot) => void;
+  loading?: boolean;
 }
 
 const FileList: React.FC<FileListProps> = ({
   allImages,
   currentImage,
   onImageSelect,
+  loading = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const currentItemRef = useRef<HTMLDivElement>(null);
@@ -90,12 +92,55 @@ const FileList: React.FC<FileListProps> = ({
     }
   };
 
+  // ローディング中の表示
+  if (loading && allImages.length === 0) {
+    return (
+      <div className="box">
+        <h2 className="title is-5">📄 ファイル一覧</h2>
+        <div
+          style={{
+            height: '400px',
+            border: '1px solid #dbdbdb',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <div className="has-text-centered">
+            <span className="icon is-large">
+              <i className="fas fa-spinner fa-pulse fa-2x"></i>
+            </span>
+            <p className="subtitle mt-3">📄 ファイル一覧を読み込み中...</p>
+          </div>
+        </div>
+        <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
+          📊 読み込み中...
+        </div>
+      </div>
+    );
+  }
+
   if (allImages.length === 0) {
     return (
       <div className="box">
         <h2 className="title is-5">📄 ファイル一覧</h2>
-        <div className="has-text-centered has-text-grey">
-          <p>ファイルがありません</p>
+        <div
+          style={{
+            height: '400px',
+            border: '1px solid #dbdbdb',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <div className="has-text-centered has-text-grey">
+            <p>ファイルがありません</p>
+          </div>
+        </div>
+        <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
+          📊 0 件のファイル
         </div>
       </div>
     );
