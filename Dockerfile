@@ -37,8 +37,10 @@ RUN git clone https://github.com/raspishake/rsudp.git \
 RUN bash rsudp/unix-install-rsudp.sh
 
 COPY c_plots.diff c_plots.diff
+COPY plot_meta.diff plot_meta.diff
 
 RUN cd rsudp && patch -p1 < ../c_plots.diff && rm ../c_plots.diff
+RUN cd rsudp && patch -p1 < ../plot_meta.diff && rm ../plot_meta.diff
 
 RUN jq '.settings.station = "Shake" \
       | .settings.output_dir = "/opt/rsudp/data" \

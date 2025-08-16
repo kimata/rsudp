@@ -1,0 +1,350 @@
+diff --git a/rsudp/__init__.py b/rsudp/__init__.py
+index ba31a4b..04b58eb 100644
+--- a/rsudp/__init__.py
++++ b/rsudp/__init__.py
+@@ -31,6 +31,7 @@ TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+ 
+ output_dir = False
+ data_dir = False
++health_file = False
+ scap_dir = False
+ ms_path = False
+ 
+@@ -249,3 +250,10 @@ def printE(msg, sender='', announce=True, spaces=False):
+ 	# strip emoji from unicode by converting to ascii
+ 	msg = msg.encode('ascii', 'ignore').decode('ascii')
+ 	LOG.error(msg)
++
++def get_health_file():
++	"""
++	Returns the health check file location.
++	"""
++	global health_file
++	return health_file if health_file else os.path.join(get_data_dir(), 'health.json')
+diff --git a/rsudp/c_alert.py b/rsudp/c_alert.py
+index faf7abf..8cf2633 100644
+--- a/rsudp/c_alert.py
++++ b/rsudp/c_alert.py
+@@ -292,6 +292,35 @@ class Alert(rs.ConsumerThread):
+ 			self.exceed = False
+ 			self._trigger_deactivate()
+ 
++	def _calculate_trigger_sta_lta(self):
++		'''
++		Calculate individual STA and LTA values at trigger moment
++		'''
++		data = self.stream[0].data
++		sta_samples = int(self.sta * self.sps)
++		lta_samples = int(self.lta * self.sps)
++		
++		# Find trigger position (maximum STA/LTA ratio)
++		trigger_index = np.argmax(self.stalta)
++		
++		if trigger_index >= lta_samples and len(data) > trigger_index:
++			# Calculate STA (short term average)
++			sta_start = max(0, trigger_index - sta_samples)
++			sta_window = data[sta_start:trigger_index]
++			sta_value = np.sqrt(np.mean(sta_window**2))  # RMS value
++			
++			# Calculate LTA (long term average) 
++			lta_start = max(0, trigger_index - lta_samples)
++			lta_window = data[lta_start:trigger_index]
++			lta_value = np.sqrt(np.mean(lta_window**2))  # RMS value
++			
++			# Get actual ratio
++			ratio = self.stalta[trigger_index] if trigger_index < len(self.stalta) else self.stalta.max()
++			
++			return sta_value, lta_value, ratio
++		
++		return None, None, None
++
+ 	def _trigger_activate(self):
+ 		'''
+ 		Trigger activation logic
+@@ -300,9 +329,15 @@ class Alert(rs.ConsumerThread):
+ 																			 trigger_onset(self.stalta, self.thresh,
+ 																						   self.reset)[-1][0] *
+ 																			 self.stream[0].stats.delta))
++		
++		# Calculate STA/LTA values at trigger moment
++		self.trigger_sta, self.trigger_lta, self.trigger_ratio = self._calculate_trigger_sta_lta()
++		
+ 		print()
+ 		printM('Trigger threshold of %s exceeded at %s'
+ 			   % (self.thresh, self.alarm.strftime('%Y-%m-%d %H:%M:%S.%f')[:22]), self.sender)
++		if self.trigger_sta is not None:
++			printM('STA: %.4f, LTA: %.4f, Ratio: %.4f' % (self.trigger_sta, self.trigger_lta, self.trigger_ratio), self.sender)
+ 		printM('Trigger will reset when STA/LTA goes below %s...' % self.reset, sender=self.sender)
+ 		COLOR['current'] = COLOR['purple']
+ 		if self.testing:
+diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
+index 9c44a1c..449f30c 100644
+--- a/rsudp/c_plots.py
++++ b/rsudp/c_plots.py
+@@ -47,6 +47,14 @@ try:
+     import matplotlib.image as mpimg
+     from matplotlib import rcParams
+     from matplotlib.ticker import EngFormatter
++    
++    # Import PIL for PNG metadata handling
++    try:
++        from PIL import Image, PngImagePlugin
++        PIL_AVAILABLE = True
++    except ImportError:
++        PIL_AVAILABLE = False
++        printW('PIL/Pillow not available, PNG metadata will not be embedded', 'plot.py')
+     rcParams['toolbar'] = 'None'
+     plt.ion()
+     MPL = True
+@@ -189,13 +197,14 @@ class AbcPlot():
+         '''
+         helpers.deconvolve(self)
+ 
+-    def savefig(self, event_time=rs.UTCDateTime.now(), event_time_str=rs.UTCDateTime.now().strftime('%Y-%m-%d-%H%M%S')):
++    def savefig(self, event_time=rs.UTCDateTime.now(), event_time_str=rs.UTCDateTime.now().strftime('%Y-%m-%d-%H%M%S'), sta_lta_values=None):
+         '''
+         Saves the figure and puts an IMGPATH message on the master queue.
+         This message can be used to upload the image to various services.
+ 
+         :param obspy.core.utcdatetime.UTCDateTime event_time: Event time as an obspy UTCDateTime object. Defaults to ``UTCDateTime.now()``.
+         :param str event_time_str: Event time as a string, in the format ``'%Y-%m-%d-%H%M%S'``. This is used to set the filename.
++        :param dict sta_lta_values: STA/LTA values to embed in PNG metadata (optional).
+         '''
+         with self.screenshot_lock:
+             scap_dir = get_scap_dir()  # Get screenshot directory
+@@ -204,16 +213,57 @@ class AbcPlot():
+             if int(elapsed) > 0:
+                 printM(f'Saving png {int(elapsed)} seconds after alarm', sender=self.sender)
+             try:
+-                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none')          
++                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none')
++                
++                # Embed STA/LTA values in PNG metadata if available
++                if sta_lta_values and PIL_AVAILABLE:
++                    self._embed_sta_lta_metadata(figname, sta_lta_values, event_time)
++                          
+             except Exception as e:
+                 printE(f'Error saving png image: {e}', sender=self.sender)
+                 return
+             if os.path.exists(figname):
+                 printM(f'Image successfully saved at {figname}', sender=self.sender)
++                if sta_lta_values:
++                    printM(f'STA/LTA metadata embedded: STA={sta_lta_values.get("sta_value", "N/A"):.4f}, LTA={sta_lta_values.get("lta_value", "N/A"):.4f}, Ratio={sta_lta_values.get("ratio", "N/A"):.4f}', sender=self.sender)
+                 printM(f'{self.sender} thread has saved an image, sending IMGPATH message to queues', sender=self.sender)         
+             else:
+                 printE(f'Error: png not found at {figname} after save attempt.', sender=self.sender)
+-            self.controller.master_queue.put(helpers.msg_imgpath(event_time, figname))          
++            self.controller.master_queue.put(helpers.msg_imgpath(event_time, figname))
++
++    def _embed_sta_lta_metadata(self, figname, sta_lta_values, event_time):
++        '''
++        Embed STA/LTA values into PNG metadata.
++        
++        :param str figname: Path to the PNG file
++        :param dict sta_lta_values: Dictionary containing STA/LTA values
++        :param obspy.core.utcdatetime.UTCDateTime event_time: Event time
++        '''
++        try:
++            # Open the saved image
++            im = Image.open(figname)
++            
++            # Create PNG metadata
++            metadata = PngImagePlugin.PngInfo()
++            
++            # Add STA/LTA specific metadata
++            if sta_lta_values:
++                metadata.add_text("TriggerSTA", f"{sta_lta_values.get('sta_value', 0.0):.6f}")
++                metadata.add_text("TriggerLTA", f"{sta_lta_values.get('lta_value', 0.0):.6f}")
++                metadata.add_text("TriggerRatio", f"{sta_lta_values.get('ratio', 0.0):.6f}")
++                metadata.add_text("TriggerThreshold", f"{sta_lta_values.get('threshold', 0.0):.6f}")
++            
++            # Add general event metadata
++            metadata.add_text("EventTime", str(event_time))
++            metadata.add_text("StationName", str(self.stn))
++            metadata.add_text("ImageSaveTime", str(rs.UTCDateTime.now()))
++            metadata.add_text("rsudpVersion", getattr(rs, '__version__', 'unknown'))
++            
++            # Save the image with metadata
++            im.save(figname, pnginfo=metadata)
++            
++        except Exception as e:
++            printW(f'Failed to embed PNG metadata: {e}', sender=self.sender)
+ 
+     def figloop(self):
+         """
+@@ -387,7 +437,7 @@ class Plot(AbcPlot):
+         self.spectrogram = spectrogram
+         printM('Starting.', self.sender)
+ 
+-    def _eventsave(self, event_time):
++    def _eventsave(self, event_time, sta_lta_values=None):
+         '''
+         This function takes the next event in line and pops it out of the list,
+         so that it can be saved and others preserved.
+@@ -402,8 +452,8 @@ class Plot(AbcPlot):
+         self.fig.suptitle(f'{self.stn} Detected Event - {title_time_str} UTC',
+                         fontsize=14, color=self.fgcolor, x=0.52)
+ 
+-        # save the figure
+-        self.savefig(event_time=event_time, event_time_str=event_time_str)
++        # save the figure with STA/LTA metadata
++        self.savefig(event_time=event_time, event_time_str=event_time_str, sta_lta_values=sta_lta_values)
+ 
+         # reset the title
+         self.set_fig_title(self.events)
+@@ -597,6 +647,36 @@ class Plot(AbcPlot):
+                 unit = rs.UNITS['CHAN'][1]
+             self.ax[i * self.mult].yaxis.set_major_formatter(EngFormatter(unit='%s' % unit.lower()))
+ 
++    def _extract_sta_lta_from_alarm(self, alarm_msg):
++        '''
++        Extract STA/LTA values from extended ALARM message.
++        
++        :param str alarm_msg: ALARM message string
++        :return: dict with STA/LTA values or None if not available
++        :rtype: dict or None
++        '''
++        try:
++            # Check if message contains STA/LTA values
++            if 'STA:' in alarm_msg and 'LTA:' in alarm_msg:
++                import re
++                # Parse STA value
++                sta_match = re.search(r'STA:([\d.]+)', alarm_msg)
++                lta_match = re.search(r'LTA:([\d.]+)', alarm_msg)
++                ratio_match = re.search(r'RATIO:([\d.]+)', alarm_msg)
++                thresh_match = re.search(r'THRESH:([\d.]+)', alarm_msg)
++                
++                if sta_match and lta_match and ratio_match and thresh_match:
++                    return {
++                        'sta_value': float(sta_match.group(1)),
++                        'lta_value': float(lta_match.group(1)),
++                        'ratio': float(ratio_match.group(1)),
++                        'threshold': float(thresh_match.group(1))
++                    }
++        except Exception as e:
++            printW(f'Failed to parse STA/LTA values from ALARM message: {e}', sender=self.sender)
++        
++        return None
++
+     def _draw_lines(self, i, start, end, mean):
+         '''
+         Updates the line data in the plot.
+@@ -771,13 +851,18 @@ class Plot(AbcPlot):
+             event = [self.save_timer + int(self.save_pct * self.pkts_in_period),
+                      helpers.fsec(helpers.get_msg_time(d))]  # event = [save after count, datetime]
+             self.last_event_str = '%s UTC' % (event[1].strftime('%Y-%m-%d %H:%M:%S.%f')[:22])
++            
++            # Extract STA/LTA values from extended ALARM message
++            sta_lta_values = self._extract_sta_lta_from_alarm(str(d))
++            
+             printM('Event time: %s' % (self.last_event_str), sender=self.sender)  # show event time in the logs
+             if self.screencap:
+                 printM('Saving png in about %i seconds' % (self.save_pct * (self.seconds)), self.sender)
+                 event_time = helpers.fsec(helpers.get_msg_time(d))
+                 self.save.append({
+                     'save_at': time.time() + int(self.save_pct * self.seconds),
+-                    'event_time': event_time
++                    'event_time': event_time,
++                    'sta_lta_values': sta_lta_values  # Store STA/LTA values for PNG metadata
+                 })  # append the event to the save list
+             self.fig.suptitle('Raspberry Shake %s Live Data - Detected Events: %s'  # title
+                               % (self.stn, self.events),
+@@ -863,7 +948,7 @@ class Plot(AbcPlot):
+             ready = [e for e in self.save if now >= e['save_at']]
+             self.save = [e for e in self.save if now < e['save_at']]  # keep only future ones
+             for e in ready:
+-                self._eventsave(event_time=e['event_time'])
++                self._eventsave(event_time=e['event_time'], sta_lta_values=e.get('sta_lta_values'))
+         
+         u = 0
+         time.sleep(0.005)  # wait a ms to see if another packet will arrive
+diff --git a/rsudp/client.py b/rsudp/client.py
+index 6911dc8..904c329 100644
+--- a/rsudp/client.py
++++ b/rsudp/client.py
+@@ -27,6 +27,7 @@ from rsudp.c_rsam import RSAM
+ from rsudp.c_testing import Testing
+ from rsudp.t_testdata import TestData
+ from rsudp.c_settings import Settings
++from rsudp.c_health import HealthChecker
+ import pkg_resources as pr
+ 
+ 
+@@ -399,6 +400,13 @@ def run(settings, debug):
+ 
+ 		mk_p(rsam)
+ 
++	# Health monitoring
++	if settings.get('health', {}).get('enabled', True):
++		interval = settings.get('health', {}).get('interval', 30)
++		q = mk_q()
++		health = HealthChecker(q=q, interval=interval, testing=TESTING)
++		mk_p(health)
++		printM('Health monitoring enabled', sender=SENDER)
+ 
+ 	# start additional modules here!
+ 	################################
+diff --git a/rsudp/helpers.py b/rsudp/helpers.py
+index d23fa85..077a8d4 100644
+--- a/rsudp/helpers.py
++++ b/rsudp/helpers.py
+@@ -133,7 +133,7 @@ def conn_stats(TESTING=False):
+ 			   sender=s, announce=False)
+ 
+ 
+-def msg_alarm(event_time):
++def msg_alarm(event_time, sta_value=None, lta_value=None, ratio=None, thresh=None):
+ 	'''
+ 	This function constructs the ``ALARM`` message as a bytes object.
+ 	Currently this is only used by :py:class:`rsudp.p_producer.Producer`
+@@ -147,12 +147,25 @@ def msg_alarm(event_time):
+ 		>>> ti = UTCDateTime(2020, 1, 1, 0, 0, 0, 599000, precision=3)
+ 		>>> msg_alarm(ti)
+ 		b'ALARM 2020-01-01T00:00:00.599Z'
++		>>> msg_alarm(ti, sta_value=0.5, lta_value=0.3, ratio=1.67, thresh=1.6)
++		b'ALARM 2020-01-01T00:00:00.599Z STA:0.5000 LTA:0.3000 RATIO:1.6700 THRESH:1.6000'
+ 
+ 	:param obspy.core.utcdatetime.UTCDateTime event_time: the datetime object to serialize and convert to bytes
++	:param float sta_value: STA value at trigger time (optional)
++	:param float lta_value: LTA value at trigger time (optional)
++	:param float ratio: STA/LTA ratio at trigger time (optional)
++	:param float thresh: trigger threshold (optional)
+ 	:rtype: bytes
+ 	:return: the ``ALARM`` message, ready to be put on the queue
+ 	'''
+-	return b'ALARM %s' % bytes(str(event_time), 'utf-8')
++	base_msg = 'ALARM %s' % str(event_time)
++	
++	if sta_value is not None and lta_value is not None and ratio is not None and thresh is not None:
++		extended_msg = '%s STA:%.4f LTA:%.4f RATIO:%.4f THRESH:%.4f' % (
++			base_msg, sta_value, lta_value, ratio, thresh)
++		return bytes(extended_msg, 'utf-8')
++	
++	return bytes(base_msg, 'utf-8')
+ 
+ 
+ def msg_reset(reset_time):
+diff --git a/rsudp/p_producer.py b/rsudp/p_producer.py
+index 7fd07a2..5569bd6 100644
+--- a/rsudp/p_producer.py
++++ b/rsudp/p_producer.py
+@@ -64,9 +64,16 @@ class Producer(Thread):
+ 			# for each thread here
+ 			if thread.alarm:
+ 				# if there is an alarm in a sub thread, send the ALARM message to the queues
+-				self.queue.put(helpers.msg_alarm(thread.alarm))
+-				printM('%s thread has indicated alarm state, sending ALARM message to queues'
+-						% thread.sender, sender=self.sender)
++				# Check if thread has STA/LTA values to include
++				if hasattr(thread, 'trigger_sta') and thread.trigger_sta is not None:
++					self.queue.put(helpers.msg_alarm(thread.alarm, thread.trigger_sta, 
++													thread.trigger_lta, thread.trigger_ratio, thread.thresh))
++					printM('%s thread has indicated alarm state (STA:%.4f, LTA:%.4f, Ratio:%.4f), sending ALARM message to queues'
++							% (thread.sender, thread.trigger_sta, thread.trigger_lta, thread.trigger_ratio), sender=self.sender)
++				else:
++					self.queue.put(helpers.msg_alarm(thread.alarm))
++					printM('%s thread has indicated alarm state, sending ALARM message to queues'
++							% thread.sender, sender=self.sender)
+ 				# now re-arm the trigger
+ 				thread.alarm = False
+ 			if thread.alarm_reset:
