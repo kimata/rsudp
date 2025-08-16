@@ -1,0 +1,62 @@
+diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
+index 2187ba2..4b81863 100644
+--- a/rsudp/c_plots.py
++++ b/rsudp/c_plots.py
+@@ -47,7 +47,57 @@ try:
+     import matplotlib.image as mpimg
+     from matplotlib import rcParams
+     from matplotlib.ticker import EngFormatter
++    import matplotlib.font_manager as fm
++    
++    # Configure matplotlib settings
+     rcParams['toolbar'] = 'None'
++    
++    # Set default font to FrutigerNeueLTW1G-Medium with fallbacks
++    try:
++        # Refresh font cache to ensure newly installed fonts are available
++        fm._rebuild()
++        
++        # Search for the desired font in system fonts
++        font_found = False
++        font_family = None
++        
++        # Check all available fonts for FrutigerNeueLTW1G-Medium
++        for font in fm.fontManager.ttflist:
++            font_name = font.name
++            font_path = font.fname
++            
++            # Look for exact match first
++            if ('FrutigerNeueLTW1G' in font_name and 'Medium' in font_name) or \
++               ('FrutigerNeueLTW1G-Medium' in font_path):
++                font_family = font_name
++                font_found = True
++                printM(f'Found target font: {font_family} at {font_path}', 'Plot')
++                break
++        
++        # Fallback to any Frutiger font
++        if not font_found:
++            for font in fm.fontManager.ttflist:
++                if 'Frutiger' in font.name or 'Frutiger' in font.fname:
++                    font_family = font.name
++                    font_found = True
++                    printM(f'Using Frutiger fallback: {font_family}', 'Plot')
++                    break
++        
++        # Set font configuration
++        if font_found and font_family:
++            rcParams['font.family'] = 'sans-serif'
++            rcParams['font.sans-serif'] = [font_family, 'DejaVu Sans', 'Arial', 'Liberation Sans', 'sans-serif']
++            printM(f'Font configuration set to: {font_family}', 'Plot')
++        else:
++            printM('Frutiger font not found, using system default fonts', 'Plot')
++            rcParams['font.family'] = 'sans-serif'
++            rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Liberation Sans', 'sans-serif']
++        
++    except Exception as e:
++        printW(f'Font configuration failed: {e}, using default fonts', 'Plot')
++        rcParams['font.family'] = 'sans-serif'
++        rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'sans-serif']
++    
+     plt.ion()
+     MPL = True
+ 
