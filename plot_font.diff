@@ -1,8 +1,8 @@
 diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
-index 2187ba2..4b81863 100644
+index 2187ba2..037d2e8 100644
 --- a/rsudp/c_plots.py
 +++ b/rsudp/c_plots.py
-@@ -47,7 +47,57 @@ try:
+@@ -47,7 +47,81 @@ try:
      import matplotlib.image as mpimg
      from matplotlib import rcParams
      from matplotlib.ticker import EngFormatter
@@ -13,22 +13,35 @@ index 2187ba2..4b81863 100644
 +    
 +    # Set default font to FrutigerNeueLTW1G-Medium with fallbacks
 +    try:
++        # Clear matplotlib font cache to ensure fresh font detection
++        import shutil
++        cache_dir = fm.get_cachedir()
++        if os.path.exists(cache_dir):
++            try:
++                shutil.rmtree(cache_dir)
++                printM('Cleared matplotlib font cache', 'Plot')
++            except:
++                pass
++        
 +        # Refresh font cache to ensure newly installed fonts are available
 +        fm._rebuild()
 +        
 +        # Search for the desired font in system fonts
 +        font_found = False
 +        font_family = None
++        target_font_path = None
 +        
 +        # Check all available fonts for FrutigerNeueLTW1G-Medium
 +        for font in fm.fontManager.ttflist:
 +            font_name = font.name
 +            font_path = font.fname
 +            
-+            # Look for exact match first
-+            if ('FrutigerNeueLTW1G' in font_name and 'Medium' in font_name) or \
++            # Look for exact match first - check both name patterns
++            if ('Frutiger Neue LT W1G' in font_name and 'Medium' in font_name) or \
++               ('FrutigerNeueLTW1G' in font_name and 'Medium' in font_name) or \
 +               ('FrutigerNeueLTW1G-Medium' in font_path):
 +                font_family = font_name
++                target_font_path = font_path
 +                font_found = True
 +                printM(f'Found target font: {font_family} at {font_path}', 'Plot')
 +                break
@@ -38,14 +51,25 @@ index 2187ba2..4b81863 100644
 +            for font in fm.fontManager.ttflist:
 +                if 'Frutiger' in font.name or 'Frutiger' in font.fname:
 +                    font_family = font.name
++                    target_font_path = font.fname
 +                    font_found = True
 +                    printM(f'Using Frutiger fallback: {font_family}', 'Plot')
 +                    break
 +        
 +        # Set font configuration
 +        if font_found and font_family:
++            # Set multiple font parameters to ensure the font is used
 +            rcParams['font.family'] = 'sans-serif'
 +            rcParams['font.sans-serif'] = [font_family, 'DejaVu Sans', 'Arial', 'Liberation Sans', 'sans-serif']
++            
++            # Also try to register the font explicitly if we have the path
++            if target_font_path and os.path.exists(target_font_path):
++                try:
++                    fm.fontManager.addfont(target_font_path)
++                    printM(f'Registered font: {target_font_path}', 'Plot')
++                except:
++                    pass
++            
 +            printM(f'Font configuration set to: {font_family}', 'Plot')
 +        else:
 +            printM('Frutiger font not found, using system default fonts', 'Plot')
