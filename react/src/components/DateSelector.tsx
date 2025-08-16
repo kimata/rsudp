@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Screenshot } from '../types';
+import { useScreenshotNavigation } from '../hooks/useScreenshotNavigation';
 
 interface DateSelectorProps {
   years: number[];
@@ -37,21 +38,14 @@ const DateSelector: React.FC<DateSelectorProps> = ({
     '7月', '8月', '9月', '10月', '11月', '12月'
   ];
 
-  const currentIndex = currentScreenshot
-    ? allImages.findIndex(img => img.filename === currentScreenshot.filename)
-    : -1;
-
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      onNavigate(allImages[currentIndex - 1]);
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex < allImages.length - 1) {
-      onNavigate(allImages[currentIndex + 1]);
-    }
-  };
+  const {
+    currentIndex,
+    navigateNext,
+    navigatePrevious,
+    canNavigateNext,
+    canNavigatePrevious,
+    totalCount
+  } = useScreenshotNavigation(currentScreenshot, allImages, onNavigate);
 
   return (
     <>
@@ -62,8 +56,8 @@ const DateSelector: React.FC<DateSelectorProps> = ({
           <p className="control">
             <button
               className="button is-info"
-              onClick={handlePrevious}
-              disabled={currentIndex <= 0 || loading}
+              onClick={navigatePrevious}
+              disabled={!canNavigatePrevious || loading}
             >
               <span className="icon">
                 <i className="fas fa-chevron-left"></i>
@@ -73,14 +67,14 @@ const DateSelector: React.FC<DateSelectorProps> = ({
           </p>
           <p className="control">
             <span className="tag is-light">
-              {(currentIndex + 1).toLocaleString()} / {allImages.length.toLocaleString()}
+              {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
             </span>
           </p>
           <p className="control">
             <button
               className="button is-info"
-              onClick={handleNext}
-              disabled={currentIndex >= allImages.length - 1 || loading}
+              onClick={navigateNext}
+              disabled={!canNavigateNext || loading}
             >
               <span>次へ</span>
               <span className="icon">

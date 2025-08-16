@@ -1,16 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import dayjs from 'dayjs';
-import 'dayjs/locale/ja';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
 import type { Screenshot } from '../types';
-
-// dayjsの設定
-dayjs.extend(relativeTime);
-dayjs.extend(utc);
-dayjs.extend(timezone);
-dayjs.locale('ja');
+import { formatScreenshotDateTime } from '../utils/dateTime';
+import { TIMEOUTS } from '../utils/constants';
 
 interface FileListProps {
   allImages: Screenshot[];
@@ -54,7 +45,7 @@ const FileList: React.FC<FileListProps> = ({
         top: Math.max(0, centeredScrollTop),
         behavior: immediate ? 'auto' : 'smooth'
       });
-    }, immediate ? 0 : 100);
+    }, immediate ? 0 : TIMEOUTS.PRELOAD_DELAY);
 
     return () => clearTimeout(timer);
   };
@@ -72,24 +63,17 @@ const FileList: React.FC<FileListProps> = ({
       // 初回は即座にスクロール（アニメーションなし）
       const timer = setTimeout(() => {
         scrollToCurrentItem(true);
-      }, 200); // より長い遅延で確実にレンダリング完了を待つ
+      }, TIMEOUTS.SCROLL_DELAY); // より長い遅延で確実にレンダリング完了を待つ
 
       return () => clearTimeout(timer);
     }
   }, [allImages.length]); // allImagesが設定された時
 
   const formatFileDateTime = (screenshot: Screenshot) => {
-    const utcDate = dayjs.utc(screenshot.timestamp);
-    const localDate = utcDate.local();
-    const now = dayjs();
-    const relativeTimeStr = localDate.from(now);
-
-    // 簡潔な表示: MM/DD HH:mm:ss
-    const formatted = localDate.format('MM/DD HH:mm:ss');
-
+    const dateTime = formatScreenshotDateTime(screenshot);
     return {
-      formatted,
-      relative: relativeTimeStr
+      formatted: dateTime.compact,
+      relative: dateTime.relative
     };
   };
 

@@ -1,26 +1,20 @@
 import { useState, useEffect } from 'react';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import localizedFormat from 'dayjs/plugin/localizedFormat';
-import 'dayjs/locale/ja';
 import { version as reactVersion } from 'react';
 import { useApi } from '../hooks/useApi';
 import type { SysInfo } from '../types';
-
-dayjs.extend(relativeTime);
-dayjs.extend(localizedFormat);
-dayjs.locale('ja');
+import { dayjs } from '../utils/dateTime';
+import { TIMEOUTS } from '../utils/constants';
 
 function Footer() {
     const [updateTime, setUpdateTime] = useState(dayjs().format('YYYY年MM月DD日 HH:mm:ss'));
     const buildDate = dayjs(import.meta.env.VITE_BUILD_DATE || new Date().toISOString());
-    const { data: sysInfo } = useApi<SysInfo>('/rsudp/api/sysinfo', { interval: 300000 }); // 5分間隔で更新
+    const { data: sysInfo } = useApi<SysInfo>('/rsudp/api/sysinfo', { interval: TIMEOUTS.SYSTEM_INFO_POLL });
 
     useEffect(() => {
         // 定期的に更新時刻を更新
         const interval = setInterval(() => {
             setUpdateTime(dayjs().format('YYYY年MM月DD日 HH:mm:ss'));
-        }, 60000); // 1分間隔
+        }, TIMEOUTS.TIME_UPDATE);
 
         return () => clearInterval(interval);
     }, []);

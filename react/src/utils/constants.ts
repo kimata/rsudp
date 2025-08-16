@@ -1,0 +1,13 @@
+export const TIMEOUTS = {
+    API_REQUEST: 10000,
+    PRELOAD_DELAY: 100,
+    SCROLL_DELAY: 200,
+    SYSTEM_INFO_POLL: 300000,
+    TIME_UPDATE: 60000,
+} as const;
+
+export const UI_CONSTANTS = {
+    SWIPE_THRESHOLD: 50,
+    CONTAINER_HEIGHT: "400px",
+    PRELOAD_ADJACENT_COUNT: 1,
+} as const;

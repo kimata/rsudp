@@ -1,17 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import dayjs from 'dayjs';
-import 'dayjs/locale/ja';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
 import type { Screenshot } from '../types';
 import { screenshotApi } from '../api';
-
-// dayjsの設定
-dayjs.extend(relativeTime);
-dayjs.extend(utc);
-dayjs.extend(timezone);
-dayjs.locale('ja');
+import { formatScreenshotDateTime } from '../utils/dateTime';
+import { useScreenshotNavigation } from '../hooks/useScreenshotNavigation';
+import { TIMEOUTS, UI_CONSTANTS } from '../utils/constants';
 
 interface ImageViewerProps {
   currentImage: Screenshot | null;
@@ -32,6 +24,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   const currentImageRef = useRef<HTMLImageElement>(null);
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
+
+  const { navigateNext, navigatePrevious } = useScreenshotNavigation(
+    currentImage,
+    allImages,
+    onNavigate
+  );
 
   // 画像の事前読み込み
   const preloadImage = (filename: string): Promise<HTMLImageElement> => {
@@ -115,17 +113,15 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     const deltaY = Math.abs(touchStartY.current - touchEndY);
 
     // 横方向のスワイプが縦方向より大きい場合のみ処理
-    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > deltaY) {
-      const currentIndex = allImages.findIndex(img => img.filename === currentImage.filename);
-
-      if (deltaX > 0 && currentIndex < allImages.length - 1) {
+    if (Math.abs(deltaX) > UI_CONSTANTS.SWIPE_THRESHOLD && Math.abs(deltaX) > deltaY) {
+      if (deltaX > 0) {
         // 左スワイプ → 次の画像
         setIsTransitioning(true);
-        onNavigate(allImages[currentIndex + 1]);
-      } else if (deltaX < 0 && currentIndex > 0) {
+        navigateNext();
+      } else if (deltaX < 0) {
         // 右スワイプ → 前の画像
         setIsTransitioning(true);
-        onNavigate(allImages[currentIndex - 1]);
+        navigatePrevious();
       }
     }
   };
@@ -152,21 +148,11 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
-      const currentIndex = currentImage
-        ? allImages.findIndex(img => img.filename === currentImage.filename)
-        : -1;
-      if (currentIndex > 0) {
-        setIsTransitioning(true);
-        onNavigate(allImages[currentIndex - 1]);
-      }
+      setIsTransitioning(true);
+      navigatePrevious();
     } else if (e.key === 'ArrowRight') {
-      const currentIndex = currentImage
-        ? allImages.findIndex(img => img.filename === currentImage.filename)
-        : -1;
-      if (currentIndex < allImages.length - 1) {
-        setIsTransitioning(true);
-        onNavigate(allImages[currentIndex + 1]);
-      }
+      setIsTransitioning(true);
+      navigateNext();
     } else if (e.key === 'Escape' && isFullscreen) {
       setIsFullscreen(false);
     } else if (e.key === 'f' || e.key === 'F') {
@@ -183,22 +169,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     );
   }
 
-  const formatDateTime = (screenshot: Screenshot) => {
-    const utcDate = dayjs.utc(screenshot.timestamp);
-    const localDate = utcDate.local();
-    const now = dayjs();
-    const relativeTimeStr = localDate.from(now);
-
-    // 2005年2月1日 01時02分34秒 の形式
-    const formatted = localDate.format('YYYY年M月D日 HH時mm分ss秒');
-
-    return {
-      formatted,
-      relative: relativeTimeStr
-    };
-  };
-
-  const dateTime = formatDateTime(currentImage);
+  const dateTime = formatScreenshotDateTime(currentImage);
 
   // 全画面表示時は別の構造で表示
   if (isFullscreen) {
@@ -274,7 +245,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         style={{
           position: 'relative',
           marginBottom: '1rem',
-          minHeight: '400px',
+          minHeight: UI_CONSTANTS.CONTAINER_HEIGHT,
           width: '100%'
         }}
         onTouchStart={handleTouchStart}

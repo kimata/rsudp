@@ -6,6 +6,7 @@ import type {
     MonthsResponse,
     DaysResponse,
 } from "./types";
+import { TIMEOUTS } from "./utils/constants";
 
 // ホスト名を含まない相対パス（React アプリは /rsudp でホストされている）
 const API_BASE_URL = "/rsudp/api/screenshot";
@@ -14,7 +15,7 @@ console.log("API Base URL:", API_BASE_URL);
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000,
+    timeout: TIMEOUTS.API_REQUEST,
 });
 
 // デバッグ用のリクエストインターセプター
