@@ -3,7 +3,7 @@ import type { Screenshot } from '../types';
 import { screenshotApi } from '../api';
 import { formatScreenshotDateTime } from '../utils/dateTime';
 import { useScreenshotNavigation } from '../hooks/useScreenshotNavigation';
-import { TIMEOUTS, UI_CONSTANTS } from '../utils/constants';
+import { UI_CONSTANTS } from '../utils/constants';
 
 interface ImageViewerProps {
   currentImage: Screenshot | null;
