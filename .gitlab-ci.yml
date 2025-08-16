@@ -53,6 +53,9 @@ build-image:
     script:
         - 'echo "Building: ${CI_REGISTRY_IMAGE}:${TAG}"'
 
+        - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.green-rabbit.net/kimata/font.git private_font
+        - mv private_font/* font
+
         - |
             docker buildx create \
                 --name ${BUILDER} \

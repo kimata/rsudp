@@ -79,6 +79,9 @@ ENV IMAGE_BUILD_DATE=${IMAGE_BUILD_DATE}
 
 COPY --chown=ubuntu:ubuntu . .
 
+COPY font/FrutigerNeueLTW1G-Medium.otf /usr/share/fonts/
+RUN fc-cache -fv
+
 # プロジェクトをインストール
 RUN --mount=type=cache,target=/home/ubuntu/.cache/uv,uid=1000,gid=1000 \
     uv sync --no-group dev --compile-bytecode
