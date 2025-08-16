@@ -1,5 +1,5 @@
 diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
-index 2187ba2..2c98eb3 100644
+index 2187ba2..85add38 100644
 --- a/rsudp/c_plots.py
 +++ b/rsudp/c_plots.py
 @@ -47,7 +47,75 @@ try:
@@ -77,4 +77,13 @@ index 2187ba2..2c98eb3 100644
 +    
      plt.ion()
      MPL = True
+ 
+@@ -426,7 +494,7 @@ class Plot(AbcPlot):
+         '''
+         Initialize plot elements and calculate parameters.
+         '''
+-        self.fig = plt.figure(self.figure_num, figsize=(11, 3 * self.num_chans))
++        self.fig = plt.figure(self.figure_num, figsize=(11, 6 * self.num_chans))
+         self.fig.canvas.mpl_connect('close_event', self.handle_close)
+         self.fig.canvas.mpl_connect('resize_event', self.handle_resize)
  
