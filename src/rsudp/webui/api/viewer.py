@@ -187,7 +187,22 @@ def get_image(filename: str):
         if file_path.stat().st_size == 0:
             return jsonify({"error": "File is empty"}), 404
 
-        return send_file(str(file_path), mimetype="image/png", as_attachment=False, download_name=None)
+        # Send file with cache headers for better performance
+        response = send_file(
+            str(file_path),
+            mimetype="image/png",
+            as_attachment=False,
+            download_name=None,
+            # Enable conditional requests (304 Not Modified)
+            conditional=True,
+            # Set max age to 1 year since screenshots are immutable
+            max_age=31536000,  # 1 year in seconds
+        )
+
+        # Add additional cache headers
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+
+        return response
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
