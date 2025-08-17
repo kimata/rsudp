@@ -1,5 +1,5 @@
 diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
-index 2187ba2..211756e 100644
+index 2187ba2..1cba4bd 100644
 --- a/rsudp/c_plots.py
 +++ b/rsudp/c_plots.py
 @@ -47,7 +47,16 @@ try:
@@ -69,7 +69,7 @@ index 2187ba2..211756e 100644
  
          im = mpimg.imread(pr.resource_filename('rsudp', os.path.join('img', 'version1-01-small.png')))
 -        self.imax = self.fig.add_axes([0.015, 0.944, 0.2, 0.056], anchor='NW')  # [left, bottom, right, top]
-+        self.imax = self.fig.add_axes([0.015, 0.943, 0.195, 0.0585], anchor='NW')  # [left, bottom, right, top]
++        self.imax = self.fig.add_axes([0.015, 0.938, 0.195, 0.0585], anchor='NW')  # [left, bottom, right, top]
          self.imax.imshow(im, aspect='equal', interpolation='bilinear')
          self.imax.axis('off')
          # set up axes and artists
