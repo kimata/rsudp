@@ -1,0 +1,95 @@
+diff --git a/rsudp/c_liveness.py b/rsudp/c_liveness.py
+new file mode 100644
+index 0000000..73729f5
+--- /dev/null
++++ b/rsudp/c_liveness.py
+@@ -0,0 +1,66 @@
++import os
++import time
++from threading import Thread
++from rsudp import printM, printW
++
++
++class Liveness(Thread):
++    """
++    Thread to periodically touch a liveness file to indicate the application is running.
++    """
++    
++    def __init__(self, liveness_file='/dev/shm/rsudp.liveness', interval=5, testing=False):
++        """
++        Initialize the Liveness thread.
++        
++        :param str liveness_file: Path to the liveness file
++        :param int interval: Interval in seconds between updates
++        :param bool testing: Testing mode flag
++        """
++        super().__init__()
++        self.sender = 'Liveness'
++        self.alive = True
++        self.testing = testing
++        self.liveness_file = liveness_file
++        self.interval = interval
++        
++        printM('Starting liveness monitor (file: %s, interval: %ds)' % (self.liveness_file, self.interval), self.sender)
++    
++    def _touch_file(self):
++        """
++        Touch the liveness file to update its modification time.
++        """
++        try:
++            # Create parent directory if it doesn't exist
++            os.makedirs(os.path.dirname(self.liveness_file), exist_ok=True)
++            
++            # Touch the file
++            with open(self.liveness_file, 'a'):
++                os.utime(self.liveness_file, None)
++        except Exception as e:
++            printW('Failed to update liveness file: %s' % str(e), self.sender)
++    
++    def run(self):
++        """
++        Main loop to periodically update the liveness file.
++        """
++        printM('Liveness monitor started', self.sender)
++        
++        while self.alive:
++            self._touch_file()
++            
++            # Sleep in small intervals to allow quick shutdown
++            for _ in range(self.interval * 10):
++                if not self.alive:
++                    break
++                time.sleep(0.1)
++        
++        # Clean up the liveness file on shutdown
++        try:
++            if os.path.exists(self.liveness_file):
++                os.remove(self.liveness_file)
++                printM('Liveness file removed', self.sender)
++        except Exception as e:
++            printW('Failed to remove liveness file: %s' % str(e), self.sender)
++        
++        printM('Liveness monitor stopped', self.sender)
+\ No newline at end of file
+diff --git a/rsudp/client.py b/rsudp/client.py
+index 6911dc8..ad1e116 100644
+--- a/rsudp/client.py
++++ b/rsudp/client.py
+@@ -27,6 +27,7 @@ from rsudp.c_rsam import RSAM
+ from rsudp.c_testing import Testing
+ from rsudp.t_testdata import TestData
+ from rsudp.c_settings import Settings
++from rsudp.c_liveness import Liveness
+ import pkg_resources as pr
+ 
+ 
+@@ -412,6 +413,9 @@ def run(settings, debug):
+ 		test = Testing(q=q)
+ 		mk_p(test)
+ 
++	# Start liveness monitor thread
++	liveness = Liveness(testing=TESTING)
++	mk_p(liveness)
+ 
+ 	# start the producer, consumer, and activated modules
+ 	start()
