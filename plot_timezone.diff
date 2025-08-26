@@ -1,5 +1,5 @@
 diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
-index 1cba4bd..baa5f70 100644
+index 1cba4bd..2514bd7 100644
 --- a/rsudp/c_plots.py
 +++ b/rsudp/c_plots.py
 @@ -3,7 +3,7 @@ import pkg_resources as pr
@@ -89,7 +89,7 @@ index 1cba4bd..baa5f70 100644
 -            self.last_event_str = '%s UTC' % (event[1].strftime('%Y-%m-%d %H:%M:%S.%f')[:22])
 +            # Convert to JST for display
 +            jst_tz = timezone(timedelta(hours=9))
-+            event_jst = event[1].replace(tzinfo=timezone.utc).astimezone(jst_tz)
++            event_jst = event[1].datetime.replace(tzinfo=timezone.utc).astimezone(jst_tz)
 +            self.last_event_str = '%s JST' % (event_jst.strftime('%Y-%m-%d %H:%M:%S.%f')[:22])
              printM('Event time: %s' % (self.last_event_str), sender=self.sender)  # show event time in the logs
              
