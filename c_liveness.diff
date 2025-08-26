@@ -127,7 +127,7 @@ index 0000000..577480f
 +        printM('Liveness monitor stopped', self.sender)
 \ No newline at end of file
 diff --git a/rsudp/c_plot_controller.py b/rsudp/c_plot_controller.py
-index b54c8ab..11c1f8e 100644
+index b54c8ab..4d104ee 100644
 --- a/rsudp/c_plot_controller.py
 +++ b/rsudp/c_plot_controller.py
 @@ -25,6 +25,7 @@ class PlotsController():
@@ -138,21 +138,31 @@ index b54c8ab..11c1f8e 100644
          self.save_timer = 0
          self.refresh_interval = refresh_interval
          self.delay = rs.tr if (self._plots[0].spectrogram) else 1
-@@ -63,8 +64,14 @@ class PlotsController():
+@@ -63,13 +64,24 @@ class PlotsController():
          n = 0  # number of iterations without plotting
          i = 0  # number of plot events without clearing the linecache
          u = -1  # number of blocked queue calls (must be -1 at startup)
-+        heartbeat_counter = 0  # counter for heartbeat updates
++        last_heartbeat_update = time.time()  # track last heartbeat update time
          while True:  # main loop
              refresh_start = time.time()
-+            # Update heartbeat periodically
-+            heartbeat_counter += 1
-+            if heartbeat_counter >= 10:  # Update heartbeat every 10 iterations
-+                self.heartbeat = time.time()
-+                heartbeat_counter = 0
++            # Update heartbeat every 2 seconds to ensure it stays fresh
++            current_time = time.time()
++            if current_time - last_heartbeat_update > 2:
++                self.heartbeat = current_time
++                last_heartbeat_update = current_time
              while True:  # sub loop
                  if self.alive == False:  # break if the user has closed the plot
                      break
+                 n += 1
+                 self.save_timer += 1
++                # Update heartbeat in inner loop too
++                current_time = time.time()
++                if current_time - last_heartbeat_update > 2:
++                    self.heartbeat = current_time
++                    last_heartbeat_update = current_time
+                 if self.queue.qsize() > 0:
+                     self.get_queue()
+                     time.sleep(0.009)  # wait a ms to see if another packet will arrive
 diff --git a/rsudp/client.py b/rsudp/client.py
 index 6911dc8..bb09dc3 100644
 --- a/rsudp/client.py
