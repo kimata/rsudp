@@ -1,9 +1,9 @@
 diff --git a/rsudp/c_liveness.py b/rsudp/c_liveness.py
 new file mode 100644
-index 0000000..73729f5
+index 0000000..ddaf352
 --- /dev/null
 +++ b/rsudp/c_liveness.py
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,68 @@
 +import os
 +import time
 +from threading import Thread
@@ -26,6 +26,8 @@ index 0000000..73729f5
 +        super().__init__()
 +        self.sender = 'Liveness'
 +        self.alive = True
++        self.alarm = False
++        self.alarm_reset = False
 +        self.testing = testing
 +        self.liveness_file = liveness_file
 +        self.interval = interval
