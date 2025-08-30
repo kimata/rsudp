@@ -48,32 +48,72 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     });
   };
 
-  // 隣接する画像を事前読み込み
+  // 隣接する画像を事前読み込み（前後5枚）
   useEffect(() => {
     if (!currentImage || allImages.length === 0) return;
 
     const currentIndex = allImages.findIndex(img => img.filename === currentImage.filename);
     const imagesToPreload: string[] = [];
+    const preloadRange = 5; // 前後5枚を先読み
 
-    // 前後の画像を事前読み込み対象に追加
-    if (currentIndex > 0) {
-      imagesToPreload.push(allImages[currentIndex - 1].filename);
-    }
-    if (currentIndex < allImages.length - 1) {
-      imagesToPreload.push(allImages[currentIndex + 1].filename);
+    // 前の画像を事前読み込み対象に追加（最大5枚）
+    for (let i = 1; i <= preloadRange; i++) {
+      const prevIndex = currentIndex - i;
+      if (prevIndex >= 0) {
+        imagesToPreload.push(allImages[prevIndex].filename);
+      }
     }
 
-    // 事前読み込み実行
-    imagesToPreload.forEach(async (filename) => {
+    // 後の画像を事前読み込み対象に追加（最大5枚）
+    for (let i = 1; i <= preloadRange; i++) {
+      const nextIndex = currentIndex + i;
+      if (nextIndex < allImages.length) {
+        imagesToPreload.push(allImages[nextIndex].filename);
+      }
+    }
+
+    // 事前読み込み実行（近い画像から優先的に読み込み）
+    imagesToPreload.forEach(async (filename, index) => {
       if (!preloadedImages.has(filename)) {
-        try {
-          const img = await preloadImage(filename);
-          setPreloadedImages(prev => new Map(prev).set(filename, img));
-        } catch (error) {
-          console.warn('Failed to preload image:', filename, error);
-        }
+        // 近い画像ほど優先度を高くするため、遅延を設定
+        const delay = Math.floor(index / 2) * 100; // 0ms, 0ms, 100ms, 100ms, 200ms...
+        
+        setTimeout(async () => {
+          try {
+            const img = await preloadImage(filename);
+            setPreloadedImages(prev => new Map(prev).set(filename, img));
+          } catch (error) {
+            console.warn('Failed to preload image:', filename, error);
+          }
+        }, delay);
       }
     });
+
+    // 古いキャッシュをクリーンアップ（メモリ管理）
+    const maxCacheSize = 20; // 最大20枚までキャッシュ
+    if (preloadedImages.size > maxCacheSize) {
+      const keepIndices = new Set<number>();
+      
+      // 現在の画像の前後10枚のインデックスを保持
+      for (let i = -10; i <= 10; i++) {
+        const idx = currentIndex + i;
+        if (idx >= 0 && idx < allImages.length) {
+          keepIndices.add(idx);
+        }
+      }
+
+      // 保持対象外の画像をキャッシュから削除
+      setPreloadedImages(prev => {
+        const newCache = new Map(prev);
+        for (const [filename] of newCache) {
+          const idx = allImages.findIndex(img => img.filename === filename);
+          if (!keepIndices.has(idx)) {
+            newCache.delete(filename);
+          }
+        }
+        return newCache;
+      });
+    }
   }, [currentImage, allImages]); // preloadedImagesを依存配列から削除
 
   const handleImageLoad = () => {
