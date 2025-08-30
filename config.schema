@@ -21,6 +21,17 @@
                 "screenshot"
             ]
         },
+        "data": {
+            "type": "object",
+            "properties": {
+                "cache": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "cache"
+            ]
+        },
         "webapp": {
             "type": "object",
             "properties": {
@@ -34,6 +45,7 @@
         }
     },
     "required": [
+        "data",
         "plot",
         "webapp"
     ]

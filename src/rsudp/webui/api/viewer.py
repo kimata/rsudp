@@ -3,11 +3,29 @@
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
-from flask import Blueprint, current_app, jsonify, send_file
+from flask import Blueprint, current_app, jsonify, request, send_file
+from .screenshot_manager import ScreenshotManager
 
 viewer_api = Blueprint("viewer_api", __name__, url_prefix="/rsudp")
 blueprint = viewer_api  # Alias for compatibility with webui.py
+
+# Global instance of ScreenshotManager
+_screenshot_manager: Optional[ScreenshotManager] = None
+
+def get_screenshot_manager() -> ScreenshotManager:
+    """Get or create ScreenshotManager instance."""
+    global _screenshot_manager
+    if _screenshot_manager is None:
+        config = current_app.config["CONFIG"]
+        # Ensure cache path is set
+        if "data" not in config:
+            config["data"] = {}
+        if "cache" not in config["data"]:
+            config["data"]["cache"] = "data/cache.db"
+        _screenshot_manager = ScreenshotManager(config)
+    return _screenshot_manager
 
 
 def parse_filename(filename: str) -> dict | None:
@@ -58,24 +76,48 @@ def list_screenshots():
     List all screenshot files with parsed metadata.
 
     Returns files sorted by timestamp (newest first).
+    Query parameters:
+    - min_sta: Minimum STA value to filter screenshots
     """
     try:
-        screenshots_dir = get_screenshots_path()
-
-        if not screenshots_dir.exists():
-            return jsonify({"error": "Screenshots directory not found", "path": str(screenshots_dir)}), 404
-
-        files = []
-        for file_path in screenshots_dir.glob("*.png"):
-            if file_path.is_file() and file_path.stat().st_size > 0:
-                parsed = parse_filename(file_path.name)
-                if parsed:
-                    files.append(parsed)
-
-        # Sort by timestamp (newest first)
-        files.sort(key=lambda x: x["timestamp"], reverse=True)
-
-        return jsonify({"screenshots": files, "total": len(files), "path": str(screenshots_dir)})
+        manager = get_screenshot_manager()
+        
+        # Organize files if needed (moves files to date-based subdirectories)
+        manager.organize_files()
+        
+        # Scan and cache any new files
+        manager.scan_and_cache_all()
+        
+        # Get minimum STA filter from query parameters
+        min_sta = request.args.get("min_sta", type=float)
+        
+        # Get screenshots with optional STA filter
+        screenshots = manager.get_screenshots_with_sta(min_sta)
+        
+        # Format for compatibility with existing frontend
+        formatted_screenshots = []
+        for s in screenshots:
+            formatted_screenshots.append({
+                "filename": s["filename"],
+                "prefix": s["filename"].split("-")[0],
+                "year": s["year"],
+                "month": s["month"],
+                "day": s["day"],
+                "hour": s["hour"],
+                "minute": s["minute"],
+                "second": s["second"],
+                "timestamp": s["timestamp"],
+                "sta": s["sta"],
+                "lta": s["lta"],
+                "sta_lta_ratio": s["sta_lta_ratio"],
+                "metadata": s["metadata"]
+            })
+        
+        return jsonify({
+            "screenshots": formatted_screenshots, 
+            "total": len(formatted_screenshots), 
+            "path": str(get_screenshots_path())
+        })
 
     except Exception as e:
         import traceback
@@ -85,21 +127,22 @@ def list_screenshots():
 
 @viewer_api.route("/api/screenshot/years/", methods=["GET"])
 def list_years():
-    """Get list of available years."""
+    """Get list of available years.
+    
+    Query parameters:
+    - min_sta: Minimum STA value to filter years
+    """
     try:
-        screenshots_dir = get_screenshots_path()
-
-        if not screenshots_dir.exists():
-            return jsonify({"years": []})
-
-        years = set()
-        for file_path in screenshots_dir.glob("*.png"):
-            if file_path.is_file() and file_path.stat().st_size > 0:
-                parsed = parse_filename(file_path.name)
-                if parsed:
-                    years.add(parsed["year"])
-
-        return jsonify({"years": sorted(years, reverse=True)})
+        manager = get_screenshot_manager()
+        min_sta = request.args.get("min_sta", type=float)
+        
+        # Get available dates with STA filter
+        dates = manager.get_available_dates(min_sta)
+        
+        # Extract unique years
+        years = sorted(set(d["year"] for d in dates), reverse=True)
+        
+        return jsonify({"years": years})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -107,21 +150,25 @@ def list_years():
 
 @viewer_api.route("/api/screenshot/<int:year>/months/", methods=["GET"])
 def list_months(year: int):
-    """Get list of available months for a specific year."""
+    """Get list of available months for a specific year.
+    
+    Query parameters:
+    - min_sta: Minimum STA value to filter months
+    """
     try:
-        screenshots_dir = get_screenshots_path()
-
-        if not screenshots_dir.exists():
-            return jsonify({"months": []})
-
-        months = set()
-        for file_path in screenshots_dir.glob("*.png"):
-            if file_path.is_file() and file_path.stat().st_size > 0:
-                parsed = parse_filename(file_path.name)
-                if parsed and parsed["year"] == year:
-                    months.add(parsed["month"])
-
-        return jsonify({"months": sorted(months, reverse=True)})
+        manager = get_screenshot_manager()
+        min_sta = request.args.get("min_sta", type=float)
+        
+        # Get available dates with STA filter
+        dates = manager.get_available_dates(min_sta)
+        
+        # Extract months for the specified year
+        months = sorted(
+            set(d["month"] for d in dates if d["year"] == year), 
+            reverse=True
+        )
+        
+        return jsonify({"months": months})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -129,21 +176,26 @@ def list_months(year: int):
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/days/", methods=["GET"])
 def list_days(year: int, month: int):
-    """Get list of available days for a specific year and month."""
+    """Get list of available days for a specific year and month.
+    
+    Query parameters:
+    - min_sta: Minimum STA value to filter days
+    """
     try:
-        screenshots_dir = get_screenshots_path()
-
-        if not screenshots_dir.exists():
-            return jsonify({"days": []})
-
-        days = set()
-        for file_path in screenshots_dir.glob("*.png"):
-            if file_path.is_file() and file_path.stat().st_size > 0:
-                parsed = parse_filename(file_path.name)
-                if parsed and parsed["year"] == year and parsed["month"] == month:
-                    days.add(parsed["day"])
-
-        return jsonify({"days": sorted(days, reverse=True)})
+        manager = get_screenshot_manager()
+        min_sta = request.args.get("min_sta", type=float)
+        
+        # Get available dates with STA filter
+        dates = manager.get_available_dates(min_sta)
+        
+        # Extract days for the specified year and month
+        days = sorted(
+            set(d["day"] for d in dates 
+                if d["year"] == year and d["month"] == month), 
+            reverse=True
+        )
+        
+        return jsonify({"days": days})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -151,23 +203,38 @@ def list_days(year: int, month: int):
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/<int:day>/", methods=["GET"])
 def list_by_date(year: int, month: int, day: int):
-    """Get screenshots for a specific date."""
+    """Get screenshots for a specific date.
+    
+    Query parameters:
+    - min_sta: Minimum STA value to filter screenshots
+    """
     try:
-        screenshots_dir = get_screenshots_path()
-
-        if not screenshots_dir.exists():
-            return jsonify({"screenshots": []})
-
+        manager = get_screenshot_manager()
+        min_sta = request.args.get("min_sta", type=float)
+        
+        # Get screenshots with optional STA filter
+        screenshots = manager.get_screenshots_with_sta(min_sta)
+        
+        # Filter by date
         files = []
-        for file_path in screenshots_dir.glob("*.png"):
-            if file_path.is_file() and file_path.stat().st_size > 0:
-                parsed = parse_filename(file_path.name)
-                if parsed and parsed["year"] == year and parsed["month"] == month and parsed["day"] == day:
-                    files.append(parsed)
-
-        # Sort by timestamp (newest first)
-        files.sort(key=lambda x: x["timestamp"], reverse=True)
-
+        for s in screenshots:
+            if s["year"] == year and s["month"] == month and s["day"] == day:
+                files.append({
+                    "filename": s["filename"],
+                    "prefix": s["filename"].split("-")[0],
+                    "year": s["year"],
+                    "month": s["month"],
+                    "day": s["day"],
+                    "hour": s["hour"],
+                    "minute": s["minute"],
+                    "second": s["second"],
+                    "timestamp": s["timestamp"],
+                    "sta": s["sta"],
+                    "lta": s["lta"],
+                    "sta_lta_ratio": s["sta_lta_ratio"],
+                    "metadata": s["metadata"]
+                })
+        
         return jsonify({"screenshots": files, "total": len(files)})
 
     except Exception as e:
@@ -179,8 +246,18 @@ def get_image(filename: str):
     """Serve a specific screenshot image."""
     try:
         screenshots_dir = get_screenshots_path()
+        
+        # First try direct path
         file_path = screenshots_dir / filename
-
+        
+        # If not found, try searching in date-based subdirectories
+        if not file_path.exists():
+            # Search recursively for the filename
+            for found_path in screenshots_dir.rglob(filename):
+                if found_path.is_file():
+                    file_path = found_path
+                    break
+        
         if not file_path.exists() or not file_path.is_file():
             return jsonify({"error": "File not found"}), 404
 
@@ -210,29 +287,50 @@ def get_image(filename: str):
 
 @viewer_api.route("/api/screenshot/latest/", methods=["GET"])
 def get_latest():
-    """Get the most recent screenshot."""
+    """Get the most recent screenshot.
+    
+    Query parameters:
+    - min_sta: Minimum STA value to filter screenshots
+    """
     try:
-        screenshots_dir = get_screenshots_path()
-
-        if not screenshots_dir.exists():
-            return jsonify({"error": "Screenshots directory not found"}), 404
-
-        latest = None
-        latest_time = None
-
-        for file_path in screenshots_dir.glob("*.png"):
-            if file_path.is_file() and file_path.stat().st_size > 0:
-                parsed = parse_filename(file_path.name)
-                if parsed:
-                    timestamp = parsed["timestamp"]
-                    if latest_time is None or timestamp > latest_time:
-                        latest = parsed
-                        latest_time = timestamp
-
-        if latest is None:
+        manager = get_screenshot_manager()
+        min_sta = request.args.get("min_sta", type=float)
+        
+        # Get screenshots with optional STA filter
+        screenshots = manager.get_screenshots_with_sta(min_sta)
+        
+        if not screenshots:
             return jsonify({"error": "No screenshots found"}), 404
+        
+        # First one is already the latest (sorted by timestamp desc)
+        latest = screenshots[0]
+        
+        return jsonify({
+            "filename": latest["filename"],
+            "prefix": latest["filename"].split("-")[0],
+            "year": latest["year"],
+            "month": latest["month"],
+            "day": latest["day"],
+            "hour": latest["hour"],
+            "minute": latest["minute"],
+            "second": latest["second"],
+            "timestamp": latest["timestamp"],
+            "sta": latest["sta"],
+            "lta": latest["lta"],
+            "sta_lta_ratio": latest["sta_lta_ratio"],
+            "metadata": latest["metadata"]
+        })
 
-        return jsonify(latest)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+
+@viewer_api.route("/api/screenshot/statistics/", methods=["GET"])
+def get_statistics():
+    """Get STA value statistics for all screenshots."""
+    try:
+        manager = get_screenshot_manager()
+        stats = manager.get_sta_statistics()
+        return jsonify(stats)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

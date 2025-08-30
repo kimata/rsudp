@@ -2,5 +2,8 @@ plot:
   screenshot:
     path: data/screenshots
 
+data:
+  cache: data/cache.db
+
 webapp:
     static_dir_path: react/dist
