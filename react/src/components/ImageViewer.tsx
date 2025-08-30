@@ -266,7 +266,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             <div className="level-item">
               <div className="has-text-right">
                 <br className="is-hidden-desktop" />
-                <span className="icon" style={{ marginRight: '0.25rem' }}>
+                <span className="icon" style={{ marginRight: '0.25rem', verticalAlign: 'baseline' }}>
                   <i className="fas fa-chart-bar"></i>
                 </span>
                 <span className="tag is-info" style={{ marginLeft: '0.25rem' }}>

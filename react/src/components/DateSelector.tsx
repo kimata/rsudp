@@ -71,7 +71,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
             </button>
           </p>
           <p className="control">
-            <span className="tag is-light">
+            <span className="tag is-light" style={{ display: 'inline-flex', alignItems: 'center', height: '2.25em' }}>
               {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
             </span>
           </p>
