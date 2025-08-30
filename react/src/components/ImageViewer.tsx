@@ -25,7 +25,14 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
 
-  const { navigateNext, navigatePrevious } = useScreenshotNavigation(
+  const {
+    currentIndex,
+    navigateNext,
+    navigatePrevious,
+    canNavigateNext,
+    canNavigatePrevious,
+    totalCount
+  } = useScreenshotNavigation(
     currentImage,
     allImages,
     onNavigate
@@ -442,8 +449,48 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         </figure>
       </div>
 
+      {/* デスクトップ用ナビゲーションボタン */}
+      <div className="is-hidden-touch" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+        <div className="field is-grouped is-grouped-centered" style={{ alignItems: 'center' }}>
+          <p className="control">
+            <button
+              className="button is-info"
+              onClick={navigatePrevious}
+              disabled={!canNavigatePrevious}
+            >
+              <span className="icon">
+                <i className="fas fa-chevron-left"></i>
+              </span>
+              <span>前へ</span>
+            </button>
+          </p>
+          <p className="control" style={{ display: 'flex', alignItems: 'center' }}>
+            <span className="tag is-light" style={{ display: 'inline-flex', alignItems: 'center', height: '2.25em' }}>
+              {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
+            </span>
+          </p>
+          <p className="control">
+            <button
+              className="button is-info"
+              onClick={navigateNext}
+              disabled={!canNavigateNext}
+            >
+              <span>次へ</span>
+              <span className="icon">
+                <i className="fas fa-chevron-right"></i>
+              </span>
+            </button>
+          </p>
+        </div>
+      </div>
+
       <div className="content is-small has-text-centered" style={{ marginTop: '1rem' }}>
-        <p className="is-hidden-touch">🎹 矢印キー←→でナビゲーション / Fキーで全画面表示</p>
+        <p className="is-hidden-touch">
+          <span className="icon" style={{ marginRight: '0.5rem' }}>
+            <i className="fas fa-keyboard"></i>
+          </span>
+          矢印キー←→でナビゲーション / Fキーで全画面表示
+        </p>
         <p className="is-hidden-desktop">
           <span className="icon" style={{ marginRight: '0.5rem' }}>
             <i className="fas fa-mobile-alt"></i>

@@ -393,9 +393,6 @@ const App: React.FC = () => {
             onMonthChange={handleMonthChange}
             onDayChange={handleDayChange}
             loading={loading}
-            currentScreenshot={currentScreenshot}
-            allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
-            onNavigate={handleNavigate}
           />
 
           <FileList
@@ -484,9 +481,6 @@ const App: React.FC = () => {
           onMonthChange={handleMonthChange}
           onDayChange={handleDayChange}
           loading={loading}
-          currentScreenshot={currentScreenshot}
-          allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
-          onNavigate={handleNavigate}
         />
 
         <FileList

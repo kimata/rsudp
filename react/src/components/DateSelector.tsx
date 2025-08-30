@@ -1,6 +1,4 @@
 import React from 'react';
-import type { Screenshot } from '../types';
-import { useScreenshotNavigation } from '../hooks/useScreenshotNavigation';
 
 interface DateSelectorProps {
   years: number[];
@@ -13,9 +11,6 @@ interface DateSelectorProps {
   onMonthChange: (month: number | null) => void;
   onDayChange: (day: number | null) => void;
   loading: boolean;
-  currentScreenshot: Screenshot | null;
-  allImages: Screenshot[];
-  onNavigate: (screenshot: Screenshot) => void;
 }
 
 const DateSelector: React.FC<DateSelectorProps> = ({
@@ -29,67 +24,14 @@ const DateSelector: React.FC<DateSelectorProps> = ({
   onMonthChange,
   onDayChange,
   loading,
-  currentScreenshot,
-  allImages,
-  onNavigate,
 }) => {
   const monthNames = [
     '', '1月', '2月', '3月', '4月', '5月', '6月',
     '7月', '8月', '9月', '10月', '11月', '12月'
   ];
 
-  const {
-    currentIndex,
-    navigateNext,
-    navigatePrevious,
-    canNavigateNext,
-    canNavigatePrevious,
-    totalCount
-  } = useScreenshotNavigation(currentScreenshot, allImages, onNavigate);
-
   return (
     <>
-      {/* ナビゲーション（デスクトップのみ表示） */}
-      <div className="box is-hidden-touch">
-        <h2 className="title is-5">
-          <span className="icon" style={{ marginRight: '0.5rem' }}>
-            <i className="fas fa-gamepad"></i>
-          </span>
-          ナビゲーション
-        </h2>
-        <div className="field is-grouped is-grouped-centered" style={{ alignItems: 'center' }}>
-          <p className="control">
-            <button
-              className="button is-info"
-              onClick={navigatePrevious}
-              disabled={!canNavigatePrevious || loading}
-            >
-              <span className="icon">
-                <i className="fas fa-chevron-left"></i>
-              </span>
-              <span>前へ</span>
-            </button>
-          </p>
-          <p className="control" style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="tag is-light" style={{ display: 'inline-flex', alignItems: 'center', height: '2.25em' }}>
-              {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
-            </span>
-          </p>
-          <p className="control">
-            <button
-              className="button is-info"
-              onClick={navigateNext}
-              disabled={!canNavigateNext || loading}
-            >
-              <span>次へ</span>
-              <span className="icon">
-                <i className="fas fa-chevron-right"></i>
-              </span>
-            </button>
-          </p>
-        </div>
-      </div>
-
       {/* 日付フィルタ */}
       <div className="box">
         <h2 className="title is-5">
