@@ -31,7 +31,7 @@ Raspberry Shake の地震データをリアルタイムで監視・解析する�
 - 🌍 **ヘッドレス対応** - GUI環境なしでの動作をサポート
 - 📈 **リアルタイム監視** - 地震データのライブ表示・記録
 - 🔔 **アラート機能** - 地震検知時の自動通知
-- 💾 **データ記録** - miniSEED形式でのデータ保存
+- 💾 **データ記録** - 地震データの自動保存
 - 📱 **SNS連携** - Twitter/Telegram通知対応
 - 🖼️ **Web画像ビューワー** - React製のスクリーンショット閲覧インターface
 - ❤️ **ヘルスチェック対応** - アプリケーション稼働状況の監視機能
@@ -57,7 +57,7 @@ flowchart TD
     DC --> WEBUI[🌐 Web UI<br/>Flask API + React]
     DC --> HEALTH[❤️ Liveness Monitor<br/>ヘルスチェック]
 
-    WRITE --> OUTPUT[📁 /opt/rsudp/data<br/>miniSEEDファイル]
+    WRITE --> OUTPUT[📁 /opt/rsudp/data<br/>地震データファイル]
     PLOT --> IMGS[🖼️ スクリーンショット<br/>PNG画像（JST時刻）]
     WEBUI --> VIEWER[📱 Screenshot Viewer<br/>STA値フィルタ・日付フィルタ]
     HEALTH --> STATUS[📄 /dev/shm/rsudp.liveness<br/>稼働状況ファイル]
@@ -145,7 +145,6 @@ docker run --rm -p 8888:8888/udp -p 5000:5000 \
 
 ### 出力ファイル
 
-- **miniSEEDファイル**: `./data/` ディレクトリに保存
 - **スクリーンショット**: 地震検知時に `./data/` に PNG 形式で保存
 - **ログファイル**: コンテナログとして出力
 
@@ -173,11 +172,6 @@ docker run --rm -p 8888:8888/udp -p 5000:5000 \
 ### ファイル名の形式
 
 ```
-# miniSEEDファイル
-AM_R503C_00_EHZ.ms  # Z軸（垂直）成分
-AM_R503C_00_EHE.ms  # E軸（東西）成分
-AM_R503C_00_EHN.ms  # N軸（南北）成分
-
 # スクリーンショット（Web画像ビューワー対応形式）
 SHAKE-2025-08-15-104524.png  # PREFIX-YYYY-MM-DD-HHMMSS.png（JST時刻）
 ALERT-2025-08-14-091523.png  # イベントタイプ別プレフィックス（JST時刻）
