@@ -364,8 +364,8 @@ const App: React.FC = () => {
             統計情報
           </h2>
             <div className="content">
-              <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || 0}</strong></p>
-              <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
+              <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || '0'}</strong> 件</p>
+              <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong> 件</p>
             </div>
           </div>
         </div>
@@ -455,9 +455,8 @@ const App: React.FC = () => {
             統計情報
           </h2>
           <div className="content">
-            <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || 0}</strong></p>
-            <p>STA値付き: <strong>{statistics?.with_sta.toLocaleString() || 0}</strong></p>
-            <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
+            <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || '0'}</strong> 件</p>
+            <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong> 件</p>
           </div>
         </div>
       </div>
