@@ -34,6 +34,9 @@ Raspberry Shake の地震データをリアルタイムで監視・解析する�
 - 💾 **データ記録** - miniSEED形式でのデータ保存
 - 📱 **SNS連携** - Twitter/Telegram通知対応
 - 🖼️ **Web画像ビューワー** - React製のスクリーンショット閲覧インターface
+- ❤️ **ヘルスチェック対応** - アプリケーション稼働状況の監視機能
+- 🕘 **JST時刻表示** - 日本標準時での地震データ表示・記録
+- 🎛️ **STA値フィルタリング** - 地震波形の強度による絞り込み機能
 
 ## 🖼️ スクリーンショット
 
@@ -52,10 +55,12 @@ flowchart TD
     DC --> WRITE[💾 Writer Module<br/>データ記録]
     DC --> NOTIF[📱 Notification<br/>Twitter/Telegram]
     DC --> WEBUI[🌐 Web UI<br/>Flask API + React]
+    DC --> HEALTH[❤️ Liveness Monitor<br/>ヘルスチェック]
 
     WRITE --> OUTPUT[📁 /opt/rsudp/data<br/>miniSEEDファイル]
-    PLOT --> IMGS[🖼️ スクリーンショット<br/>PNG画像]
-    WEBUI --> VIEWER[📱 Screenshot Viewer<br/>日付フィルタ・ナビゲーション]
+    PLOT --> IMGS[🖼️ スクリーンショット<br/>PNG画像（JST時刻）]
+    WEBUI --> VIEWER[📱 Screenshot Viewer<br/>STA値フィルタ・日付フィルタ]
+    HEALTH --> STATUS[📄 /dev/shm/rsudp.liveness<br/>稼働状況ファイル]
 
     subgraph "🐋 Docker Environment"
         DC
@@ -64,11 +69,13 @@ flowchart TD
         WRITE
         NOTIF
         WEBUI
+        HEALTH
     end
 
     subgraph "💾 Data Output"
         OUTPUT
         IMGS
+        STATUS
     end
 
     subgraph "🌐 Web Interface"
@@ -147,11 +154,19 @@ docker run --rm -p 8888:8888/udp -p 5000:5000 \
 スクリーンショットをブラウザで閲覧できるWebインターフェースが利用可能です：
 
 - **アクセス**: `http://localhost:5000/rsudp` （コンテナ起動時にポート5000を公開）
-- **機能**:
-    - 年/月/日による階層的日付フィルタリング
+- **フィルタ機能**:
+    - **STA値フィルタ**: 地震波形の強度（STA値）による絞り込み
+    - **日付フィルタ**: 年/月/日による階層的絞り込み
+    - **リアルタイム統計**: 全体とフィルタ後のスクリーンショット数を表示
+- **表示機能**:
     - ファイル名パース（PREFIX-YYYY-MM-DD-HHMMSS.png形式）
+    - **JST時刻表示**：すべての時刻情報を日本標準時で表示
     - 相対時間表示（「1日前」等）
+    - STA/LTA比率とSTA値の表示（地震検知情報）
+- **操作性**:
     - 矢印キーによるナビゲーション
+    - スワイプ操作（モバイル）
+    - 全画面表示対応
     - レスポンシブデザイン（PC・モバイル対応）
 - **技術**: React + TypeScript + Bulma CSS + Flask API
 
@@ -164,9 +179,21 @@ AM_R503C_00_EHE.ms  # E軸（東西）成分
 AM_R503C_00_EHN.ms  # N軸（南北）成分
 
 # スクリーンショット（Web画像ビューワー対応形式）
-SHAKE-2025-08-15-104524.png  # PREFIX-YYYY-MM-DD-HHMMSS.png
-ALERT-2025-08-14-091523.png  # イベントタイプ別プレフィックス
+SHAKE-2025-08-15-104524.png  # PREFIX-YYYY-MM-DD-HHMMSS.png（JST時刻）
+ALERT-2025-08-14-091523.png  # イベントタイプ別プレフィックス（JST時刻）
 ```
+
+### 稼働監視とヘルスチェック
+
+アプリケーションの稼働状況を監視するためのヘルスチェック機能が組み込まれています：
+
+- **ライブネスファイル**: `/dev/shm/rsudp.liveness` （共有メモリ上に作成）
+- **監視対象**: 全ての主要スレッド（Plot, Alert, Write等）および PlotsController の動作状態
+- **更新頻度**: デフォルト5秒間隔でファイルのタイムスタンプを更新
+- **異常検知**: 監視対象の異常停止時にはライブネスファイルの更新を停止
+- **自動クリーンアップ**: アプリケーション正常終了時にライブネスファイルを自動削除
+
+この機能により、外部監視システムからファイルの更新タイムスタンプを確認することで、rsudpの稼働状況を監視できます。
 
 ## 🔧 カスタマイズ
 
@@ -189,11 +216,30 @@ RUN jq '.settings.station = "R503C" | .settings.output_dir = "/opt/rsudp/data" |
 
 ### パッチファイルについて
 
-`c_plots.diff` は rsudp をヘッドレス環境（DISPLAY環境変数なし）で動作させるためのパッチです。このパッチにより：
+プロジェクトには以下のパッチファイルが含まれており、rsudpの機能を拡張しています：
+
+#### `c_plots.diff` - ヘッドレス対応
+rsudp をヘッドレス環境（DISPLAY環境変数なし）で動作させるためのパッチ：
 
 - GUI環境がない場合は自動的に `Agg` バックエンドを使用
 - アイコン設定処理をヘッドレス環境ではスキップ
 - エラーを発生させることなく可視化機能を利用可能
+
+#### `plot_timezone.diff` - JST時刻表示対応
+すべての時刻表示を日本標準時（JST）に変更するためのパッチ：
+
+- スクリーンショットのタイトル表示をJSTに変更
+- プロット軸ラベルをJSTに統一（`Time (JST)`）
+- ログ出力の時刻をJSTで表示
+- 地震イベント検知時刻の記録をJSTに変更
+
+#### `c_liveness.diff` - 稼働監視機能追加
+アプリケーションの稼働状況を監視する機能を追加：
+
+- 新規ライブネス監視スレッドの実装
+- 全ての監視対象スレッドのヘルスチェック
+- PlotsControllerのハートビート機能追加
+- 共有メモリ上でのライブネスファイル管理
 
 ## 📝 ライセンス
 
