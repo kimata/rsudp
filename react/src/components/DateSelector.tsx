@@ -49,8 +49,8 @@ const DateSelector: React.FC<DateSelectorProps> = ({
 
   return (
     <>
-      {/* ナビゲーション */}
-      <div className="box">
+      {/* ナビゲーション（デスクトップのみ表示） */}
+      <div className="box is-hidden-touch">
         <h2 className="title is-5">
           <span className="icon" style={{ marginRight: '0.5rem' }}>
             <i className="fas fa-gamepad"></i>
