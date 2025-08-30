@@ -75,8 +75,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     // 事前読み込み実行（近い画像から優先的に読み込み）
     imagesToPreload.forEach(async (filename, index) => {
       if (!preloadedImages.has(filename)) {
-        // 近い画像ほど優先度を高くするため、遅延を設定
-        const delay = Math.floor(index / 2) * 100; // 0ms, 0ms, 100ms, 100ms, 200ms...
+        // 近い画像ほど優先度を高くするため、短い遅延を設定
+        const delay = Math.floor(index / 2) * 25; // 0ms, 0ms, 25ms, 25ms, 50ms, 50ms, 75ms...
         
         setTimeout(async () => {
           try {
