@@ -39,7 +39,7 @@ RUN git clone https://github.com/raspishake/rsudp.git \
 
 RUN bash rsudp/unix-install-rsudp.sh
 
-COPY patch/ patch/
+COPY --chown=ubuntu:ubuntu patch/ patch/
 
 RUN cd rsudp && \
     for patch_file in ../patch/*.diff; do \
