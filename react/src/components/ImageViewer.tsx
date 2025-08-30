@@ -239,7 +239,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   return (
     <div className="box" onKeyDown={handleKeyDown} tabIndex={0}>
-      <div className="level is-mobile">
+      {/* デスクトップ表示 */}
+      <div className="level is-mobile is-hidden-touch">
         <div className="level-left">
           <div className="level-item">
             <div>
@@ -250,7 +251,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                   </span>
                   発生日時
                 </span>
-                <br className="is-hidden-desktop" />
                 <span className="title is-6" style={{ marginLeft: '0.25rem' }}>
                   {dateTime.formatted}
                 </span>
@@ -286,6 +286,50 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                   </span>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* モバイル表示 */}
+      <div className="is-hidden-desktop">
+        <div style={{ marginBottom: '1rem' }}>
+          <span className="heading">
+            <span className="icon" style={{ marginRight: '0.5rem' }}>
+              <i className="fas fa-clock"></i>
+            </span>
+            発生日時
+          </span>
+          <br />
+          <span className="title is-6" style={{ marginTop: '0.25rem' }}>
+            {dateTime.formatted}
+          </span>
+          <span className="subtitle is-7 has-text-grey" style={{ marginLeft: '0.5rem' }}>
+            ({dateTime.relative})
+          </span>
+        </div>
+        
+        {currentImage.sta && (
+          <div style={{ marginBottom: '1rem' }}>
+            <div 
+              style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <span className="icon" style={{ verticalAlign: 'baseline' }}>
+                <i className="fas fa-chart-bar"></i>
+              </span>
+              <span className="tag is-info">
+                STA: {Math.round(currentImage.sta).toLocaleString()}
+              </span>
+              {currentImage.sta_lta_ratio && (
+                <span className="tag is-warning">
+                  比率: {currentImage.sta_lta_ratio.toFixed(3)}
+                </span>
+              )}
             </div>
           </div>
         )}
