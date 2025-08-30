@@ -125,7 +125,10 @@ const FileList: React.FC<FileListProps> = ({
           </div>
         </div>
         <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
-          📊 読み込み中...
+          <span className="icon" style={{ marginRight: '0.25rem' }}>
+            <i className="fas fa-chart-bar"></i>
+          </span>
+          読み込み中...
         </div>
       </div>
     );
@@ -155,7 +158,10 @@ const FileList: React.FC<FileListProps> = ({
           </div>
         </div>
         <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
-          📊 0 件のファイル
+          <span className="icon" style={{ marginRight: '0.25rem' }}>
+            <i className="fas fa-chart-bar"></i>
+          </span>
+          0 件のファイル
         </div>
       </div>
     );
@@ -253,7 +259,10 @@ const FileList: React.FC<FileListProps> = ({
         })}
       </div>
       <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
-        📊 {allImages.length.toLocaleString()} 件のファイル
+        <span className="icon" style={{ marginRight: '0.25rem' }}>
+          <i className="fas fa-chart-bar"></i>
+        </span>
+        {allImages.length.toLocaleString()} 件のファイル
       </div>
     </div>
   );

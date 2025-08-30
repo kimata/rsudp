@@ -264,16 +264,24 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         {currentImage.sta && (
           <div className="level-right">
             <div className="level-item">
-              <div className="has-text-right">
-                <br className="is-hidden-desktop" />
-                <span className="icon" style={{ marginRight: '0.25rem', verticalAlign: 'baseline' }}>
+              <div 
+                className="has-text-right" 
+                style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}
+              >
+                <span className="icon" style={{ verticalAlign: 'baseline' }}>
                   <i className="fas fa-chart-bar"></i>
                 </span>
-                <span className="tag is-info" style={{ marginLeft: '0.25rem' }}>
+                <span className="tag is-info">
                   STA: {Math.round(currentImage.sta).toLocaleString()}
                 </span>
                 {currentImage.sta_lta_ratio && (
-                  <span className="tag is-warning" style={{ marginLeft: '0.25rem' }}>
+                  <span className="tag is-warning">
                     比率: {currentImage.sta_lta_ratio.toFixed(3)}
                   </span>
                 )}
