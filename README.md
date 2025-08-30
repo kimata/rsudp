@@ -23,16 +23,12 @@ Raspberry Shake の地震データをリアルタイムで監視・解析する�
 
 ## 📋 概要
 
-このプロジェクトは [rsudp](https://github.com/raspishake/rsudp) を Docker コンテナで動作させるための設定です。Raspberry Shake からのリアルタイムデータストリームを受信し、地震イベントの検出・記録・可視化を行います。
+このプロジェクトは [rsudp](https://github.com/raspishake/rsudp) を Docker コンテナで動作させるための設定です。
 
 ### 主な特徴
 
 - 🐋 **Docker対応** - 環境構築不要の簡単セットアップ
 - 🌍 **ヘッドレス対応** - GUI環境なしでの動作をサポート
-- 📈 **リアルタイム監視** - 地震データのライブ表示・記録
-- 🔔 **アラート機能** - 地震検知時の自動通知
-- 💾 **データ記録** - 地震データの自動保存
-- 📱 **SNS連携** - Twitter/Telegram通知対応
 - 🖼️ **Web画像ビューワー** - React製のスクリーンショット閲覧インターface
 - ❤️ **ヘルスチェック対応** - アプリケーション稼働状況の監視機能
 - 🕘 **JST時刻表示** - 日本標準時での地震データ表示・記録
@@ -126,9 +122,9 @@ docker stop rsudp-monitor
 
 デフォルトの設定は以下の通りです：
 
-- **Station**: R503C
+- **Station**: Shake
 - **Output Directory**: `/opt/rsudp/data`
-- **Write**: 有効（miniSEED形式でデータ保存）
+- **Write**: 有効（地震データ保存）
 - **Plot Screenshots**: 有効（地震検知時のスクリーンショット保存）
 
 カスタム設定で実行する場合：
