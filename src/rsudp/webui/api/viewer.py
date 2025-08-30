@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Optional
 
 from flask import Blueprint, current_app, jsonify, request, send_file
-from .screenshot_manager import ScreenshotManager
+from rsudp.screenshot_manager import ScreenshotManager
+import my_lib.flask_util
 
 viewer_api = Blueprint("viewer_api", __name__, url_prefix="/rsudp")
 blueprint = viewer_api  # Alias for compatibility with webui.py
@@ -241,43 +242,53 @@ def list_by_date(year: int, month: int, day: int):
         return jsonify({"error": str(e)}), 500
 
 
-@viewer_api.route("/api/screenshot/image/<path:filename>", methods=["GET"])
-def get_image(filename: str):
-    """Serve a specific screenshot image."""
-    try:
-        screenshots_dir = get_screenshots_path()
-        
-        # First try direct path
-        file_path = screenshots_dir / filename
-        
-        # If not found, try searching in date-based subdirectories
-        if not file_path.exists():
-            # Search recursively for the filename
-            for found_path in screenshots_dir.rglob(filename):
-                if found_path.is_file():
-                    file_path = found_path
-                    break
-        
-        if not file_path.exists() or not file_path.is_file():
-            return jsonify({"error": "File not found"}), 404
+def _get_image_file_path(filename: str):
+    """Get the actual file path for a given filename."""
+    screenshots_dir = get_screenshots_path()
+    
+    # First try direct path
+    file_path = screenshots_dir / filename
+    
+    # If not found, try searching in date-based subdirectories
+    if not file_path.exists():
+        # Search recursively for the filename
+        for found_path in screenshots_dir.rglob(filename):
+            if found_path.is_file():
+                file_path = found_path
+                break
+    
+    return str(file_path) if file_path.exists() else None
 
+
+@viewer_api.route("/api/screenshot/image/<path:filename>", methods=["GET"])
+@my_lib.flask_util.file_etag(
+    filename_func=lambda filename: _get_image_file_path(filename),
+    cache_control="public, max-age=31536000, immutable"
+)
+def get_image(filename: str):
+    """Serve a specific screenshot image with ETag caching."""
+    try:
+        file_path_str = _get_image_file_path(filename)
+        
+        if not file_path_str:
+            return jsonify({"error": "File not found"}), 404
+        
+        file_path = Path(file_path_str)
+        
         if file_path.stat().st_size == 0:
             return jsonify({"error": "File is empty"}), 404
 
-        # Send file with cache headers for better performance
+        # Send file with optimal cache headers
         response = send_file(
             str(file_path),
             mimetype="image/png",
             as_attachment=False,
             download_name=None,
-            # Enable conditional requests (304 Not Modified)
-            conditional=True,
+            # Disable Flask's built-in conditional requests since we're using ETag
+            conditional=False,
             # Set max age to 1 year since screenshots are immutable
             max_age=31536000,  # 1 year in seconds
         )
-
-        # Add additional cache headers
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
 
         return response
 
