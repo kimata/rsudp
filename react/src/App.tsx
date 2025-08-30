@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Screenshot, StatisticsResponse } from './types';
 import { screenshotApi } from './api';
 import DateSelector from './components/DateSelector';
@@ -214,6 +214,63 @@ const App: React.FC = () => {
   const handleRefresh = () => {
     loadInitialData();
   };
+
+  // グローバルなナビゲーション機能
+  const navigateToNext = useCallback(() => {
+    const availableImages = filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots;
+    if (availableImages.length === 0) return;
+
+    if (!currentScreenshot) {
+      // 画像が選択されていない場合は最初の画像を選択
+      setCurrentScreenshot(availableImages[0]);
+      return;
+    }
+
+    const currentIndex = availableImages.findIndex(img => img.filename === currentScreenshot.filename);
+    if (currentIndex < availableImages.length - 1) {
+      setCurrentScreenshot(availableImages[currentIndex + 1]);
+    }
+  }, [currentScreenshot, filteredScreenshots, allScreenshots]);
+
+  const navigateToPrevious = useCallback(() => {
+    const availableImages = filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots;
+    if (availableImages.length === 0) return;
+
+    if (!currentScreenshot) {
+      // 画像が選択されていない場合は最初の画像を選択
+      setCurrentScreenshot(availableImages[0]);
+      return;
+    }
+
+    const currentIndex = availableImages.findIndex(img => img.filename === currentScreenshot.filename);
+    if (currentIndex > 0) {
+      setCurrentScreenshot(availableImages[currentIndex - 1]);
+    }
+  }, [currentScreenshot, filteredScreenshots, allScreenshots]);
+
+  // グローバルキーボードイベントハンドラー
+  const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
+    // フォーカスが入力フィールドにある場合はスキップ
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) {
+      return;
+    }
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      navigateToPrevious();
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      navigateToNext();
+    }
+  }, [navigateToPrevious, navigateToNext]);
+
+  // グローバルキーボードイベントの登録
+  useEffect(() => {
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [handleGlobalKeyDown]);
 
   return (
     <div className="container is-fluid" style={{ padding: '0.5rem' }}>
