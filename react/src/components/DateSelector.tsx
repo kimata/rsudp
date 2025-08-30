@@ -51,7 +51,12 @@ const DateSelector: React.FC<DateSelectorProps> = ({
     <>
       {/* ナビゲーション */}
       <div className="box">
-        <h2 className="title is-5">🎮 ナビゲーション</h2>
+        <h2 className="title is-5">
+          <span className="icon" style={{ marginRight: '0.5rem' }}>
+            <i className="fas fa-gamepad"></i>
+          </span>
+          ナビゲーション
+        </h2>
         <div className="field is-grouped is-grouped-centered">
           <p className="control">
             <button
@@ -87,7 +92,12 @@ const DateSelector: React.FC<DateSelectorProps> = ({
 
       {/* 日付フィルタ */}
       <div className="box">
-        <h2 className="title is-5">📅 日付フィルタ</h2>
+        <h2 className="title is-5">
+          <span className="icon" style={{ marginRight: '0.5rem' }}>
+            <i className="fas fa-calendar-alt"></i>
+          </span>
+          日付フィルタ
+        </h2>
 
       {/* Year Selector */}
       <div className="field">

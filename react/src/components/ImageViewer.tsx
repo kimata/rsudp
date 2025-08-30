@@ -177,7 +177,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   if (!currentImage) {
     return (
       <div className="box has-text-centered">
-        <p className="subtitle">🖼️ 画像が選択されていません</p>
+        <p className="subtitle">
+          <span className="icon" style={{ marginRight: '0.5rem' }}>
+            <i className="fas fa-image"></i>
+          </span>
+          画像が選択されていません
+        </p>
       </div>
     );
   }
@@ -239,7 +244,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           <div className="level-item">
             <div>
               <div>
-                <span className="heading">🕰️ 発生日時</span>
+                <span className="heading">
+                  <span className="icon" style={{ marginRight: '0.5rem' }}>
+                    <i className="fas fa-clock"></i>
+                  </span>
+                  発生日時
+                </span>
                 <br className="is-hidden-desktop" />
                 <span className="title is-6" style={{ marginLeft: '0.25rem' }}>
                   {dateTime.formatted}
@@ -251,6 +261,25 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             </div>
           </div>
         </div>
+        {currentImage.sta && (
+          <div className="level-right">
+            <div className="level-item">
+              <div className="has-text-right">
+                <span className="icon" style={{ marginRight: '0.25rem' }}>
+                  <i className="fas fa-chart-bar"></i>
+                </span>
+                <span className="tag is-info" style={{ marginLeft: '0.25rem' }}>
+                  STA: {Math.round(currentImage.sta).toLocaleString()}
+                </span>
+                {currentImage.sta_lta_ratio && (
+                  <span className="tag is-warning" style={{ marginLeft: '0.25rem' }}>
+                    比率: {currentImage.sta_lta_ratio.toFixed(3)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div
@@ -283,7 +312,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 <span className="icon is-large">
                   <i className="fas fa-spinner fa-pulse fa-3x"></i>
                 </span>
-                <p className="subtitle mt-3">⏳ 画像を読み込み中...</p>
+                <p className="subtitle mt-3">
+                  <span className="icon">
+                    <i className="fas fa-hourglass-half"></i>
+                  </span>
+                  画像を読み込み中...
+                </p>
               </div>
             </div>
           </div>
@@ -296,7 +330,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 <span className="icon is-large has-text-danger">
                   <i className="fas fa-exclamation-triangle fa-3x"></i>
                 </span>
-                <p className="subtitle mt-3">❌ 画像の読み込みに失敗しました</p>
+                <p className="subtitle mt-3">
+                  <span className="icon" style={{ marginRight: '0.5rem' }}>
+                    <i className="fas fa-exclamation-triangle"></i>
+                  </span>
+                  画像の読み込みに失敗しました
+                </p>
                 <p className="is-size-7 has-text-grey">ファイル: {currentImage.filename}</p>
                 <button
                   className="button is-small is-primary mt-2"
@@ -352,7 +391,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
       <div className="content is-small has-text-centered" style={{ marginTop: '1rem' }}>
         <p className="is-hidden-touch">🎹 矢印キー←→でナビゲーション / Fキーで全画面表示</p>
-        <p className="is-hidden-desktop">📱 左右スワイプでナビゲーション / タップで全画面表示</p>
+        <p className="is-hidden-desktop">
+          <span className="icon" style={{ marginRight: '0.5rem' }}>
+            <i className="fas fa-mobile-alt"></i>
+          </span>
+          左右スワイプでナビゲーション / タップで全画面表示
+        </p>
       </div>
     </div>
   );

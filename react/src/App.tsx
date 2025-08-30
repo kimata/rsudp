@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import type { Screenshot } from './types';
+import type { Screenshot, StatisticsResponse } from './types';
 import { screenshotApi } from './api';
 import DateSelector from './components/DateSelector';
 import ImageViewer from './components/ImageViewer';
 import FileList from './components/FileList';
 import Footer from './components/Footer';
+import STAFilter from './components/STAFilter';
 import 'bulma/css/bulma.min.css';
 
 const App: React.FC = () => {
@@ -23,10 +24,26 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [minStaThreshold, setMinStaThreshold] = useState<number | undefined>(undefined);
+  const [statistics, setStatistics] = useState<StatisticsResponse | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   // Load years on mount
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Reload data when STA threshold changes (with debounce)
+  useEffect(() => {
+    if (statistics && !isInitialLoad) { // Only reload if we've already loaded initial data and not initial load
+      // Debounce API calls to prevent too many requests
+      const timeoutId = setTimeout(() => {
+        loadDataWithFilter();
+      }, 500); // Wait 500ms after last change
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [minStaThreshold]);
 
   // Load months when year changes
   useEffect(() => {
@@ -36,7 +53,7 @@ const App: React.FC = () => {
       setMonths([]);
       setSelectedMonth(null);
     }
-  }, [selectedYear]);
+  }, [selectedYear, minStaThreshold]);
 
   // Load days when month changes
   useEffect(() => {
@@ -46,7 +63,7 @@ const App: React.FC = () => {
       setDays([]);
       setSelectedDay(null);
     }
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, minStaThreshold]);
 
   // Filter screenshots when date selection changes
   useEffect(() => {
@@ -58,10 +75,20 @@ const App: React.FC = () => {
     setError(null);
     try {
       console.log('Loading initial data from API...');
-      // Load all screenshots and years
+      // Load statistics first
+      const stats = await screenshotApi.getStatistics();
+      setStatistics(stats);
+
+      // Set initial minimum STA threshold to the actual minimum value
+      const initialMinSta = stats.min_sta !== undefined ? Math.floor(stats.min_sta) : undefined;
+      if (initialMinSta !== undefined) {
+        setMinStaThreshold(initialMinSta);
+      }
+
+      // Load all screenshots and years with initial threshold
       const [screenshotsData, yearsData] = await Promise.all([
-        screenshotApi.getAllScreenshots(),
-        screenshotApi.getYears()
+        screenshotApi.getAllScreenshots(initialMinSta),
+        screenshotApi.getYears(initialMinSta)
       ]);
 
       console.log('API Response - Screenshots:', screenshotsData.length, 'Years:', yearsData);
@@ -71,6 +98,43 @@ const App: React.FC = () => {
       // Set the latest screenshot as current
       if (screenshotsData.length > 0) {
         setCurrentScreenshot(screenshotsData[0]);
+      }
+      
+      setIsInitialLoad(false);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to load screenshots: ${errorMessage}`);
+      console.error('API Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDataWithFilter = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Load all screenshots and years with filter
+      const [screenshotsData, yearsData] = await Promise.all([
+        screenshotApi.getAllScreenshots(minStaThreshold),
+        screenshotApi.getYears(minStaThreshold)
+      ]);
+
+      setAllScreenshots(screenshotsData);
+      setYears(yearsData);
+
+      // Reset selections if they're no longer valid
+      if (selectedYear && !yearsData.includes(selectedYear)) {
+        setSelectedYear(null);
+        setSelectedMonth(null);
+        setSelectedDay(null);
+      }
+
+      // Set the latest screenshot as current
+      if (screenshotsData.length > 0) {
+        setCurrentScreenshot(screenshotsData[0]);
+      } else {
+        setCurrentScreenshot(null);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -84,7 +148,7 @@ const App: React.FC = () => {
   const loadMonths = async (year: number) => {
     setLoading(true);
     try {
-      const monthsData = await screenshotApi.getMonths(year);
+      const monthsData = await screenshotApi.getMonths(year, minStaThreshold);
       setMonths(monthsData);
     } catch (err) {
       console.error(err);
@@ -96,7 +160,7 @@ const App: React.FC = () => {
   const loadDays = async (year: number, month: number) => {
     setLoading(true);
     try {
-      const daysData = await screenshotApi.getDays(year, month);
+      const daysData = await screenshotApi.getDays(year, month, minStaThreshold);
       setDays(daysData);
     } catch (err) {
       console.error(err);
@@ -157,7 +221,9 @@ const App: React.FC = () => {
         <div className="navbar-brand">
           <div className="navbar-item">
             <h1 className="title is-4 has-text-white">
-              <span style={{ marginLeft: '0.5rem', marginRight: '0.5rem' }}>📸</span>
+              <span className="icon" style={{ marginLeft: '0.5rem', marginRight: '0.5rem' }}>
+                <i className="fas fa-camera"></i>
+              </span>
               <span className="is-hidden-mobile">RSUDP スクリーンショットビューア</span>
               <span className="is-hidden-tablet">
                 RSUDP<br />
@@ -203,7 +269,10 @@ const App: React.FC = () => {
       {error && (
         <div className="notification is-danger" style={{ marginTop: '1rem' }}>
           <button className="delete" onClick={() => setError(null)}></button>
-          ❌ {error}
+          <span className="icon" style={{ marginRight: '0.5rem' }}>
+            <i className="fas fa-exclamation-circle"></i>
+          </span>
+          {error}
         </div>
       )}
 
@@ -217,7 +286,12 @@ const App: React.FC = () => {
                   <span className="icon is-large">
                     <i className="fas fa-spinner fa-pulse fa-3x"></i>
                   </span>
-                  <p className="subtitle" style={{ marginTop: '1rem' }}>⏳ スクリーンショットを読み込み中...</p>
+                  <p className="subtitle" style={{ marginTop: '1rem' }}>
+                    <span className="icon" style={{ marginRight: '0.5rem' }}>
+                      <i className="fas fa-hourglass-half"></i>
+                    </span>
+                    スクリーンショットを読み込み中...
+                  </p>
                 </div>
               </div>
             </div>
@@ -228,7 +302,12 @@ const App: React.FC = () => {
                   <span className="icon is-large has-text-grey">
                     <i className="fas fa-camera fa-3x"></i>
                   </span>
-                  <p className="subtitle mt-3">📸 スクリーンショットがありません</p>
+                  <p className="subtitle mt-3">
+                    <span className="icon" style={{ marginRight: '0.5rem' }}>
+                      <i className="fas fa-camera"></i>
+                    </span>
+                    スクリーンショットがありません
+                  </p>
                   <p className="is-size-7 has-text-grey">地震データが記録されるとここに表示されます</p>
                 </div>
               </div>
@@ -269,11 +348,24 @@ const App: React.FC = () => {
             loading={loading}
           />
 
+          {statistics && (
+            <STAFilter
+              statistics={statistics}
+              minStaThreshold={minStaThreshold}
+              onThresholdChange={setMinStaThreshold}
+            />
+          )}
+
           <div className="box" style={{ minHeight: '120px' }}>
-            <h2 className="title is-5">📊 統計情報</h2>
+            <h2 className="title is-5">
+            <span className="icon" style={{ marginRight: '0.5rem' }}>
+              <i className="fas fa-chart-bar"></i>
+            </span>
+            統計情報
+          </h2>
             <div className="content">
-              <p>全スクリーンショット数: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
-              <p>フィルタ後: <strong>{filteredScreenshots.length.toLocaleString()}</strong></p>
+              <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || 0}</strong></p>
+              <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
             </div>
           </div>
         </div>
@@ -286,7 +378,12 @@ const App: React.FC = () => {
                   <span className="icon is-large">
                     <i className="fas fa-spinner fa-pulse fa-3x"></i>
                   </span>
-                  <p className="subtitle" style={{ marginTop: '1rem' }}>⏳ スクリーンショットを読み込み中...</p>
+                  <p className="subtitle" style={{ marginTop: '1rem' }}>
+                    <span className="icon" style={{ marginRight: '0.5rem' }}>
+                      <i className="fas fa-hourglass-half"></i>
+                    </span>
+                    スクリーンショットを読み込み中...
+                  </p>
                 </div>
               </div>
             </div>
@@ -297,7 +394,12 @@ const App: React.FC = () => {
                   <span className="icon is-large has-text-grey">
                     <i className="fas fa-camera fa-3x"></i>
                   </span>
-                  <p className="subtitle mt-3">📸 スクリーンショットがありません</p>
+                  <p className="subtitle mt-3">
+                    <span className="icon" style={{ marginRight: '0.5rem' }}>
+                      <i className="fas fa-camera"></i>
+                    </span>
+                    スクリーンショットがありません
+                  </p>
                   <p className="is-size-7 has-text-grey">地震データが記録されるとここに表示されます</p>
                 </div>
               </div>
@@ -337,11 +439,25 @@ const App: React.FC = () => {
           loading={loading}
         />
 
+        {statistics && (
+          <STAFilter
+            statistics={statistics}
+            minStaThreshold={minStaThreshold}
+            onThresholdChange={setMinStaThreshold}
+          />
+        )}
+
         <div className="box" style={{ minHeight: '120px' }}>
-          <h2 className="title is-5">📊 統計情報</h2>
+          <h2 className="title is-5">
+            <span className="icon" style={{ marginRight: '0.5rem' }}>
+              <i className="fas fa-chart-bar"></i>
+            </span>
+            統計情報
+          </h2>
           <div className="content">
-            <p>全スクリーンショット数: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
-            <p>フィルタ後: <strong>{filteredScreenshots.length.toLocaleString()}</strong></p>
+            <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || 0}</strong></p>
+            <p>STA値付き: <strong>{statistics?.with_sta.toLocaleString() || 0}</strong></p>
+            <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong></p>
           </div>
         </div>
       </div>

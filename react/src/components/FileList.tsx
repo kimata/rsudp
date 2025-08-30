@@ -82,13 +82,13 @@ const FileList: React.FC<FileListProps> = ({
   const getEventTypeIcon = (prefix: string) => {
     switch (prefix.toUpperCase()) {
       case 'SHAKE':
-        return '🌍';
+        return 'fas fa-globe';
       case 'ALERT':
-        return '🚨';
+        return 'fas fa-exclamation-triangle';
       case 'WARNING':
-        return '⚠️';
+        return 'fas fa-exclamation-triangle';
       default:
-        return '📷';
+        return 'fas fa-camera';
     }
   };
 
@@ -96,7 +96,12 @@ const FileList: React.FC<FileListProps> = ({
   if (loading && allImages.length === 0) {
     return (
       <div className="box">
-        <h2 className="title is-5">📄 ファイル一覧</h2>
+        <h2 className="title is-5">
+          <span className="icon">
+            <i className="fas fa-list"></i>
+          </span>
+          ファイル一覧
+        </h2>
         <div
           style={{
             height: '400px',
@@ -111,7 +116,12 @@ const FileList: React.FC<FileListProps> = ({
             <span className="icon is-large">
               <i className="fas fa-spinner fa-pulse fa-2x"></i>
             </span>
-            <p className="subtitle mt-3">📄 ファイル一覧を読み込み中...</p>
+            <p className="subtitle mt-3">
+              <span className="icon" style={{ marginRight: '0.5rem' }}>
+                <i className="fas fa-list"></i>
+              </span>
+              ファイル一覧を読み込み中...
+            </p>
           </div>
         </div>
         <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
@@ -124,7 +134,12 @@ const FileList: React.FC<FileListProps> = ({
   if (allImages.length === 0) {
     return (
       <div className="box">
-        <h2 className="title is-5">📄 ファイル一覧</h2>
+        <h2 className="title is-5">
+          <span className="icon">
+            <i className="fas fa-list"></i>
+          </span>
+          ファイル一覧
+        </h2>
         <div
           style={{
             height: '400px',
@@ -148,7 +163,12 @@ const FileList: React.FC<FileListProps> = ({
 
   return (
     <div className="box">
-      <h2 className="title is-5">📄 ファイル一覧</h2>
+      <h2 className="title is-5">
+        <span className="icon" style={{ marginRight: '0.5rem' }}>
+          <i className="fas fa-list"></i>
+        </span>
+        ファイル一覧
+      </h2>
       <div
         ref={containerRef}
         className="file-list-container"
@@ -194,7 +214,7 @@ const FileList: React.FC<FileListProps> = ({
             >
               <div className="is-flex is-align-items-center">
                 <span className="icon is-small" style={{ marginRight: '0.5rem' }}>
-                  {getEventTypeIcon(image.prefix)}
+                  <i className={getEventTypeIcon(image.prefix)}></i>
                 </span>
                 <div className="is-flex-grow-1">
                   <div className="is-flex is-justify-content-space-between is-align-items-center">
