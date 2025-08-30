@@ -57,7 +57,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
           </span>
           ナビゲーション
         </h2>
-        <div className="field is-grouped is-grouped-centered">
+        <div className="field is-grouped is-grouped-centered" style={{ alignItems: 'center' }}>
           <p className="control">
             <button
               className="button is-info"
@@ -70,7 +70,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
               <span>前へ</span>
             </button>
           </p>
-          <p className="control">
+          <p className="control" style={{ display: 'flex', alignItems: 'center' }}>
             <span className="tag is-light" style={{ display: 'inline-flex', alignItems: 'center', height: '2.25em' }}>
               {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
             </span>
