@@ -260,7 +260,7 @@ const App: React.FC = () => {
               <span className="icon">
                 <i className="fas fa-sync"></i>
               </span>
-              <span className="is-hidden-mobile">更新</span>
+              <span>更新</span>
             </button>
           </div>
         </div>
