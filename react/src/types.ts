@@ -8,6 +8,10 @@ export interface Screenshot {
     minute: number;
     second: number;
     timestamp: string;
+    sta?: number;
+    lta?: number;
+    sta_lta_ratio?: number;
+    metadata?: string;
 }
 
 export interface ScreenshotListResponse {
@@ -25,6 +29,14 @@ export interface MonthsResponse {
 
 export interface DaysResponse {
     days: number[];
+}
+
+export interface StatisticsResponse {
+    total: number;
+    min_sta?: number;
+    max_sta?: number;
+    avg_sta?: number;
+    with_sta: number;
 }
 
 export interface SysInfo {

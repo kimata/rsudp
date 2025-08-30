@@ -5,6 +5,7 @@ import type {
     YearsResponse,
     MonthsResponse,
     DaysResponse,
+    StatisticsResponse,
 } from "./types";
 import { TIMEOUTS } from "./utils/constants";
 
@@ -25,33 +26,44 @@ api.interceptors.request.use((config) => {
 });
 
 export const screenshotApi = {
-    getYears: async (): Promise<number[]> => {
-        const response = await api.get<YearsResponse>("/years/");
+    getYears: async (minSta?: number): Promise<number[]> => {
+        const params = minSta !== undefined ? { min_sta: minSta } : {};
+        const response = await api.get<YearsResponse>("/years/", { params });
         return response.data.years;
     },
 
-    getMonths: async (year: number): Promise<number[]> => {
-        const response = await api.get<MonthsResponse>(`/${year}/months/`);
+    getMonths: async (year: number, minSta?: number): Promise<number[]> => {
+        const params = minSta !== undefined ? { min_sta: minSta } : {};
+        const response = await api.get<MonthsResponse>(`/${year}/months/`, { params });
         return response.data.months;
     },
 
-    getDays: async (year: number, month: number): Promise<number[]> => {
-        const response = await api.get<DaysResponse>(`/${year}/${month}/days/`);
+    getDays: async (year: number, month: number, minSta?: number): Promise<number[]> => {
+        const params = minSta !== undefined ? { min_sta: minSta } : {};
+        const response = await api.get<DaysResponse>(`/${year}/${month}/days/`, { params });
         return response.data.days;
     },
 
-    getScreenshotsByDate: async (year: number, month: number, day: number): Promise<Screenshot[]> => {
-        const response = await api.get<ScreenshotListResponse>(`/${year}/${month}/${day}/`);
+    getScreenshotsByDate: async (year: number, month: number, day: number, minSta?: number): Promise<Screenshot[]> => {
+        const params = minSta !== undefined ? { min_sta: minSta } : {};
+        const response = await api.get<ScreenshotListResponse>(`/${year}/${month}/${day}/`, { params });
         return response.data.screenshots;
     },
 
-    getAllScreenshots: async (): Promise<Screenshot[]> => {
-        const response = await api.get<ScreenshotListResponse>("/");
+    getAllScreenshots: async (minSta?: number): Promise<Screenshot[]> => {
+        const params = minSta !== undefined ? { min_sta: minSta } : {};
+        const response = await api.get<ScreenshotListResponse>("/", { params });
         return response.data.screenshots;
     },
 
-    getLatest: async (): Promise<Screenshot> => {
-        const response = await api.get<Screenshot>("/latest/");
+    getLatest: async (minSta?: number): Promise<Screenshot> => {
+        const params = minSta !== undefined ? { min_sta: minSta } : {};
+        const response = await api.get<Screenshot>("/latest/", { params });
+        return response.data;
+    },
+
+    getStatistics: async (): Promise<StatisticsResponse> => {
+        const response = await api.get<StatisticsResponse>("/statistics/");
         return response.data;
     },
 
