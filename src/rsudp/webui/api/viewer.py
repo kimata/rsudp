@@ -78,7 +78,7 @@ def list_screenshots():
 
     Returns files sorted by timestamp (newest first).
     Query parameters:
-    - min_sta: Minimum STA value to filter screenshots
+    - min_max_signal: Minimum maximum signal value to filter screenshots
     """
     try:
         manager = get_screenshot_manager()
@@ -89,11 +89,11 @@ def list_screenshots():
         # Scan and cache any new files
         manager.scan_and_cache_all()
         
-        # Get minimum STA filter from query parameters
-        min_sta = request.args.get("min_sta", type=float)
+        # Get minimum maximum signal filter from query parameters
+        min_max_signal = request.args.get("min_max_signal", type=float)
         
-        # Get screenshots with optional STA filter
-        screenshots = manager.get_screenshots_with_sta(min_sta)
+        # Get screenshots with optional maximum signal filter
+        screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
         
         # Format for compatibility with existing frontend
         formatted_screenshots = []
@@ -131,14 +131,14 @@ def list_years():
     """Get list of available years.
     
     Query parameters:
-    - min_sta: Minimum STA value to filter years
+    - min_max_signal: Minimum maximum signal value to filter years
     """
     try:
         manager = get_screenshot_manager()
-        min_sta = request.args.get("min_sta", type=float)
+        min_max_signal = request.args.get("min_max_signal", type=float)
         
-        # Get available dates with STA filter
-        dates = manager.get_available_dates(min_sta)
+        # Get available dates with maximum signal filter
+        dates = manager.get_available_dates(min_max_signal)
         
         # Extract unique years
         years = sorted(set(d["year"] for d in dates), reverse=True)
@@ -154,14 +154,14 @@ def list_months(year: int):
     """Get list of available months for a specific year.
     
     Query parameters:
-    - min_sta: Minimum STA value to filter months
+    - min_max_signal: Minimum maximum signal value to filter months
     """
     try:
         manager = get_screenshot_manager()
-        min_sta = request.args.get("min_sta", type=float)
+        min_max_signal = request.args.get("min_max_signal", type=float)
         
-        # Get available dates with STA filter
-        dates = manager.get_available_dates(min_sta)
+        # Get available dates with maximum signal filter
+        dates = manager.get_available_dates(min_max_signal)
         
         # Extract months for the specified year
         months = sorted(
@@ -180,14 +180,14 @@ def list_days(year: int, month: int):
     """Get list of available days for a specific year and month.
     
     Query parameters:
-    - min_sta: Minimum STA value to filter days
+    - min_max_signal: Minimum maximum signal value to filter days
     """
     try:
         manager = get_screenshot_manager()
-        min_sta = request.args.get("min_sta", type=float)
+        min_max_signal = request.args.get("min_max_signal", type=float)
         
-        # Get available dates with STA filter
-        dates = manager.get_available_dates(min_sta)
+        # Get available dates with maximum signal filter
+        dates = manager.get_available_dates(min_max_signal)
         
         # Extract days for the specified year and month
         days = sorted(
@@ -207,14 +207,14 @@ def list_by_date(year: int, month: int, day: int):
     """Get screenshots for a specific date.
     
     Query parameters:
-    - min_sta: Minimum STA value to filter screenshots
+    - min_max_signal: Minimum maximum signal value to filter screenshots
     """
     try:
         manager = get_screenshot_manager()
-        min_sta = request.args.get("min_sta", type=float)
+        min_max_signal = request.args.get("min_max_signal", type=float)
         
-        # Get screenshots with optional STA filter
-        screenshots = manager.get_screenshots_with_sta(min_sta)
+        # Get screenshots with optional maximum signal filter
+        screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
         
         # Filter by date
         files = []
@@ -301,14 +301,14 @@ def get_latest():
     """Get the most recent screenshot.
     
     Query parameters:
-    - min_sta: Minimum STA value to filter screenshots
+    - min_max_signal: Minimum maximum signal value to filter screenshots
     """
     try:
         manager = get_screenshot_manager()
-        min_sta = request.args.get("min_sta", type=float)
+        min_max_signal = request.args.get("min_max_signal", type=float)
         
-        # Get screenshots with optional STA filter
-        screenshots = manager.get_screenshots_with_sta(min_sta)
+        # Get screenshots with optional maximum signal filter
+        screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
         
         if not screenshots:
             return jsonify({"error": "No screenshots found"}), 404
@@ -338,10 +338,10 @@ def get_latest():
 
 @viewer_api.route("/api/screenshot/statistics/", methods=["GET"])
 def get_statistics():
-    """Get STA value statistics for all screenshots."""
+    """Get signal value statistics for all screenshots."""
     try:
         manager = get_screenshot_manager()
-        stats = manager.get_sta_statistics()
+        stats = manager.get_signal_statistics()
         return jsonify(stats)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

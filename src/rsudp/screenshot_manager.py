@@ -219,8 +219,8 @@ class ScreenshotManager:
             # Cache the file metadata
             self._cache_file_metadata(file_path)
     
-    def get_screenshots_with_sta(self, min_sta: Optional[float] = None):
-        """Get screenshots filtered by minimum STA value."""
+    def get_screenshots_with_signal_filter(self, min_max_signal: Optional[float] = None):
+        """Get screenshots filtered by minimum maximum signal value (STA)."""
         with sqlite3.connect(self.cache_path) as conn:
             query = """
                 SELECT filename, filepath, year, month, day, hour, minute, second,
@@ -229,9 +229,9 @@ class ScreenshotManager:
             """
             params = []
             
-            if min_sta is not None:
+            if min_max_signal is not None:
                 query += " WHERE sta_value >= ?"
-                params.append(min_sta)
+                params.append(min_max_signal)
             
             query += " ORDER BY timestamp DESC"
             
@@ -257,8 +257,8 @@ class ScreenshotManager:
             
             return screenshots
     
-    def get_available_dates(self, min_sta: Optional[float] = None):
-        """Get available dates that have screenshots with minimum STA value."""
+    def get_available_dates(self, min_max_signal: Optional[float] = None):
+        """Get available dates that have screenshots with minimum maximum signal value."""
         with sqlite3.connect(self.cache_path) as conn:
             query = """
                 SELECT DISTINCT year, month, day
@@ -266,9 +266,9 @@ class ScreenshotManager:
             """
             params = []
             
-            if min_sta is not None:
+            if min_max_signal is not None:
                 query += " WHERE sta_value >= ?"
-                params.append(min_sta)
+                params.append(min_max_signal)
             
             query += " ORDER BY year DESC, month DESC, day DESC"
             
@@ -284,24 +284,24 @@ class ScreenshotManager:
             
             return dates
     
-    def get_sta_statistics(self):
-        """Get STA value statistics."""
+    def get_signal_statistics(self):
+        """Get signal value statistics (STA values)."""
         with sqlite3.connect(self.cache_path) as conn:
             cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total,
-                    MIN(sta_value) as min_sta,
-                    MAX(sta_value) as max_sta,
-                    AVG(sta_value) as avg_sta,
-                    COUNT(CASE WHEN sta_value IS NOT NULL THEN 1 END) as with_sta
+                    MIN(sta_value) as min_signal,
+                    MAX(sta_value) as max_signal,
+                    AVG(sta_value) as avg_signal,
+                    COUNT(CASE WHEN sta_value IS NOT NULL THEN 1 END) as with_signal
                 FROM screenshot_metadata
             """)
             
             row = cursor.fetchone()
             return {
                 "total": row[0],
-                "min_sta": row[1],
-                "max_sta": row[2],
-                "avg_sta": row[3],
-                "with_sta": row[4]
+                "min_signal": row[1],
+                "max_signal": row[2],
+                "avg_signal": row[3],
+                "with_signal": row[4]
             }
