@@ -26,38 +26,38 @@ api.interceptors.request.use((config) => {
 });
 
 export const screenshotApi = {
-    getYears: async (minSta?: number): Promise<number[]> => {
-        const params = minSta !== undefined ? { min_sta: minSta } : {};
+    getYears: async (minMaxSignal?: number): Promise<number[]> => {
+        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
         const response = await api.get<YearsResponse>("/years/", { params });
         return response.data.years;
     },
 
-    getMonths: async (year: number, minSta?: number): Promise<number[]> => {
-        const params = minSta !== undefined ? { min_sta: minSta } : {};
+    getMonths: async (year: number, minMaxSignal?: number): Promise<number[]> => {
+        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
         const response = await api.get<MonthsResponse>(`/${year}/months/`, { params });
         return response.data.months;
     },
 
-    getDays: async (year: number, month: number, minSta?: number): Promise<number[]> => {
-        const params = minSta !== undefined ? { min_sta: minSta } : {};
+    getDays: async (year: number, month: number, minMaxSignal?: number): Promise<number[]> => {
+        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
         const response = await api.get<DaysResponse>(`/${year}/${month}/days/`, { params });
         return response.data.days;
     },
 
-    getScreenshotsByDate: async (year: number, month: number, day: number, minSta?: number): Promise<Screenshot[]> => {
-        const params = minSta !== undefined ? { min_sta: minSta } : {};
+    getScreenshotsByDate: async (year: number, month: number, day: number, minMaxSignal?: number): Promise<Screenshot[]> => {
+        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
         const response = await api.get<ScreenshotListResponse>(`/${year}/${month}/${day}/`, { params });
         return response.data.screenshots;
     },
 
-    getAllScreenshots: async (minSta?: number): Promise<Screenshot[]> => {
-        const params = minSta !== undefined ? { min_sta: minSta } : {};
+    getAllScreenshots: async (minMaxSignal?: number): Promise<Screenshot[]> => {
+        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
         const response = await api.get<ScreenshotListResponse>("/", { params });
         return response.data.screenshots;
     },
 
-    getLatest: async (minSta?: number): Promise<Screenshot> => {
-        const params = minSta !== undefined ? { min_sta: minSta } : {};
+    getLatest: async (minMaxSignal?: number): Promise<Screenshot> => {
+        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
         const response = await api.get<Screenshot>("/latest/", { params });
         return response.data;
     },

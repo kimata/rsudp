@@ -5,7 +5,7 @@ import DateSelector from './components/DateSelector';
 import ImageViewer from './components/ImageViewer';
 import FileList from './components/FileList';
 import Footer from './components/Footer';
-import STAFilter from './components/STAFilter';
+import SignalFilter from './components/SignalFilter';
 import 'bulma/css/bulma.min.css';
 
 const App: React.FC = () => {
@@ -24,7 +24,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [minStaThreshold, setMinStaThreshold] = useState<number | undefined>(undefined);
+  const [minMaxSignalThreshold, setMinMaxSignalThreshold] = useState<number | undefined>(undefined);
   const [statistics, setStatistics] = useState<StatisticsResponse | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -33,7 +33,7 @@ const App: React.FC = () => {
     loadInitialData();
   }, []);
 
-  // Reload data when STA threshold changes (with debounce)
+  // Reload data when signal threshold changes (with debounce)
   useEffect(() => {
     if (statistics && !isInitialLoad) { // Only reload if we've already loaded initial data and not initial load
       // Debounce API calls to prevent too many requests
@@ -43,7 +43,7 @@ const App: React.FC = () => {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [minStaThreshold]);
+  }, [minMaxSignalThreshold]);
 
   // Load months when year changes
   useEffect(() => {
@@ -53,7 +53,7 @@ const App: React.FC = () => {
       setMonths([]);
       setSelectedMonth(null);
     }
-  }, [selectedYear, minStaThreshold]);
+  }, [selectedYear, minMaxSignalThreshold]);
 
   // Load days when month changes
   useEffect(() => {
@@ -63,7 +63,7 @@ const App: React.FC = () => {
       setDays([]);
       setSelectedDay(null);
     }
-  }, [selectedYear, selectedMonth, minStaThreshold]);
+  }, [selectedYear, selectedMonth, minMaxSignalThreshold]);
 
   // Filter screenshots when date selection changes
   useEffect(() => {
@@ -79,16 +79,16 @@ const App: React.FC = () => {
       const stats = await screenshotApi.getStatistics();
       setStatistics(stats);
 
-      // Set initial minimum STA threshold to the actual minimum value
-      const initialMinSta = stats.min_sta !== undefined ? Math.floor(stats.min_sta) : undefined;
-      if (initialMinSta !== undefined) {
-        setMinStaThreshold(initialMinSta);
+      // Set initial minimum maximum signal threshold to the actual minimum value
+      const initialMinMaxSignal = stats.min_signal !== undefined ? Math.floor(stats.min_signal) : undefined;
+      if (initialMinMaxSignal !== undefined) {
+        setMinMaxSignalThreshold(initialMinMaxSignal);
       }
 
       // Load all screenshots and years with initial threshold
       const [screenshotsData, yearsData] = await Promise.all([
-        screenshotApi.getAllScreenshots(initialMinSta),
-        screenshotApi.getYears(initialMinSta)
+        screenshotApi.getAllScreenshots(initialMinMaxSignal),
+        screenshotApi.getYears(initialMinMaxSignal)
       ]);
 
       console.log('API Response - Screenshots:', screenshotsData.length, 'Years:', yearsData);
@@ -116,8 +116,8 @@ const App: React.FC = () => {
     try {
       // Load all screenshots and years with filter
       const [screenshotsData, yearsData] = await Promise.all([
-        screenshotApi.getAllScreenshots(minStaThreshold),
-        screenshotApi.getYears(minStaThreshold)
+        screenshotApi.getAllScreenshots(minMaxSignalThreshold),
+        screenshotApi.getYears(minMaxSignalThreshold)
       ]);
 
       setAllScreenshots(screenshotsData);
@@ -148,7 +148,7 @@ const App: React.FC = () => {
   const loadMonths = async (year: number) => {
     setLoading(true);
     try {
-      const monthsData = await screenshotApi.getMonths(year, minStaThreshold);
+      const monthsData = await screenshotApi.getMonths(year, minMaxSignalThreshold);
       setMonths(monthsData);
     } catch (err) {
       console.error(err);
@@ -160,7 +160,7 @@ const App: React.FC = () => {
   const loadDays = async (year: number, month: number) => {
     setLoading(true);
     try {
-      const daysData = await screenshotApi.getDays(year, month, minStaThreshold);
+      const daysData = await screenshotApi.getDays(year, month, minMaxSignalThreshold);
       setDays(daysData);
     } catch (err) {
       console.error(err);
@@ -403,10 +403,10 @@ const App: React.FC = () => {
           />
 
           {statistics && (
-            <STAFilter
+            <SignalFilter
               statistics={statistics}
-              minStaThreshold={minStaThreshold}
-              onThresholdChange={setMinStaThreshold}
+              minMaxSignalThreshold={minMaxSignalThreshold}
+              onThresholdChange={setMinMaxSignalThreshold}
             />
           )}
 
@@ -491,10 +491,10 @@ const App: React.FC = () => {
         />
 
         {statistics && (
-          <STAFilter
+          <SignalFilter
             statistics={statistics}
-            minStaThreshold={minStaThreshold}
-            onThresholdChange={setMinStaThreshold}
+            minMaxSignalThreshold={minMaxSignalThreshold}
+            onThresholdChange={setMinMaxSignalThreshold}
           />
         )}
 

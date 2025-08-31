@@ -33,10 +33,10 @@ export interface DaysResponse {
 
 export interface StatisticsResponse {
     total: number;
-    min_sta?: number;
-    max_sta?: number;
-    avg_sta?: number;
-    with_sta: number;
+    min_signal?: number;
+    max_signal?: number;
+    avg_signal?: number;
+    with_signal: number;
 }
 
 export interface SysInfo {
