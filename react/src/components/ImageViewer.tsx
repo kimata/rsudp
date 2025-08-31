@@ -174,12 +174,12 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
     // 横方向のスワイプが縦方向より大きい場合のみ処理
     if (Math.abs(deltaX) > UI_CONSTANTS.SWIPE_THRESHOLD && Math.abs(deltaX) > deltaY) {
-      if (deltaX > 0) {
-        // 左スワイプ → 次の画像
+      if (deltaX > 0 && canNavigateNext) {
+        // 左スワイプ → 次の画像（次の画像が存在する場合のみ）
         setIsTransitioning(true);
         navigateNext();
-      } else if (deltaX < 0) {
-        // 右スワイプ → 前の画像
+      } else if (deltaX < 0 && canNavigatePrevious) {
+        // 右スワイプ → 前の画像（前の画像が存在する場合のみ）
         setIsTransitioning(true);
         navigatePrevious();
       }
@@ -207,10 +207,10 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   }, [isFullscreen]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft') {
+    if (e.key === 'ArrowLeft' && canNavigatePrevious) {
       setIsTransitioning(true);
       navigatePrevious();
-    } else if (e.key === 'ArrowRight') {
+    } else if (e.key === 'ArrowRight' && canNavigateNext) {
       setIsTransitioning(true);
       navigateNext();
     } else if (e.key === 'Escape' && isFullscreen) {
