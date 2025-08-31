@@ -325,7 +325,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                   <i className="fas fa-chart-bar"></i>
                 </span>
                 <span className="tag is-info">
-                  最大振幅: {Math.round(currentImage.sta).toLocaleString()}
+                  最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
                 </span>
                 <span className="tag is-success">
                   STA: {Math.round(currentImage.sta).toLocaleString()}
@@ -373,7 +373,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 <i className="fas fa-chart-bar"></i>
               </span>
               <span className="tag is-info">
-                最大振幅: {Math.round(currentImage.sta).toLocaleString()}
+                最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
               </span>
               <span className="tag is-success">
                 STA: {Math.round(currentImage.sta).toLocaleString()}

@@ -11,6 +11,7 @@ export interface Screenshot {
     sta?: number;
     lta?: number;
     sta_lta_ratio?: number;
+    max_count: number;
     metadata?: string;
 }
 
