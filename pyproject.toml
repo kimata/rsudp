@@ -11,7 +11,7 @@ requires-python = ">= 3.10"
 
 dependencies = [
     "pymodes @ git+https://github.com/junzis/pyModeS@v2.21.1",
-    "my-lib @ git+https://github.com/kimata/my-py-lib@c30fb3a884f00a11eaeda557b0847936498c984f",
+    "my-lib @ git+https://github.com/kimata/my-py-lib@a4d4c93ce4bf04be7c17627c6cec3dd8e9660b6c",
     "flask>=3.1.1",
     "flask-cors>=6.0.1",
     "Pillow>=10.0.0",
