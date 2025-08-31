@@ -111,6 +111,7 @@ def list_screenshots():
                 "sta": s["sta"],
                 "lta": s["lta"],
                 "sta_lta_ratio": s["sta_lta_ratio"],
+                "max_count": s["max_count"],
                 "metadata": s["metadata"]
             })
         
@@ -233,6 +234,7 @@ def list_by_date(year: int, month: int, day: int):
                     "sta": s["sta"],
                     "lta": s["lta"],
                     "sta_lta_ratio": s["sta_lta_ratio"],
+                    "max_count": s["max_count"],
                     "metadata": s["metadata"]
                 })
         
@@ -329,6 +331,7 @@ def get_latest():
             "sta": latest["sta"],
             "lta": latest["lta"],
             "sta_lta_ratio": latest["sta_lta_ratio"],
+            "max_count": latest["max_count"],
             "metadata": latest["metadata"]
         })
 

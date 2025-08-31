@@ -42,6 +42,7 @@ class ScreenshotManager:
                     sta_value REAL,
                     lta_value REAL,
                     sta_lta_ratio REAL,
+                    max_count REAL,
                     created_at REAL NOT NULL,
                     file_size INTEGER NOT NULL,
                     metadata_raw TEXT
@@ -129,10 +130,11 @@ class ScreenshotManager:
                 if description:
                     metadata['raw'] = description
                     
-                    # Parse STA, LTA, and ratio values
+                    # Parse STA, LTA, ratio, and MaxCount values
                     sta_match = re.search(r'STA=([0-9.]+)', description)
                     lta_match = re.search(r'LTA=([0-9.]+)', description)
                     ratio_match = re.search(r'STA/LTA=([0-9.]+)', description)
+                    max_count_match = re.search(r'MaxCount=([0-9.]+)', description)
                     
                     if sta_match:
                         metadata['sta'] = float(sta_match.group(1))
@@ -140,6 +142,8 @@ class ScreenshotManager:
                         metadata['lta'] = float(lta_match.group(1))
                     if ratio_match:
                         metadata['sta_lta_ratio'] = float(ratio_match.group(1))
+                    if max_count_match:
+                        metadata['max_count'] = float(max_count_match.group(1))
                 
                 # Also check Comment field if Description is not found
                 if not description and 'Comment' in info:
@@ -173,9 +177,9 @@ class ScreenshotManager:
             conn.execute("""
                 INSERT OR REPLACE INTO screenshot_metadata 
                 (filename, filepath, year, month, day, hour, minute, second, 
-                 timestamp, sta_value, lta_value, sta_lta_ratio, 
+                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
                  created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 file_path.name,
                 str(file_path.relative_to(self.screenshot_path)),
@@ -189,6 +193,7 @@ class ScreenshotManager:
                 metadata.get("sta"),
                 metadata.get("lta"),
                 metadata.get("sta_lta_ratio"),
+                metadata.get("max_count"),
                 stat.st_ctime,
                 stat.st_size,
                 metadata.get("raw")
@@ -224,7 +229,7 @@ class ScreenshotManager:
         with sqlite3.connect(self.cache_path) as conn:
             query = """
                 SELECT filename, filepath, year, month, day, hour, minute, second,
-                       timestamp, sta_value, lta_value, sta_lta_ratio, metadata_raw
+                       timestamp, sta_value, lta_value, sta_lta_ratio, max_count, metadata_raw
                 FROM screenshot_metadata
             """
             params = []
@@ -252,7 +257,8 @@ class ScreenshotManager:
                     "sta": row[9],
                     "lta": row[10],
                     "sta_lta_ratio": row[11],
-                    "metadata": row[12]
+                    "max_count": row[12],
+                    "metadata": row[13]
                 })
             
             return screenshots
