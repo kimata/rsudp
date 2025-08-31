@@ -47,7 +47,7 @@ const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThr
           <span className="icon">
             <i className="fas fa-filter"></i>
           </span>
-          最大シンプルフィルタ
+          最大振幅フィルタ
         </h2>
         <div className="content">
           <p className="has-text-grey">信号値を持つ画像がありません</p>
@@ -62,11 +62,11 @@ const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThr
         <span className="icon" style={{ marginRight: '0.5rem' }}>
           <i className="fas fa-filter"></i>
         </span>
-        最大シンプルフィルタ
+        最大振幅フィルタ
       </h2>
       
       <div className="field">
-        <label className="label is-small">最大シンプル最小値</label>
+        <label className="label is-small">最大振幅最小値</label>
         <div className="control">
           <input
             className="input is-small has-text-right"
