@@ -225,7 +225,7 @@ class ScreenshotManager:
             self._cache_file_metadata(file_path)
     
     def get_screenshots_with_signal_filter(self, min_max_signal: Optional[float] = None):
-        """Get screenshots filtered by minimum maximum signal value (STA)."""
+        """Get screenshots filtered by minimum maximum signal value (max_count)."""
         with sqlite3.connect(self.cache_path) as conn:
             query = """
                 SELECT filename, filepath, year, month, day, hour, minute, second,
@@ -235,7 +235,7 @@ class ScreenshotManager:
             params = []
             
             if min_max_signal is not None:
-                query += " WHERE sta_value >= ?"
+                query += " WHERE max_count >= ?"
                 params.append(min_max_signal)
             
             query += " ORDER BY timestamp DESC"
@@ -273,7 +273,7 @@ class ScreenshotManager:
             params = []
             
             if min_max_signal is not None:
-                query += " WHERE sta_value >= ?"
+                query += " WHERE max_count >= ?"
                 params.append(min_max_signal)
             
             query += " ORDER BY year DESC, month DESC, day DESC"
@@ -291,15 +291,15 @@ class ScreenshotManager:
             return dates
     
     def get_signal_statistics(self):
-        """Get signal value statistics (STA values)."""
+        """Get signal value statistics (max_count values)."""
         with sqlite3.connect(self.cache_path) as conn:
             cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total,
-                    MIN(sta_value) as min_signal,
-                    MAX(sta_value) as max_signal,
-                    AVG(sta_value) as avg_signal,
-                    COUNT(CASE WHEN sta_value IS NOT NULL THEN 1 END) as with_signal
+                    MIN(max_count) as min_signal,
+                    MAX(max_count) as max_signal,
+                    AVG(max_count) as avg_signal,
+                    COUNT(CASE WHEN max_count IS NOT NULL THEN 1 END) as with_signal
                 FROM screenshot_metadata
             """)
             
