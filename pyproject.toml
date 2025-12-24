@@ -11,7 +11,7 @@ requires-python = ">= 3.10"
 
 dependencies = [
     "pymodes @ git+https://github.com/junzis/pyModeS@v2.21.1",
-    "my-lib @ git+https://github.com/kimata/my-py-lib@a4d4c93ce4bf04be7c17627c6cec3dd8e9660b6c",
+    "my-lib @ git+https://github.com/kimata/my-py-lib@d0d653dd57c4902d523706d2708fdd318c894eb4",
     "flask>=3.1.1",
     "flask-cors>=6.0.1",
     "Pillow>=10.0.0",
@@ -85,3 +85,8 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "tests/evidence/coverage"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.13"
