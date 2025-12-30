@@ -287,7 +287,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   return (
     <div className="box" onKeyDown={handleKeyDown} tabIndex={0} style={{ minHeight: '600px' }}>
       {/* デスクトップ表示 */}
-      <div className="level is-mobile is-hidden-touch" style={{ minHeight: '50px' }}>
+      <div className="level is-mobile is-hidden-touch" style={{ minHeight: '50px', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div className="level-left">
           <div className="level-item">
             <div>
@@ -308,21 +308,24 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             </div>
           </div>
         </div>
-        <div className="level-right">
-          <div className="level-item">
+        <div className="level-right" style={{ flexShrink: 1, minWidth: 0 }}>
+          <div className="level-item" style={{ flexShrink: 1, minWidth: 0 }}>
             <div
               className="has-text-right"
               style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                gap: '0.25rem',
                 minHeight: '28px'
               }}
             >
               {currentImage.sta ? (
-                <>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                  }}
+                >
                   <span className="icon" style={{ verticalAlign: 'baseline' }}>
                     <i className="fas fa-chart-bar"></i>
                   </span>
@@ -337,7 +340,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                       比率: {currentImage.sta_lta_ratio.toFixed(3)}
                     </span>
                   )}
-                </>
+                </div>
               ) : (
                 <span className="has-text-grey-light is-size-7">信号データなし</span>
               )}
