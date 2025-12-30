@@ -402,24 +402,56 @@ const App: React.FC = () => {
             loading={loading}
           />
 
-          {statistics && (
-            <SignalFilter
-              statistics={statistics}
-              minMaxSignalThreshold={minMaxSignalThreshold}
-              onThresholdChange={setMinMaxSignalThreshold}
-            />
-          )}
+          <SignalFilter
+            statistics={statistics}
+            minMaxSignalThreshold={minMaxSignalThreshold}
+            onThresholdChange={setMinMaxSignalThreshold}
+            loading={loading && !statistics}
+          />
 
           <div className="box" style={{ minHeight: '120px' }}>
             <h2 className="title is-5">
-            <span className="icon" style={{ marginRight: '0.5rem' }}>
-              <i className="fas fa-chart-bar"></i>
-            </span>
-            統計情報
-          </h2>
+              <span className="icon" style={{ marginRight: '0.5rem' }}>
+                <i className="fas fa-chart-bar"></i>
+              </span>
+              統計情報
+            </h2>
             <div className="content">
-              <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || '0'}</strong> 件</p>
-              <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong> 件</p>
+              {loading && !statistics ? (
+                <>
+                  <p>
+                    全スクリーンショット数:{' '}
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '60px',
+                        height: '1em',
+                        backgroundColor: '#f5f5f5',
+                        borderRadius: '4px',
+                        animation: 'pulse 1.5s ease-in-out infinite'
+                      }}
+                    />
+                  </p>
+                  <p>
+                    フィルタ後:{' '}
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '60px',
+                        height: '1em',
+                        backgroundColor: '#f5f5f5',
+                        borderRadius: '4px',
+                        animation: 'pulse 1.5s ease-in-out infinite'
+                      }}
+                    />
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || '0'}</strong> 件</p>
+                  <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong> 件</p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -490,13 +522,12 @@ const App: React.FC = () => {
           loading={loading}
         />
 
-        {statistics && (
-          <SignalFilter
-            statistics={statistics}
-            minMaxSignalThreshold={minMaxSignalThreshold}
-            onThresholdChange={setMinMaxSignalThreshold}
-          />
-        )}
+        <SignalFilter
+          statistics={statistics}
+          minMaxSignalThreshold={minMaxSignalThreshold}
+          onThresholdChange={setMinMaxSignalThreshold}
+          loading={loading && !statistics}
+        />
 
         <div className="box" style={{ minHeight: '120px' }}>
           <h2 className="title is-5">
@@ -506,8 +537,41 @@ const App: React.FC = () => {
             統計情報
           </h2>
           <div className="content">
-            <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || '0'}</strong> 件</p>
-            <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong> 件</p>
+            {loading && !statistics ? (
+              <>
+                <p>
+                  全スクリーンショット数:{' '}
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '60px',
+                      height: '1em',
+                      backgroundColor: '#f5f5f5',
+                      borderRadius: '4px',
+                      animation: 'pulse 1.5s ease-in-out infinite'
+                    }}
+                  />
+                </p>
+                <p>
+                  フィルタ後:{' '}
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '60px',
+                      height: '1em',
+                      backgroundColor: '#f5f5f5',
+                      borderRadius: '4px',
+                      animation: 'pulse 1.5s ease-in-out infinite'
+                    }}
+                  />
+                </p>
+              </>
+            ) : (
+              <>
+                <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || '0'}</strong> 件</p>
+                <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong> 件</p>
+              </>
+            )}
           </div>
         </div>
       </div>

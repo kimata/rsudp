@@ -33,7 +33,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
   return (
     <>
       {/* 日付フィルタ */}
-      <div className="box">
+      <div className="box" style={{ minHeight: '180px' }}>
         <h2 className="title is-5">
           <span className="icon" style={{ marginRight: '0.5rem' }}>
             <i className="fas fa-calendar-alt"></i>
@@ -44,7 +44,16 @@ const DateSelector: React.FC<DateSelectorProps> = ({
       {/* Year Selector */}
       <div className="field">
         <label className="label">年</label>
-        {years.length > 5 ? (
+        {loading && years.length === 0 ? (
+          <div className="buttons">
+            <span
+              className="button is-small is-loading"
+              style={{ minWidth: '60px' }}
+            >
+              読込中
+            </span>
+          </div>
+        ) : years.length > 5 ? (
           <div className="control">
             <div className="select is-fullwidth">
               <select

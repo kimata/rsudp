@@ -2,29 +2,30 @@ import React, { useState, useEffect } from 'react';
 import type { StatisticsResponse } from '../types';
 
 interface SignalFilterProps {
-  statistics: StatisticsResponse;
+  statistics: StatisticsResponse | null;
   minMaxSignalThreshold?: number;
   onThresholdChange: (threshold: number | undefined) => void;
+  loading?: boolean;
 }
 
-const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThreshold, onThresholdChange }) => {
+const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThreshold, onThresholdChange, loading = false }) => {
   const [inputValue, setInputValue] = useState('');
-  
+
   // Calculate reasonable step (use 1 for integer steps)
   const step = 1;
-  const minValue = Math.floor(statistics.min_signal || 0);
-  const maxValue = Math.ceil(statistics.max_signal || 100000);
+  const minValue = Math.floor(statistics?.min_signal || 0);
+  const maxValue = Math.ceil(statistics?.max_signal || 100000);
 
   useEffect(() => {
     // Initialize with minimum signal value if not set
-    if (minMaxSignalThreshold === undefined && statistics.min_signal !== undefined) {
+    if (statistics && minMaxSignalThreshold === undefined && statistics.min_signal !== undefined) {
       const initialValue = Math.floor(statistics.min_signal);
       setInputValue(initialValue.toString());
       onThresholdChange(initialValue);
     } else if (minMaxSignalThreshold !== undefined) {
       setInputValue(Math.floor(minMaxSignalThreshold).toString());
     }
-  }, [statistics.min_signal]); // Only run when statistics.min_signal changes
+  }, [statistics?.min_signal]); // Only run when statistics.min_signal changes
 
   useEffect(() => {
     if (minMaxSignalThreshold !== undefined) {
@@ -40,9 +41,51 @@ const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThr
     onThresholdChange(intValue);
   };
 
+  // スケルトン表示（ローディング中または統計データがない場合）
+  if (loading || !statistics) {
+    return (
+      <div className="box" style={{ minHeight: '150px' }}>
+        <h2 className="title is-5">
+          <span className="icon" style={{ marginRight: '0.5rem' }}>
+            <i className="fas fa-filter"></i>
+          </span>
+          最大振幅フィルタ
+        </h2>
+        <div className="field">
+          <label className="label is-small">最大振幅最小値</label>
+          <div className="control">
+            <div
+              className="skeleton-box"
+              style={{
+                height: '32px',
+                backgroundColor: '#f5f5f5',
+                borderRadius: '4px',
+                animation: 'pulse 1.5s ease-in-out infinite'
+              }}
+            />
+          </div>
+        </div>
+        <div className="field">
+          <div className="control">
+            <div
+              className="skeleton-box"
+              style={{
+                height: '20px',
+                backgroundColor: '#f5f5f5',
+                borderRadius: '4px',
+                animation: 'pulse 1.5s ease-in-out infinite'
+              }}
+            />
+          </div>
+          <p className="help" style={{ color: '#dbdbdb' }}>読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (statistics.with_signal === 0) {
     return (
-      <div className="box" style={{ minHeight: '120px' }}>
+      <div className="box" style={{ minHeight: '150px' }}>
         <h2 className="title is-5">
           <span className="icon">
             <i className="fas fa-filter"></i>
