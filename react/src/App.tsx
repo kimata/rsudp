@@ -273,8 +273,8 @@ const App: React.FC = () => {
   }, [handleGlobalKeyDown]);
 
   return (
-    <div className="container is-fluid" style={{ padding: '0.5rem' }}>
-      <nav className="navbar is-dark" role="navigation">
+    <div className="container is-fluid" style={{ padding: '0.5rem', width: '100%', maxWidth: '100%' }}>
+      <nav className="navbar is-dark" role="navigation" style={{ width: '100%' }}>
         <div className="navbar-brand">
           <div className="navbar-item">
             <h1 className="title is-4 has-text-white">
@@ -337,32 +337,57 @@ const App: React.FC = () => {
       <div className="is-hidden-tablet">
         <div style={{ marginTop: '0.5rem' }}>
           {loading && !currentScreenshot ? (
-            <div className="box has-text-centered" style={{ minHeight: '400px' }}>
-              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
-                <div>
+            <div className="box" style={{ minHeight: '600px' }}>
+              {/* ヘッダー部分のスケルトン */}
+              <div style={{ minHeight: '80px', marginBottom: '1rem' }}>
+                <span className="heading">
+                  <span className="icon" style={{ marginRight: '0.5rem' }}>
+                    <i className="fas fa-clock"></i>
+                  </span>
+                  発生日時
+                </span>
+                <br />
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '200px',
+                    height: '1.2em',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: '4px',
+                    animation: 'pulse 1.5s ease-in-out infinite'
+                  }}
+                />
+              </div>
+              {/* 画像部分のスケルトン */}
+              <div
+                style={{
+                  minHeight: '400px',
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  animation: 'pulse 1.5s ease-in-out infinite'
+                }}
+              >
+                <div className="has-text-centered">
                   <span className="icon is-large">
                     <i className="fas fa-spinner fa-pulse fa-3x"></i>
                   </span>
                   <p className="subtitle" style={{ marginTop: '1rem' }}>
-                    <span className="icon" style={{ marginRight: '0.5rem' }}>
-                      <i className="fas fa-hourglass-half"></i>
-                    </span>
                     スクリーンショットを読み込み中...
                   </p>
                 </div>
               </div>
             </div>
           ) : !currentScreenshot && allScreenshots.length === 0 && !loading ? (
-            <div className="box has-text-centered" style={{ minHeight: '400px' }}>
-              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
-                <div>
+            <div className="box" style={{ minHeight: '600px' }}>
+              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '500px' }}>
+                <div className="has-text-centered">
                   <span className="icon is-large has-text-grey">
                     <i className="fas fa-camera fa-3x"></i>
                   </span>
                   <p className="subtitle mt-3">
-                    <span className="icon" style={{ marginRight: '0.5rem' }}>
-                      <i className="fas fa-camera"></i>
-                    </span>
                     スクリーンショットがありません
                   </p>
                   <p className="is-size-7 has-text-grey">地震データが記録されるとここに表示されます</p>
@@ -458,32 +483,94 @@ const App: React.FC = () => {
 
         <div className="column is-8-desktop is-12-tablet">
           {loading && !currentScreenshot ? (
-            <div className="box has-text-centered" style={{ minHeight: '400px' }}>
-              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
-                <div>
+            <div className="box" style={{ minHeight: '600px' }}>
+              {/* ヘッダー部分のスケルトン */}
+              <div className="level is-mobile" style={{ minHeight: '50px' }}>
+                <div className="level-left">
+                  <div className="level-item">
+                    <div>
+                      <span className="heading">
+                        <span className="icon" style={{ marginRight: '0.5rem' }}>
+                          <i className="fas fa-clock"></i>
+                        </span>
+                        発生日時
+                      </span>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: '200px',
+                          height: '1.2em',
+                          backgroundColor: '#f5f5f5',
+                          borderRadius: '4px',
+                          animation: 'pulse 1.5s ease-in-out infinite'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="level-right">
+                  <div className="level-item">
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '250px',
+                        height: '28px',
+                        backgroundColor: '#f5f5f5',
+                        borderRadius: '4px',
+                        animation: 'pulse 1.5s ease-in-out infinite'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* 画像部分のスケルトン */}
+              <div
+                style={{
+                  minHeight: '400px',
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  animation: 'pulse 1.5s ease-in-out infinite'
+                }}
+              >
+                <div className="has-text-centered">
                   <span className="icon is-large">
                     <i className="fas fa-spinner fa-pulse fa-3x"></i>
                   </span>
                   <p className="subtitle" style={{ marginTop: '1rem' }}>
-                    <span className="icon" style={{ marginRight: '0.5rem' }}>
-                      <i className="fas fa-hourglass-half"></i>
-                    </span>
                     スクリーンショットを読み込み中...
                   </p>
                 </div>
               </div>
+              {/* ナビゲーション部分のスケルトン */}
+              <div className="field is-grouped is-grouped-centered" style={{ marginTop: '1rem' }}>
+                <p className="control">
+                  <span className="button is-info" style={{ opacity: 0.5 }} aria-disabled="true">
+                    <span className="icon"><i className="fas fa-chevron-left"></i></span>
+                    <span>前へ</span>
+                  </span>
+                </p>
+                <p className="control">
+                  <span className="tag is-light">- / -</span>
+                </p>
+                <p className="control">
+                  <span className="button is-info" style={{ opacity: 0.5 }} aria-disabled="true">
+                    <span>次へ</span>
+                    <span className="icon"><i className="fas fa-chevron-right"></i></span>
+                  </span>
+                </p>
+              </div>
             </div>
           ) : !currentScreenshot && allScreenshots.length === 0 && !loading ? (
-            <div className="box has-text-centered" style={{ minHeight: '400px' }}>
-              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
-                <div>
+            <div className="box" style={{ minHeight: '600px' }}>
+              <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '500px' }}>
+                <div className="has-text-centered">
                   <span className="icon is-large has-text-grey">
                     <i className="fas fa-camera fa-3x"></i>
                   </span>
                   <p className="subtitle mt-3">
-                    <span className="icon" style={{ marginRight: '0.5rem' }}>
-                      <i className="fas fa-camera"></i>
-                    </span>
                     スクリーンショットがありません
                   </p>
                   <p className="is-size-7 has-text-grey">地震データが記録されるとここに表示されます</p>

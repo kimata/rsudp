@@ -285,7 +285,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   }
 
   return (
-    <div className="box" onKeyDown={handleKeyDown} tabIndex={0}>
+    <div className="box" onKeyDown={handleKeyDown} tabIndex={0} style={{ minHeight: '600px' }}>
       {/* デスクトップ表示 */}
       <div className="level is-mobile is-hidden-touch" style={{ minHeight: '50px' }}>
         <div className="level-left">
