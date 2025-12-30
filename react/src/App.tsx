@@ -281,8 +281,8 @@ const App: React.FC = () => {
               <span className="icon" style={{ marginLeft: '0.5rem', marginRight: '0.5rem' }}>
                 <i className="fas fa-camera"></i>
               </span>
-              <span className="is-hidden-mobile">RSUDP スクリーンショットビューア</span>
-              <span className="is-hidden-tablet">
+              <span className="is-hidden-touch">RSUDP スクリーンショットビューア</span>
+              <span className="is-hidden-desktop">
                 RSUDP<br />
                 <span style={{ fontSize: '0.9em' }}>スクリーンショットビューア</span>
               </span>
@@ -333,8 +333,8 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* モバイル表示時: 画像を先に表示 */}
-      <div className="is-hidden-tablet">
+      {/* モバイル/タブレット表示時: 画像を先に表示 */}
+      <div className="is-hidden-desktop">
         <div style={{ marginTop: '0.5rem' }}>
           {loading && !currentScreenshot ? (
             <div className="box" style={{ minHeight: '600px' }}>
@@ -587,8 +587,8 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* モバイル表示時: DateSelectorとFileListを画像の下に配置 */}
-      <div className="is-hidden-tablet" style={{ marginTop: '1rem' }}>
+      {/* モバイル/タブレット表示時: DateSelectorとFileListを画像の下に配置 */}
+      <div className="is-hidden-desktop" style={{ marginTop: '1rem' }}>
         <DateSelector
           years={years}
           months={months}
