@@ -26,10 +26,18 @@
             "properties": {
                 "cache": {
                     "type": "string"
+                },
+                "quake": {
+                    "type": "string"
+                },
+                "selenium": {
+                    "type": "string"
                 }
             },
             "required": [
-                "cache"
+                "cache",
+                "quake",
+                "selenium"
             ]
         },
         "webapp": {
