@@ -12,9 +12,11 @@ Options:
 """
 
 import logging
+import os
 import pathlib
 import signal
 import sys
+import threading
 
 import flask
 import flask_cors
@@ -24,8 +26,62 @@ import my_lib.proc_util
 
 SCHEMA_CONFIG = "schema/config.schema"
 
+# 地震データクローラーのデフォルト設定
+QUAKE_CRAWL_INTERVAL = 600  # 10分間隔
+
+# グローバル変数でクローラースレッドを管理
+_quake_crawler_stop_event = threading.Event()
+_quake_crawler_thread = None
+
+
+def start_quake_crawler(config: dict, interval: int = QUAKE_CRAWL_INTERVAL):
+    """地震データクローラーをバックグラウンドで開始する"""
+    global _quake_crawler_thread  # noqa: PLW0603
+
+    def crawler_loop():
+        from rsudp.quake.crawl import crawl_earthquakes
+
+        logging.info("Earthquake crawler started (interval: %d seconds)", interval)
+
+        # 起動時に即座に1回実行
+        try:
+            new_count = crawl_earthquakes(config, min_intensity=3)
+            if new_count > 0:
+                logging.info("Earthquake crawler: Added %d new earthquakes", new_count)
+        except Exception:
+            logging.exception("Earthquake crawler error")
+
+        # 定期実行ループ
+        while not _quake_crawler_stop_event.wait(interval):
+            try:
+                new_count = crawl_earthquakes(config, min_intensity=3)
+                if new_count > 0:
+                    logging.info("Earthquake crawler: Added %d new earthquakes", new_count)
+            except Exception:
+                logging.exception("Earthquake crawler error")
+
+        logging.info("Earthquake crawler stopped")
+
+    _quake_crawler_stop_event.clear()
+    _quake_crawler_thread = threading.Thread(target=crawler_loop, daemon=True)
+    _quake_crawler_thread.start()
+
+
+def stop_quake_crawler():
+    """地震データクローラーを停止する"""
+    global _quake_crawler_thread  # noqa: PLW0603
+
+    if _quake_crawler_thread and _quake_crawler_thread.is_alive():
+        logging.info("Stopping earthquake crawler...")
+        _quake_crawler_stop_event.set()
+        _quake_crawler_thread.join(timeout=5)
+        _quake_crawler_thread = None
+
 
 def term():
+    # 地震データクローラーを停止
+    stop_quake_crawler()
+
     # 子プロセスを終了
     my_lib.proc_util.kill_child()
 
@@ -74,7 +130,6 @@ def create_app(config):
 if __name__ == "__main__":
     import atexit
     import contextlib
-    import os
 
     import docopt
 
@@ -128,6 +183,11 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGTERM, enhanced_sig_handler)
     signal.signal(signal.SIGINT, enhanced_sig_handler)
+
+    # 地震データクローラーをバックグラウンドで開始
+    # リローダー使用時は子プロセス（WERKZEUG_RUN_MAIN=true）でのみ開始
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not debug_mode:
+        start_quake_crawler(config)
 
     # Flaskアプリケーションを実行
     try:
