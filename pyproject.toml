@@ -40,7 +40,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/modes"]
+packages = ["src/rsudp"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
