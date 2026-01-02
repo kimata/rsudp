@@ -5,15 +5,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from flask import Blueprint, current_app, jsonify, request, send_file
-from rsudp.screenshot_manager import ScreenshotManager
 import my_lib.flask_util
+from flask import Blueprint, current_app, jsonify, request, send_file
+
+from rsudp.quake.crawl import crawl_earthquakes
+from rsudp.screenshot_manager import ScreenshotManager
 
 viewer_api = Blueprint("viewer_api", __name__, url_prefix="/rsudp")
 blueprint = viewer_api  # Alias for compatibility with webui.py
 
 # Global instance of ScreenshotManager
 _screenshot_manager: Optional[ScreenshotManager] = None
+
 
 def get_screenshot_manager() -> ScreenshotManager:
     """Get or create ScreenshotManager instance."""
@@ -71,6 +74,50 @@ def get_screenshots_path() -> Path:
     return path
 
 
+def get_quake_db_path() -> Optional[Path]:
+    """Get the quake database path from config."""
+    quake_path = current_app.config["CONFIG"].get("data", {}).get("quake")
+    if quake_path:
+        path = Path(quake_path)
+        if not path.is_absolute():
+            project_root = Path.cwd().parent if Path.cwd().name == "src" else Path.cwd()
+            path = project_root / path
+        return path
+    return None
+
+
+def format_screenshot_with_earthquake(s: dict, quake_db_path: Optional[Path] = None) -> dict:
+    """Format screenshot dict with optional earthquake info."""
+    manager = get_screenshot_manager()
+
+    result = {
+        "filename": s["filename"],
+        "prefix": s["filename"].split("-")[0],
+        "year": s["year"],
+        "month": s["month"],
+        "day": s["day"],
+        "hour": s["hour"],
+        "minute": s["minute"],
+        "second": s["second"],
+        "timestamp": s["timestamp"],
+        "sta": s["sta"],
+        "lta": s["lta"],
+        "sta_lta_ratio": s["sta_lta_ratio"],
+        "max_count": s["max_count"],
+        "metadata": s["metadata"],
+    }
+
+    # Add earthquake info if available
+    if "earthquake" in s:
+        result["earthquake"] = s["earthquake"]
+    elif quake_db_path:
+        eq = manager.get_earthquake_for_screenshot(s["timestamp"], quake_db_path)
+        if eq:
+            result["earthquake"] = eq
+
+    return result
+
+
 @viewer_api.route("/api/screenshot/", methods=["GET"])
 def list_screenshots():
     """
@@ -79,47 +126,42 @@ def list_screenshots():
     Returns files sorted by timestamp (newest first).
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter screenshots
+    - earthquake_only: If true, only return screenshots during earthquake windows
     """
     try:
         manager = get_screenshot_manager()
-        
+
         # Organize files if needed (moves files to date-based subdirectories)
         manager.organize_files()
-        
+
         # Scan and cache any new files
         manager.scan_and_cache_all()
-        
-        # Get minimum maximum signal filter from query parameters
+
+        # Get filter parameters
         min_max_signal = request.args.get("min_max_signal", type=float)
-        
-        # Get screenshots with optional maximum signal filter
-        screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
-        
-        # Format for compatibility with existing frontend
-        formatted_screenshots = []
-        for s in screenshots:
-            formatted_screenshots.append({
-                "filename": s["filename"],
-                "prefix": s["filename"].split("-")[0],
-                "year": s["year"],
-                "month": s["month"],
-                "day": s["day"],
-                "hour": s["hour"],
-                "minute": s["minute"],
-                "second": s["second"],
-                "timestamp": s["timestamp"],
-                "sta": s["sta"],
-                "lta": s["lta"],
-                "sta_lta_ratio": s["sta_lta_ratio"],
-                "max_count": s["max_count"],
-                "metadata": s["metadata"]
-            })
-        
-        return jsonify({
-            "screenshots": formatted_screenshots, 
-            "total": len(formatted_screenshots), 
-            "path": str(get_screenshots_path())
-        })
+        earthquake_only = request.args.get("earthquake_only", "false").lower() == "true"
+
+        quake_db_path = get_quake_db_path()
+
+        if earthquake_only and quake_db_path and quake_db_path.exists():
+            # Get screenshots filtered by earthquake time windows
+            screenshots = manager.get_screenshots_with_earthquake_filter(
+                min_max_signal=min_max_signal,
+                quake_db_path=quake_db_path,
+            )
+            formatted_screenshots = [format_screenshot_with_earthquake(s, quake_db_path) for s in screenshots]
+        else:
+            # Get screenshots with optional maximum signal filter
+            screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
+            formatted_screenshots = [format_screenshot_with_earthquake(s, quake_db_path) for s in screenshots]
+
+        return jsonify(
+            {
+                "screenshots": formatted_screenshots,
+                "total": len(formatted_screenshots),
+                "path": str(get_screenshots_path()),
+            }
+        )
 
     except Exception as e:
         import traceback
@@ -130,20 +172,20 @@ def list_screenshots():
 @viewer_api.route("/api/screenshot/years/", methods=["GET"])
 def list_years():
     """Get list of available years.
-    
+
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter years
     """
     try:
         manager = get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
-        
+
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
-        
+
         # Extract unique years
         years = sorted(set(d["year"] for d in dates), reverse=True)
-        
+
         return jsonify({"years": years})
 
     except Exception as e:
@@ -153,23 +195,20 @@ def list_years():
 @viewer_api.route("/api/screenshot/<int:year>/months/", methods=["GET"])
 def list_months(year: int):
     """Get list of available months for a specific year.
-    
+
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter months
     """
     try:
         manager = get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
-        
+
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
-        
+
         # Extract months for the specified year
-        months = sorted(
-            set(d["month"] for d in dates if d["year"] == year), 
-            reverse=True
-        )
-        
+        months = sorted(set(d["month"] for d in dates if d["year"] == year), reverse=True)
+
         return jsonify({"months": months})
 
     except Exception as e:
@@ -179,24 +218,20 @@ def list_months(year: int):
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/days/", methods=["GET"])
 def list_days(year: int, month: int):
     """Get list of available days for a specific year and month.
-    
+
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter days
     """
     try:
         manager = get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
-        
+
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
-        
+
         # Extract days for the specified year and month
-        days = sorted(
-            set(d["day"] for d in dates 
-                if d["year"] == year and d["month"] == month), 
-            reverse=True
-        )
-        
+        days = sorted(set(d["day"] for d in dates if d["year"] == year and d["month"] == month), reverse=True)
+
         return jsonify({"days": days})
 
     except Exception as e:
@@ -206,38 +241,40 @@ def list_days(year: int, month: int):
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/<int:day>/", methods=["GET"])
 def list_by_date(year: int, month: int, day: int):
     """Get screenshots for a specific date.
-    
+
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter screenshots
     """
     try:
         manager = get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
-        
+
         # Get screenshots with optional maximum signal filter
         screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
-        
+
         # Filter by date
         files = []
         for s in screenshots:
             if s["year"] == year and s["month"] == month and s["day"] == day:
-                files.append({
-                    "filename": s["filename"],
-                    "prefix": s["filename"].split("-")[0],
-                    "year": s["year"],
-                    "month": s["month"],
-                    "day": s["day"],
-                    "hour": s["hour"],
-                    "minute": s["minute"],
-                    "second": s["second"],
-                    "timestamp": s["timestamp"],
-                    "sta": s["sta"],
-                    "lta": s["lta"],
-                    "sta_lta_ratio": s["sta_lta_ratio"],
-                    "max_count": s["max_count"],
-                    "metadata": s["metadata"]
-                })
-        
+                files.append(
+                    {
+                        "filename": s["filename"],
+                        "prefix": s["filename"].split("-")[0],
+                        "year": s["year"],
+                        "month": s["month"],
+                        "day": s["day"],
+                        "hour": s["hour"],
+                        "minute": s["minute"],
+                        "second": s["second"],
+                        "timestamp": s["timestamp"],
+                        "sta": s["sta"],
+                        "lta": s["lta"],
+                        "sta_lta_ratio": s["sta_lta_ratio"],
+                        "max_count": s["max_count"],
+                        "metadata": s["metadata"],
+                    }
+                )
+
         return jsonify({"screenshots": files, "total": len(files)})
 
     except Exception as e:
@@ -247,10 +284,10 @@ def list_by_date(year: int, month: int, day: int):
 def _get_image_file_path(filename: str):
     """Get the actual file path for a given filename."""
     screenshots_dir = get_screenshots_path()
-    
+
     # First try direct path
     file_path = screenshots_dir / filename
-    
+
     # If not found, try searching in date-based subdirectories
     if not file_path.exists():
         # Search recursively for the filename
@@ -258,25 +295,25 @@ def _get_image_file_path(filename: str):
             if found_path.is_file():
                 file_path = found_path
                 break
-    
+
     return str(file_path) if file_path.exists() else None
 
 
 @viewer_api.route("/api/screenshot/image/<path:filename>", methods=["GET"])
 @my_lib.flask_util.file_etag(
     filename_func=lambda filename: _get_image_file_path(filename),
-    cache_control="public, max-age=31536000, immutable"
+    cache_control="public, max-age=31536000, immutable",
 )
 def get_image(filename: str):
     """Serve a specific screenshot image with ETag caching."""
     try:
         file_path_str = _get_image_file_path(filename)
-        
+
         if not file_path_str:
             return jsonify({"error": "File not found"}), 404
-        
+
         file_path = Path(file_path_str)
-        
+
         if file_path.stat().st_size == 0:
             return jsonify({"error": "File is empty"}), 404
 
@@ -301,39 +338,41 @@ def get_image(filename: str):
 @viewer_api.route("/api/screenshot/latest/", methods=["GET"])
 def get_latest():
     """Get the most recent screenshot.
-    
+
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter screenshots
     """
     try:
         manager = get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
-        
+
         # Get screenshots with optional maximum signal filter
         screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
-        
+
         if not screenshots:
             return jsonify({"error": "No screenshots found"}), 404
-        
+
         # First one is already the latest (sorted by timestamp desc)
         latest = screenshots[0]
-        
-        return jsonify({
-            "filename": latest["filename"],
-            "prefix": latest["filename"].split("-")[0],
-            "year": latest["year"],
-            "month": latest["month"],
-            "day": latest["day"],
-            "hour": latest["hour"],
-            "minute": latest["minute"],
-            "second": latest["second"],
-            "timestamp": latest["timestamp"],
-            "sta": latest["sta"],
-            "lta": latest["lta"],
-            "sta_lta_ratio": latest["sta_lta_ratio"],
-            "max_count": latest["max_count"],
-            "metadata": latest["metadata"]
-        })
+
+        return jsonify(
+            {
+                "filename": latest["filename"],
+                "prefix": latest["filename"].split("-")[0],
+                "year": latest["year"],
+                "month": latest["month"],
+                "day": latest["day"],
+                "hour": latest["hour"],
+                "minute": latest["minute"],
+                "second": latest["second"],
+                "timestamp": latest["timestamp"],
+                "sta": latest["sta"],
+                "lta": latest["lta"],
+                "sta_lta_ratio": latest["sta_lta_ratio"],
+                "max_count": latest["max_count"],
+                "metadata": latest["metadata"],
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -345,6 +384,44 @@ def get_statistics():
     try:
         manager = get_screenshot_manager()
         stats = manager.get_signal_statistics()
+
+        # Add earthquake count
+        quake_db_path = get_quake_db_path()
+        if quake_db_path and quake_db_path.exists():
+            from rsudp.quake.database import QuakeDatabase
+
+            quake_db = QuakeDatabase(current_app.config["CONFIG"])
+            stats["earthquake_count"] = quake_db.count_earthquakes()
+        else:
+            stats["earthquake_count"] = 0
+
         return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@viewer_api.route("/api/earthquake/crawl/", methods=["POST"])
+def crawl_earthquake_data():
+    """Trigger earthquake data crawl from JMA."""
+    try:
+        config = current_app.config["CONFIG"]
+        new_count = crawl_earthquakes(config, min_intensity=3)
+        return jsonify({"success": True, "new_earthquakes": new_count})
+    except Exception as e:
+        import traceback
+
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@viewer_api.route("/api/earthquake/list/", methods=["GET"])
+def list_earthquakes():
+    """List all stored earthquakes."""
+    try:
+        from rsudp.quake.database import QuakeDatabase
+
+        config = current_app.config["CONFIG"]
+        quake_db = QuakeDatabase(config)
+        earthquakes = quake_db.get_all_earthquakes(limit=100)
+        return jsonify({"earthquakes": earthquakes, "total": len(earthquakes)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
