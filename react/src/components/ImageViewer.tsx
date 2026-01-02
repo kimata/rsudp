@@ -77,7 +77,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       if (!preloadedImages.has(filename)) {
         // 近い画像ほど優先度を高くするため、短い遅延を設定
         const delay = Math.floor(index / 2) * 25; // 0ms, 0ms, 25ms, 25ms, 50ms, 50ms, 75ms...
-        
+
         setTimeout(async () => {
           try {
             const img = await preloadImage(filename);
@@ -93,7 +93,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     const maxCacheSize = 20; // 最大20枚までキャッシュ
     if (preloadedImages.size > maxCacheSize) {
       const keepIndices = new Set<number>();
-      
+
       // 現在の画像の前後10枚のインデックスを保持
       for (let i = -10; i <= 10; i++) {
         const idx = currentIndex + i;
@@ -284,6 +284,16 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     );
   }
 
+  // Format earthquake datetime
+  const formatEarthquakeDateTime = (isoString: string): string => {
+    const date = new Date(isoString);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${month}/${day} ${hours}:${minutes}`;
+  };
+
   return (
     <div className="box" onKeyDown={handleKeyDown} tabIndex={0} style={{ minHeight: '600px' }}>
       {/* デスクトップ表示 */}
@@ -304,6 +314,17 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 <span className="subtitle is-7 has-text-grey" style={{ marginLeft: '0.5rem' }}>
                   ({dateTime.relative})
                 </span>
+                {currentImage.earthquake && (
+                  <span
+                    className="tag is-link is-light"
+                    style={{ marginLeft: '0.75rem', whiteSpace: 'nowrap' }}
+                  >
+                    <span className="icon is-small" style={{ marginRight: '0.25rem' }}>
+                      <i className="fas fa-globe"></i>
+                    </span>
+                    近傍で発生した地震: {formatEarthquakeDateTime(currentImage.earthquake.detected_at)} {currentImage.earthquake.epicenter_name} M{currentImage.earthquake.magnitude}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -365,6 +386,19 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           <span className="subtitle is-7 has-text-grey" style={{ marginLeft: '0.5rem' }}>
             ({dateTime.relative})
           </span>
+          {currentImage.earthquake && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <span
+                className="tag is-link is-light"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                <span className="icon is-small" style={{ marginRight: '0.25rem' }}>
+                  <i className="fas fa-globe"></i>
+                </span>
+                近傍で発生した地震: {formatEarthquakeDateTime(currentImage.earthquake.detected_at)} {currentImage.earthquake.epicenter_name} M{currentImage.earthquake.magnitude}
+              </span>
+            </div>
+          )}
         </div>
 
         <div style={{ marginBottom: '1rem', minHeight: '28px' }}>

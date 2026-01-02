@@ -27,23 +27,24 @@ const App: React.FC = () => {
   const [minMaxSignalThreshold, setMinMaxSignalThreshold] = useState<number | undefined>(undefined);
   const [statistics, setStatistics] = useState<StatisticsResponse | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [earthquakeOnly, setEarthquakeOnly] = useState(true);
 
   // Load years on mount
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  // Reload data when signal threshold changes (with debounce)
+  // Reload data when signal threshold or earthquake filter changes (with debounce)
   useEffect(() => {
     if (statistics && !isInitialLoad) { // Only reload if we've already loaded initial data and not initial load
       // Debounce API calls to prevent too many requests
       const timeoutId = setTimeout(() => {
         loadDataWithFilter();
       }, 500); // Wait 500ms after last change
-      
+
       return () => clearTimeout(timeoutId);
     }
-  }, [minMaxSignalThreshold]);
+  }, [minMaxSignalThreshold, earthquakeOnly]);
 
   // Load months when year changes
   useEffect(() => {
@@ -85,9 +86,9 @@ const App: React.FC = () => {
         setMinMaxSignalThreshold(initialMinMaxSignal);
       }
 
-      // Load all screenshots and years with initial threshold
+      // Load all screenshots and years with initial threshold and earthquake filter
       const [screenshotsData, yearsData] = await Promise.all([
-        screenshotApi.getAllScreenshots(initialMinMaxSignal),
+        screenshotApi.getAllScreenshots(initialMinMaxSignal, earthquakeOnly),
         screenshotApi.getYears(initialMinMaxSignal)
       ]);
 
@@ -99,7 +100,7 @@ const App: React.FC = () => {
       if (screenshotsData.length > 0) {
         setCurrentScreenshot(screenshotsData[0]);
       }
-      
+
       setIsInitialLoad(false);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -116,7 +117,7 @@ const App: React.FC = () => {
     try {
       // Load all screenshots and years with filter
       const [screenshotsData, yearsData] = await Promise.all([
-        screenshotApi.getAllScreenshots(minMaxSignalThreshold),
+        screenshotApi.getAllScreenshots(minMaxSignalThreshold, earthquakeOnly),
         screenshotApi.getYears(minMaxSignalThreshold)
       ]);
 
@@ -434,6 +435,32 @@ const App: React.FC = () => {
             loading={loading && !statistics}
           />
 
+          <div className="box">
+            <h2 className="title is-5">
+              <span className="icon" style={{ marginRight: '0.5rem' }}>
+                <i className="fas fa-globe"></i>
+              </span>
+              地震フィルタ
+            </h2>
+            <div className="field">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={earthquakeOnly}
+                  onChange={(e) => setEarthquakeOnly(e.target.checked)}
+                  style={{ marginRight: '0.5rem' }}
+                />
+                震度あり地震のみ表示
+              </label>
+              <p className="help">
+                気象庁発表の震度3以上の地震時刻前後のデータのみ表示
+                {statistics?.earthquake_count !== undefined && (
+                  <span>（記録済み: {statistics.earthquake_count}件）</span>
+                )}
+              </p>
+            </div>
+          </div>
+
           <div className="box" style={{ minHeight: '120px' }}>
             <h2 className="title is-5">
               <span className="icon" style={{ marginRight: '0.5rem' }}>
@@ -615,6 +642,32 @@ const App: React.FC = () => {
           onThresholdChange={setMinMaxSignalThreshold}
           loading={loading && !statistics}
         />
+
+        <div className="box">
+          <h2 className="title is-5">
+            <span className="icon" style={{ marginRight: '0.5rem' }}>
+              <i className="fas fa-globe"></i>
+            </span>
+            地震フィルタ
+          </h2>
+          <div className="field">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={earthquakeOnly}
+                onChange={(e) => setEarthquakeOnly(e.target.checked)}
+                style={{ marginRight: '0.5rem' }}
+              />
+              震度あり地震のみ表示
+            </label>
+            <p className="help">
+              気象庁発表の震度3以上の地震時刻前後のデータのみ表示
+              {statistics?.earthquake_count !== undefined && (
+                <span>（記録済み: {statistics.earthquake_count}件）</span>
+              )}
+            </p>
+          </div>
+        </div>
 
         <div className="box" style={{ minHeight: '120px' }}>
           <h2 className="title is-5">

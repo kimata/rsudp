@@ -1,3 +1,15 @@
+export interface Earthquake {
+    id: number;
+    event_id: string;
+    detected_at: string;
+    latitude: number;
+    longitude: number;
+    magnitude: number;
+    depth: number;
+    epicenter_name: string;
+    max_intensity?: string;
+}
+
 export interface Screenshot {
     filename: string;
     prefix: string;
@@ -13,6 +25,7 @@ export interface Screenshot {
     sta_lta_ratio?: number;
     max_count: number;
     metadata?: string;
+    earthquake?: Earthquake;
 }
 
 export interface ScreenshotListResponse {
@@ -38,6 +51,7 @@ export interface StatisticsResponse {
     max_signal?: number;
     avg_signal?: number;
     with_signal: number;
+    earthquake_count?: number;
 }
 
 export interface SysInfo {

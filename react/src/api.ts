@@ -44,14 +44,25 @@ export const screenshotApi = {
         return response.data.days;
     },
 
-    getScreenshotsByDate: async (year: number, month: number, day: number, minMaxSignal?: number): Promise<Screenshot[]> => {
+    getScreenshotsByDate: async (
+        year: number,
+        month: number,
+        day: number,
+        minMaxSignal?: number,
+    ): Promise<Screenshot[]> => {
         const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
         const response = await api.get<ScreenshotListResponse>(`/${year}/${month}/${day}/`, { params });
         return response.data.screenshots;
     },
 
-    getAllScreenshots: async (minMaxSignal?: number): Promise<Screenshot[]> => {
-        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
+    getAllScreenshots: async (minMaxSignal?: number, earthquakeOnly?: boolean): Promise<Screenshot[]> => {
+        const params: Record<string, string | number | boolean> = {};
+        if (minMaxSignal !== undefined) {
+            params.min_max_signal = minMaxSignal;
+        }
+        if (earthquakeOnly) {
+            params.earthquake_only = "true";
+        }
         const response = await api.get<ScreenshotListResponse>("/", { params });
         return response.data.screenshots;
     },
@@ -69,5 +80,12 @@ export const screenshotApi = {
 
     getImageUrl: (filename: string): string => {
         return `${API_BASE_URL}/image/${filename}`;
+    },
+
+    crawlEarthquakes: async (): Promise<{ success: boolean; new_earthquakes: number }> => {
+        const response = await axios.post<{ success: boolean; new_earthquakes: number }>(
+            "/rsudp/api/earthquake/crawl/",
+        );
+        return response.data;
     },
 };
