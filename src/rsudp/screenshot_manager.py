@@ -1,20 +1,20 @@
 """Screenshot management with metadata caching and file organization."""
 
+import logging
 import re
 import shutil
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from PIL import Image
-from PIL.PngImagePlugin import PngInfo
 
 
 class ScreenshotManager:
     """Manages screenshot files with metadata caching and organization."""
 
     def __init__(self, config: dict):
+        """Initialize ScreenshotManager with configuration."""
         self.config = config
         self.screenshot_path = Path(config["plot"]["screenshot"]["path"])
         self.cache_path = Path(config.get("data", {}).get("cache", "data/cache.db"))
@@ -90,7 +90,7 @@ class ScreenshotManager:
                 # Update cache with new file location
                 self._cache_file_metadata(new_path)
 
-    def _parse_filename(self, filename: str) -> Optional[dict]:
+    def _parse_filename(self, filename: str) -> dict | None:
         """Parse screenshot filename to extract timestamp information."""
         pattern = r"^(.+?)-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})\.png$"
         match = re.match(pattern, filename)
@@ -110,7 +110,7 @@ class ScreenshotManager:
             "minute": int(minute),
             "second": int(second),
             "timestamp": datetime(
-                int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=timezone.utc
+                int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=UTC
             ).isoformat(),
         }
 
@@ -152,8 +152,8 @@ class ScreenshotManager:
                     if comment and "raw" not in metadata:
                         metadata["comment"] = comment
 
-        except Exception as e:
-            print(f"Error extracting metadata from {file_path}: {e}")
+        except Exception:
+            logging.exception("Error extracting metadata from %s", file_path)
 
         return metadata
 
@@ -226,7 +226,7 @@ class ScreenshotManager:
             # Cache the file metadata
             self._cache_file_metadata(file_path)
 
-    def get_screenshots_with_signal_filter(self, min_max_signal: Optional[float] = None):
+    def get_screenshots_with_signal_filter(self, min_max_signal: float | None = None):
         """Get screenshots filtered by minimum maximum signal value (max_count)."""
         with sqlite3.connect(self.cache_path) as conn:
             query = """
@@ -244,30 +244,27 @@ class ScreenshotManager:
 
             cursor = conn.execute(query, params)
 
-            screenshots = []
-            for row in cursor:
-                screenshots.append(
-                    {
-                        "filename": row[0],
-                        "filepath": row[1],
-                        "year": row[2],
-                        "month": row[3],
-                        "day": row[4],
-                        "hour": row[5],
-                        "minute": row[6],
-                        "second": row[7],
-                        "timestamp": row[8],
-                        "sta": row[9],
-                        "lta": row[10],
-                        "sta_lta_ratio": row[11],
-                        "max_count": row[12],
-                        "metadata": row[13],
-                    }
-                )
+            return [
+                {
+                    "filename": row[0],
+                    "filepath": row[1],
+                    "year": row[2],
+                    "month": row[3],
+                    "day": row[4],
+                    "hour": row[5],
+                    "minute": row[6],
+                    "second": row[7],
+                    "timestamp": row[8],
+                    "sta": row[9],
+                    "lta": row[10],
+                    "sta_lta_ratio": row[11],
+                    "max_count": row[12],
+                    "metadata": row[13],
+                }
+                for row in cursor
+            ]
 
-            return screenshots
-
-    def get_available_dates(self, min_max_signal: Optional[float] = None):
+    def get_available_dates(self, min_max_signal: float | None = None):
         """Get available dates that have screenshots with minimum maximum signal value."""
         with sqlite3.connect(self.cache_path) as conn:
             query = """
@@ -284,11 +281,7 @@ class ScreenshotManager:
 
             cursor = conn.execute(query, params)
 
-            dates = []
-            for row in cursor:
-                dates.append({"year": row[0], "month": row[1], "day": row[2]})
-
-            return dates
+            return [{"year": row[0], "month": row[1], "day": row[2]} for row in cursor]
 
     def get_signal_statistics(self):
         """Get signal value statistics (max_count values)."""
@@ -314,8 +307,8 @@ class ScreenshotManager:
 
     def get_screenshots_with_earthquake_filter(
         self,
-        min_max_signal: Optional[float] = None,
-        quake_db_path: Optional[Path] = None,
+        min_max_signal: float | None = None,
+        quake_db_path: Path | None = None,
         before_seconds: int = 30,
         after_seconds: int = 240,
     ) -> list[dict]:
@@ -329,7 +322,8 @@ class ScreenshotManager:
             after_seconds: Seconds after earthquake to include
 
         Returns:
-            List of screenshots with earthquake info attached
+            List of screenshots with earthquake info attached.
+
         """
         if not quake_db_path or not quake_db_path.exists():
             return []
@@ -405,10 +399,10 @@ class ScreenshotManager:
     def get_earthquake_for_screenshot(
         self,
         screenshot_timestamp: str,
-        quake_db_path: Optional[Path] = None,
+        quake_db_path: Path | None = None,
         before_seconds: int = 30,
         after_seconds: int = 240,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Get earthquake info for a specific screenshot timestamp.
 
@@ -419,7 +413,8 @@ class ScreenshotManager:
             after_seconds: Seconds after earthquake to include
 
         Returns:
-            Earthquake dict or None
+            Earthquake dict or None.
+
         """
         if not quake_db_path or not quake_db_path.exists():
             return None

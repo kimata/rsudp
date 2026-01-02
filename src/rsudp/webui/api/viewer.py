@@ -1,9 +1,8 @@
 """Screenshot viewer API endpoints for rsudp web interface."""
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 import my_lib.flask_util
 from flask import Blueprint, current_app, jsonify, request, send_file
@@ -15,12 +14,12 @@ viewer_api = Blueprint("viewer_api", __name__, url_prefix="/rsudp")
 blueprint = viewer_api  # Alias for compatibility with webui.py
 
 # Global instance of ScreenshotManager
-_screenshot_manager: Optional[ScreenshotManager] = None
+_screenshot_manager: ScreenshotManager | None = None
 
 
 def get_screenshot_manager() -> ScreenshotManager:
     """Get or create ScreenshotManager instance."""
-    global _screenshot_manager
+    global _screenshot_manager  # noqa: PLW0603
     if _screenshot_manager is None:
         config = current_app.config["CONFIG"]
         # Ensure cache path is set
@@ -56,7 +55,7 @@ def parse_filename(filename: str) -> dict | None:
         "minute": int(minute),
         "second": int(second),
         "timestamp": datetime(
-            int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=timezone.utc
+            int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=UTC
         ).isoformat(),
     }
 
@@ -74,7 +73,7 @@ def get_screenshots_path() -> Path:
     return path
 
 
-def get_quake_db_path() -> Optional[Path]:
+def get_quake_db_path() -> Path | None:
     """Get the quake database path from config."""
     quake_path = current_app.config["CONFIG"].get("data", {}).get("quake")
     if quake_path:
@@ -86,7 +85,7 @@ def get_quake_db_path() -> Optional[Path]:
     return None
 
 
-def format_screenshot_with_earthquake(s: dict, quake_db_path: Optional[Path] = None) -> dict:
+def format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = None) -> dict:
     """Format screenshot dict with optional earthquake info."""
     manager = get_screenshot_manager()
 
@@ -171,7 +170,8 @@ def list_screenshots():
 
 @viewer_api.route("/api/screenshot/years/", methods=["GET"])
 def list_years():
-    """Get list of available years.
+    """
+    Get list of available years.
 
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter years
@@ -184,7 +184,7 @@ def list_years():
         dates = manager.get_available_dates(min_max_signal)
 
         # Extract unique years
-        years = sorted(set(d["year"] for d in dates), reverse=True)
+        years = sorted({d["year"] for d in dates}, reverse=True)
 
         return jsonify({"years": years})
 
@@ -194,7 +194,8 @@ def list_years():
 
 @viewer_api.route("/api/screenshot/<int:year>/months/", methods=["GET"])
 def list_months(year: int):
-    """Get list of available months for a specific year.
+    """
+    Get list of available months for a specific year.
 
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter months
@@ -207,7 +208,7 @@ def list_months(year: int):
         dates = manager.get_available_dates(min_max_signal)
 
         # Extract months for the specified year
-        months = sorted(set(d["month"] for d in dates if d["year"] == year), reverse=True)
+        months = sorted({d["month"] for d in dates if d["year"] == year}, reverse=True)
 
         return jsonify({"months": months})
 
@@ -217,7 +218,8 @@ def list_months(year: int):
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/days/", methods=["GET"])
 def list_days(year: int, month: int):
-    """Get list of available days for a specific year and month.
+    """
+    Get list of available days for a specific year and month.
 
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter days
@@ -230,7 +232,7 @@ def list_days(year: int, month: int):
         dates = manager.get_available_dates(min_max_signal)
 
         # Extract days for the specified year and month
-        days = sorted(set(d["day"] for d in dates if d["year"] == year and d["month"] == month), reverse=True)
+        days = sorted({d["day"] for d in dates if d["year"] == year and d["month"] == month}, reverse=True)
 
         return jsonify({"days": days})
 
@@ -240,7 +242,8 @@ def list_days(year: int, month: int):
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/<int:day>/", methods=["GET"])
 def list_by_date(year: int, month: int, day: int):
-    """Get screenshots for a specific date.
+    """
+    Get screenshots for a specific date.
 
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter screenshots
@@ -253,27 +256,26 @@ def list_by_date(year: int, month: int, day: int):
         screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
 
         # Filter by date
-        files = []
-        for s in screenshots:
-            if s["year"] == year and s["month"] == month and s["day"] == day:
-                files.append(
-                    {
-                        "filename": s["filename"],
-                        "prefix": s["filename"].split("-")[0],
-                        "year": s["year"],
-                        "month": s["month"],
-                        "day": s["day"],
-                        "hour": s["hour"],
-                        "minute": s["minute"],
-                        "second": s["second"],
-                        "timestamp": s["timestamp"],
-                        "sta": s["sta"],
-                        "lta": s["lta"],
-                        "sta_lta_ratio": s["sta_lta_ratio"],
-                        "max_count": s["max_count"],
-                        "metadata": s["metadata"],
-                    }
-                )
+        files = [
+            {
+                "filename": s["filename"],
+                "prefix": s["filename"].split("-")[0],
+                "year": s["year"],
+                "month": s["month"],
+                "day": s["day"],
+                "hour": s["hour"],
+                "minute": s["minute"],
+                "second": s["second"],
+                "timestamp": s["timestamp"],
+                "sta": s["sta"],
+                "lta": s["lta"],
+                "sta_lta_ratio": s["sta_lta_ratio"],
+                "max_count": s["max_count"],
+                "metadata": s["metadata"],
+            }
+            for s in screenshots
+            if s["year"] == year and s["month"] == month and s["day"] == day
+        ]
 
         return jsonify({"screenshots": files, "total": len(files)})
 
@@ -318,7 +320,7 @@ def get_image(filename: str):
             return jsonify({"error": "File is empty"}), 404
 
         # Send file with optimal cache headers
-        response = send_file(
+        return send_file(
             str(file_path),
             mimetype="image/png",
             as_attachment=False,
@@ -329,15 +331,14 @@ def get_image(filename: str):
             max_age=31536000,  # 1 year in seconds
         )
 
-        return response
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/latest/", methods=["GET"])
 def get_latest():
-    """Get the most recent screenshot.
+    """
+    Get the most recent screenshot.
 
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter screenshots
