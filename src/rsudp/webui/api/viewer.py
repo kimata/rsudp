@@ -426,3 +426,69 @@ def list_earthquakes():
         return jsonify({"earthquakes": earthquakes, "total": len(earthquakes)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@viewer_api.route("/api/screenshot/clean/", methods=["POST"])
+def clean_screenshots():
+    """
+    地震に関連しない高振幅スクリーンショットを削除する.
+
+    Request body (JSON):
+    - min_max_count: 最小振幅閾値 (default: 300000)
+    - time_window_minutes: 地震との時間窓（分）(default: 10)
+    - min_magnitude: 最小マグニチュード (default: 3.0)
+    - dry_run: True の場合、実際には削除しない (default: False)
+    """
+    try:
+        import cleaner
+
+        config = current_app.config["CONFIG"]
+
+        # リクエストパラメータを取得
+        data = request.get_json() or {}
+        min_max_count = data.get("min_max_count", cleaner.DEFAULT_MIN_MAX_COUNT)
+        time_window_minutes = data.get("time_window_minutes", cleaner.DEFAULT_TIME_WINDOW_MINUTES)
+        min_magnitude = data.get("min_magnitude", cleaner.DEFAULT_MIN_MAGNITUDE)
+        dry_run = data.get("dry_run", False)
+
+        # 削除対象を取得
+        to_delete = cleaner.get_screenshots_to_clean(
+            config,
+            min_max_count=min_max_count,
+            time_window_minutes=time_window_minutes,
+            min_magnitude=min_magnitude,
+        )
+
+        if dry_run:
+            # dry-run モードでは削除対象のリストを返すだけ
+            return jsonify(
+                {
+                    "success": True,
+                    "dry_run": True,
+                    "to_delete_count": len(to_delete),
+                    "to_delete": [
+                        {
+                            "filename": ss["filename"],
+                            "max_count": ss["max_count"],
+                            "timestamp": ss["timestamp"].isoformat(),
+                        }
+                        for ss in to_delete
+                    ],
+                }
+            )
+
+        # 実際に削除
+        deleted_count = cleaner.delete_screenshots(config, to_delete, dry_run=False)
+
+        return jsonify(
+            {
+                "success": True,
+                "dry_run": False,
+                "deleted_count": deleted_count,
+            }
+        )
+
+    except Exception as e:
+        import traceback
+
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
