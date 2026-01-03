@@ -28,6 +28,9 @@ def get_screenshot_manager() -> ScreenshotManager:
         if "cache" not in config["data"]:
             config["data"]["cache"] = "data/cache.db"
         _screenshot_manager = ScreenshotManager(config)
+        # Initialize: organize files and scan cache once at startup
+        _screenshot_manager.organize_files()
+        _screenshot_manager.scan_and_cache_all()
     return _screenshot_manager
 
 
@@ -129,12 +132,6 @@ def list_screenshots():
     """
     try:
         manager = get_screenshot_manager()
-
-        # Organize files if needed (moves files to date-based subdirectories)
-        manager.organize_files()
-
-        # Scan and cache any new files
-        manager.scan_and_cache_all()
 
         # Get filter parameters
         min_max_signal = request.args.get("min_max_signal", type=float)
