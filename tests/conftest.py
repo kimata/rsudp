@@ -1,16 +1,40 @@
-"""テスト用の共通フィクスチャ."""
+# ruff: noqa: SLF001
+"""
+共通テストフィクスチャ
 
+テスト全体で使用する共通のフィクスチャとヘルパーを定義します。
+"""
+
+import logging
 import sqlite3
 import tempfile
+import unittest.mock
 import zoneinfo
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
+# === 定数 ===
+CONFIG_FILE = "config.yaml"
 JST = zoneinfo.ZoneInfo("Asia/Tokyo")
 
 
+# === 環境モック ===
+@pytest.fixture(scope="session", autouse=True)
+def env_mock():
+    """テスト環境用の環境変数モック"""
+    with unittest.mock.patch.dict(
+        "os.environ",
+        {
+            "TEST": "true",
+            "NO_COLORED_LOGS": "true",
+        },
+    ) as fixture:
+        yield fixture
+
+
+# === 一時ディレクトリ ===
 @pytest.fixture
 def temp_dir():
     """一時ディレクトリを提供するフィクスチャ."""
@@ -18,6 +42,35 @@ def temp_dir():
         yield Path(tmpdir)
 
 
+# === 設定フィクスチャ ===
+@pytest.fixture
+def config(temp_dir):
+    """テスト用の設定を提供するフィクスチャ."""
+    screenshot_dir = temp_dir / "screenshots"
+    screenshot_dir.mkdir(parents=True, exist_ok=True)
+
+    return {
+        "plot": {"screenshot": {"path": str(screenshot_dir)}},
+        "data": {
+            "cache": str(temp_dir / "cache.db"),
+            "quake": str(temp_dir / "quake.db"),
+        },
+    }
+
+
+@pytest.fixture
+def screenshot_config(temp_dir):
+    """スクリーンショットマネージャー用のテスト設定."""
+    screenshot_dir = temp_dir / "screenshots"
+    screenshot_dir.mkdir(parents=True, exist_ok=True)
+
+    return {
+        "plot": {"screenshot": {"path": str(screenshot_dir)}},
+        "data": {"cache": str(temp_dir / "cache.db")},
+    }
+
+
+# === データベースフィクスチャ ===
 @pytest.fixture
 def quake_db(temp_dir):
     """テスト用の地震データベースを作成するフィクスチャ."""
@@ -43,6 +96,7 @@ def quake_db(temp_dir):
     return db_path
 
 
+# === サンプルデータフィクスチャ ===
 @pytest.fixture
 def sample_earthquake_jst():
     """JST タイムゾーンのサンプル地震データ."""
@@ -60,12 +114,57 @@ def sample_earthquake_jst():
 
 
 @pytest.fixture
-def screenshot_config(temp_dir):
-    """スクリーンショットマネージャー用のテスト設定."""
-    screenshot_dir = temp_dir / "screenshots"
-    screenshot_dir.mkdir(parents=True, exist_ok=True)
-
+def sample_screenshot_metadata():
+    """サンプルスクリーンショットメタデータ."""
     return {
-        "plot": {"screenshot": {"path": str(screenshot_dir)}},
-        "data": {"cache": str(temp_dir / "cache.db")},
+        "filename": "SHAKE-2025-12-12-190500.png",
+        "filepath": "2025/12/12/SHAKE-2025-12-12-190500.png",
+        "year": 2025,
+        "month": 12,
+        "day": 12,
+        "hour": 19,
+        "minute": 5,
+        "second": 0,
+        "timestamp": "2025-12-12T19:05:00+00:00",
+        "sta_value": 100.0,
+        "lta_value": 50.0,
+        "sta_lta_ratio": 2.0,
+        "max_count": 1000.0,
+        "created_at": 1234567890.0,
+        "file_size": 12345,
+        "metadata_raw": "STA=100.0, LTA=50.0, STA/LTA=2.0, MaxCount=1000",
     }
+
+
+# === Flask アプリフィクスチャ ===
+@pytest.fixture
+def flask_app(config):
+    """Flask アプリケーションフィクスチャ."""
+    import flask
+    import flask_cors
+
+    from rsudp.webui.api import viewer
+
+    # グローバルなスクリーンショットマネージャーをリセット
+    viewer._screenshot_manager = None
+
+    app = flask.Flask(__name__)
+    flask_cors.CORS(app)
+
+    app.config["CONFIG"] = config
+    app.config["TESTING"] = True
+
+    # Blueprint を登録
+    app.register_blueprint(viewer.blueprint)
+
+    return app
+
+
+@pytest.fixture
+def flask_client(flask_app):
+    """Flask テストクライアント."""
+    return flask_app.test_client()
+
+
+# === ロギング設定 ===
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
