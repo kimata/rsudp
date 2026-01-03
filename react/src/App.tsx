@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Screenshot, StatisticsResponse } from './types';
 import { screenshotApi } from './api';
 import DateSelector from './components/DateSelector';
@@ -9,16 +9,12 @@ import SignalFilter from './components/SignalFilter';
 import 'bulma/css/bulma.min.css';
 
 const App: React.FC = () => {
-  const [years, setYears] = useState<number[]>([]);
-  const [months, setMonths] = useState<number[]>([]);
-  const [days, setDays] = useState<number[]>([]);
-
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
+  // allScreenshots: 地震フィルタ適用後の全データ（振幅フィルタ前）
   const [allScreenshots, setAllScreenshots] = useState<Screenshot[]>([]);
-  const [filteredScreenshots, setFilteredScreenshots] = useState<Screenshot[]>([]);
   const [currentScreenshot, setCurrentScreenshot] = useState<Screenshot | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -31,62 +27,117 @@ const App: React.FC = () => {
   const [shouldScrollToCurrentImage, setShouldScrollToCurrentImage] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false); // フィルタ適用中フラグ
 
-  // Load years on mount
+  // クライアント側で振幅フィルタを適用（APIリクエスト不要）
+  const signalFilteredScreenshots = useMemo(() => {
+    if (minMaxSignalThreshold === undefined) {
+      return allScreenshots;
+    }
+    return allScreenshots.filter(s => s.max_count >= minMaxSignalThreshold);
+  }, [allScreenshots, minMaxSignalThreshold]);
+
+  // クライアント側で年リストを計算
+  const years = useMemo(() => {
+    const yearSet = new Set(signalFilteredScreenshots.map(s => s.year));
+    return Array.from(yearSet).sort((a, b) => b - a);
+  }, [signalFilteredScreenshots]);
+
+  // クライアント側で月リストを計算
+  const months = useMemo(() => {
+    if (!selectedYear) return [];
+    const monthSet = new Set(
+      signalFilteredScreenshots
+        .filter(s => s.year === selectedYear)
+        .map(s => s.month)
+    );
+    return Array.from(monthSet).sort((a, b) => b - a);
+  }, [signalFilteredScreenshots, selectedYear]);
+
+  // クライアント側で日リストを計算
+  const days = useMemo(() => {
+    if (!selectedYear || !selectedMonth) return [];
+    const daySet = new Set(
+      signalFilteredScreenshots
+        .filter(s => s.year === selectedYear && s.month === selectedMonth)
+        .map(s => s.day)
+    );
+    return Array.from(daySet).sort((a, b) => b - a);
+  }, [signalFilteredScreenshots, selectedYear, selectedMonth]);
+
+  // 日付フィルタ適用後のスクリーンショット
+  const filteredScreenshots = useMemo(() => {
+    let filtered = signalFilteredScreenshots;
+    if (selectedYear) {
+      filtered = filtered.filter(s => s.year === selectedYear);
+    }
+    if (selectedMonth) {
+      filtered = filtered.filter(s => s.month === selectedMonth);
+    }
+    if (selectedDay) {
+      filtered = filtered.filter(s => s.day === selectedDay);
+    }
+    return filtered;
+  }, [signalFilteredScreenshots, selectedYear, selectedMonth, selectedDay]);
+
+  // Load data on mount
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  // 地震フィルタ変更時は統計も含めて再取得（即時実行）
+  // 地震フィルタ変更時はAPIからデータ再取得（即時実行）
   useEffect(() => {
     if (statistics && !isInitialLoad) {
-      loadDataWithFilter(true); // 統計も更新
+      loadDataWithFilter();
     }
   }, [earthquakeOnly]);
 
-  // 振幅フィルタ変更時は統計なしで再取得（debounce 150ms）
+  // 年選択がリストに存在しなくなった場合はリセット
   useEffect(() => {
-    if (statistics && !isInitialLoad) {
-      const timeoutId = setTimeout(() => {
-        loadDataWithFilter(false); // 統計は更新しない
-      }, 150);
-
-      return () => clearTimeout(timeoutId);
+    if (selectedYear && !years.includes(selectedYear)) {
+      setSelectedYear(null);
     }
-  }, [minMaxSignalThreshold]);
+  }, [years, selectedYear]);
 
-  // Load months when year changes
+  // 月選択がリストに存在しなくなった場合はリセット
   useEffect(() => {
-    if (selectedYear) {
-      loadMonths(selectedYear);
-    } else {
-      setMonths([]);
+    if (selectedMonth && !months.includes(selectedMonth)) {
       setSelectedMonth(null);
     }
-  }, [selectedYear, minMaxSignalThreshold]);
+  }, [months, selectedMonth]);
 
-  // Load days when month changes
+  // 日選択がリストに存在しなくなった場合はリセット
   useEffect(() => {
-    if (selectedYear && selectedMonth) {
-      loadDays(selectedYear, selectedMonth);
-    } else {
-      setDays([]);
+    if (selectedDay && !days.includes(selectedDay)) {
       setSelectedDay(null);
     }
-  }, [selectedYear, selectedMonth, minMaxSignalThreshold]);
+  }, [days, selectedDay]);
 
-  // Filter screenshots when date selection changes
+  // filteredScreenshotsが変わったら、現在の画像が範囲外なら先頭に移動
   useEffect(() => {
-    filterScreenshots();
-  }, [selectedYear, selectedMonth, selectedDay, allScreenshots]);
+    if (filteredScreenshots.length > 0) {
+      if (!currentScreenshot || !filteredScreenshots.find(s => s.filename === currentScreenshot.filename)) {
+        setCurrentScreenshot(filteredScreenshots[0]);
+      }
+    } else if (signalFilteredScreenshots.length > 0) {
+      // 日付フィルタで0件になった場合、signalFilteredScreenshotsの先頭を表示
+      if (!currentScreenshot || !signalFilteredScreenshots.find(s => s.filename === currentScreenshot.filename)) {
+        setCurrentScreenshot(signalFilteredScreenshots[0]);
+      }
+    }
+  }, [filteredScreenshots, signalFilteredScreenshots]);
 
   const loadInitialData = async () => {
     setLoading(true);
     setError(null);
     try {
       console.log('Loading initial data from API...');
-      // Load statistics first (with earthquake filter)
-      const stats = await screenshotApi.getStatistics(earthquakeOnly);
+      // Load statistics and screenshots in parallel
+      const [stats, screenshotsData] = await Promise.all([
+        screenshotApi.getStatistics(earthquakeOnly),
+        screenshotApi.getAllScreenshots(undefined, earthquakeOnly), // 振幅フィルタなしで全件取得
+      ]);
+
       setStatistics(stats);
+      setAllScreenshots(screenshotsData);
 
       // Set initial minimum maximum signal threshold to the actual minimum value
       const initialMinMaxSignal = stats.min_signal !== undefined ? Math.floor(stats.min_signal) : undefined;
@@ -94,15 +145,7 @@ const App: React.FC = () => {
         setMinMaxSignalThreshold(initialMinMaxSignal);
       }
 
-      // Load all screenshots and years with initial threshold and earthquake filter
-      const [screenshotsData, yearsData] = await Promise.all([
-        screenshotApi.getAllScreenshots(initialMinMaxSignal, earthquakeOnly),
-        screenshotApi.getYears(initialMinMaxSignal)
-      ]);
-
-      console.log('API Response - Screenshots:', screenshotsData.length, 'Years:', yearsData);
-      setAllScreenshots(screenshotsData);
-      setYears(yearsData);
+      console.log('API Response - Screenshots:', screenshotsData.length);
 
       // Set the latest screenshot as current
       if (screenshotsData.length > 0) {
@@ -119,42 +162,27 @@ const App: React.FC = () => {
     }
   };
 
-  const loadDataWithFilter = async (updateStatistics = false) => {
+  // 地震フィルタ変更時に呼ばれる（振幅フィルタ変更時はAPIを呼ばない）
+  const loadDataWithFilter = async () => {
     setIsFiltering(true);
     setLoading(true);
     setError(null);
     try {
-      let threshold = minMaxSignalThreshold;
-
-      // 統計を更新する場合（地震フィルタ変更時）
-      if (updateStatistics) {
-        const stats = await screenshotApi.getStatistics(earthquakeOnly);
-        setStatistics(stats);
-
-        // Update threshold to be within new range if needed
-        if (stats.min_signal !== undefined) {
-          const newMin = Math.floor(stats.min_signal);
-          if (threshold === undefined || threshold < newMin) {
-            threshold = newMin;
-            setMinMaxSignalThreshold(newMin);
-          }
-        }
-      }
-
-      // Load all screenshots and years with filter
-      const [screenshotsData, yearsData] = await Promise.all([
-        screenshotApi.getAllScreenshots(threshold, earthquakeOnly),
-        screenshotApi.getYears(threshold)
+      // Load statistics and screenshots in parallel
+      const [stats, screenshotsData] = await Promise.all([
+        screenshotApi.getStatistics(earthquakeOnly),
+        screenshotApi.getAllScreenshots(undefined, earthquakeOnly), // 振幅フィルタなしで全件取得
       ]);
 
+      setStatistics(stats);
       setAllScreenshots(screenshotsData);
-      setYears(yearsData);
 
-      // Reset selections if they're no longer valid
-      if (selectedYear && !yearsData.includes(selectedYear)) {
-        setSelectedYear(null);
-        setSelectedMonth(null);
-        setSelectedDay(null);
+      // Update threshold to be within new range if needed
+      if (stats.min_signal !== undefined) {
+        const newMin = Math.floor(stats.min_signal);
+        if (minMaxSignalThreshold === undefined || minMaxSignalThreshold < newMin) {
+          setMinMaxSignalThreshold(newMin);
+        }
       }
 
       // Set the latest screenshot as current (フィルタ変更時はスクロールしない)
@@ -170,53 +198,6 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
       setIsFiltering(false);
-    }
-  };
-
-  const loadMonths = async (year: number) => {
-    setLoading(true);
-    try {
-      const monthsData = await screenshotApi.getMonths(year, minMaxSignalThreshold);
-      setMonths(monthsData);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadDays = async (year: number, month: number) => {
-    setLoading(true);
-    try {
-      const daysData = await screenshotApi.getDays(year, month, minMaxSignalThreshold);
-      setDays(daysData);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterScreenshots = () => {
-    let filtered = [...allScreenshots];
-
-    if (selectedYear) {
-      filtered = filtered.filter(s => s.year === selectedYear);
-    }
-    if (selectedMonth) {
-      filtered = filtered.filter(s => s.month === selectedMonth);
-    }
-    if (selectedDay) {
-      filtered = filtered.filter(s => s.day === selectedDay);
-    }
-
-    setFilteredScreenshots(filtered);
-
-    // Update current screenshot if it's not in filtered list
-    if (filtered.length > 0 && (!currentScreenshot || !filtered.includes(currentScreenshot))) {
-      setCurrentScreenshot(filtered[0]);
-    } else if (filtered.length === 0) {
-      setCurrentScreenshot(null);
     }
   };
 
@@ -246,38 +227,41 @@ const App: React.FC = () => {
     loadInitialData();
   };
 
+  // 表示用の画像リスト（日付フィルタが適用されている場合はfilteredScreenshots、そうでなければ振幅フィルタ適用後のリスト）
+  const displayImages = useMemo(() => {
+    return filteredScreenshots.length > 0 ? filteredScreenshots : signalFilteredScreenshots;
+  }, [filteredScreenshots, signalFilteredScreenshots]);
+
   // グローバルなナビゲーション機能
   const navigateToNext = useCallback(() => {
-    const availableImages = filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots;
-    if (availableImages.length === 0) return;
+    if (displayImages.length === 0) return;
 
     if (!currentScreenshot) {
       // 画像が選択されていない場合は最初の画像を選択
-      setCurrentScreenshot(availableImages[0]);
+      setCurrentScreenshot(displayImages[0]);
       return;
     }
 
-    const currentIndex = availableImages.findIndex(img => img.filename === currentScreenshot.filename);
-    if (currentIndex < availableImages.length - 1) {
-      setCurrentScreenshot(availableImages[currentIndex + 1]);
+    const currentIndex = displayImages.findIndex(img => img.filename === currentScreenshot.filename);
+    if (currentIndex < displayImages.length - 1) {
+      setCurrentScreenshot(displayImages[currentIndex + 1]);
     }
-  }, [currentScreenshot, filteredScreenshots, allScreenshots]);
+  }, [currentScreenshot, displayImages]);
 
   const navigateToPrevious = useCallback(() => {
-    const availableImages = filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots;
-    if (availableImages.length === 0) return;
+    if (displayImages.length === 0) return;
 
     if (!currentScreenshot) {
       // 画像が選択されていない場合は最初の画像を選択
-      setCurrentScreenshot(availableImages[0]);
+      setCurrentScreenshot(displayImages[0]);
       return;
     }
 
-    const currentIndex = availableImages.findIndex(img => img.filename === currentScreenshot.filename);
+    const currentIndex = displayImages.findIndex(img => img.filename === currentScreenshot.filename);
     if (currentIndex > 0) {
-      setCurrentScreenshot(availableImages[currentIndex - 1]);
+      setCurrentScreenshot(displayImages[currentIndex - 1]);
     }
-  }, [currentScreenshot, filteredScreenshots, allScreenshots]);
+  }, [currentScreenshot, displayImages]);
 
   // グローバルキーボードイベントハンドラー
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
@@ -411,7 +395,7 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
-          ) : !currentScreenshot && allScreenshots.length === 0 && !loading ? (
+          ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
             <div className="box" style={{ minHeight: '600px' }}>
               <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '500px' }}>
                 <div className="has-text-centered">
@@ -428,7 +412,7 @@ const App: React.FC = () => {
           ) : (
             <ImageViewer
               currentImage={currentScreenshot}
-              allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+              allImages={displayImages}
               onNavigate={handleNavigate}
             />
           )}
@@ -452,7 +436,7 @@ const App: React.FC = () => {
           />
 
           <FileList
-            allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+            allImages={displayImages}
             currentImage={currentScreenshot}
             onImageSelect={handleNavigate}
             loading={loading}
@@ -540,7 +524,7 @@ const App: React.FC = () => {
               ) : (
                 <>
                   <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || '0'}</strong> 件</p>
-                  <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong> 件</p>
+                  <p>フィルタ後: <strong>{signalFilteredScreenshots.length.toLocaleString()}</strong> 件</p>
                 </>
               )}
             </div>
@@ -629,7 +613,7 @@ const App: React.FC = () => {
                 </p>
               </div>
             </div>
-          ) : !currentScreenshot && allScreenshots.length === 0 && !loading ? (
+          ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
             <div className="box" style={{ minHeight: '600px' }}>
               <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '500px' }}>
                 <div className="has-text-centered">
@@ -646,7 +630,7 @@ const App: React.FC = () => {
           ) : (
             <ImageViewer
               currentImage={currentScreenshot}
-              allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+              allImages={displayImages}
               onNavigate={handleNavigate}
             />
           )}
@@ -669,7 +653,7 @@ const App: React.FC = () => {
         />
 
         <FileList
-          allImages={filteredScreenshots.length > 0 ? filteredScreenshots : allScreenshots}
+          allImages={displayImages}
           currentImage={currentScreenshot}
           onImageSelect={handleNavigate}
           loading={loading}
@@ -757,7 +741,7 @@ const App: React.FC = () => {
             ) : (
               <>
                 <p>全スクリーンショット数: <strong>{statistics?.total.toLocaleString() || '0'}</strong> 件</p>
-                <p>フィルタ後: <strong>{allScreenshots.length.toLocaleString()}</strong> 件</p>
+                <p>フィルタ後: <strong>{signalFilteredScreenshots.length.toLocaleString()}</strong> 件</p>
               </>
             )}
           </div>

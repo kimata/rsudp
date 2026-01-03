@@ -1,12 +1,5 @@
 import axios from "axios";
-import type {
-    Screenshot,
-    ScreenshotListResponse,
-    YearsResponse,
-    MonthsResponse,
-    DaysResponse,
-    StatisticsResponse,
-} from "./types";
+import type { Screenshot, ScreenshotListResponse, StatisticsResponse } from "./types";
 import { TIMEOUTS } from "./utils/constants";
 
 // ホスト名を含まない相対パス（React アプリは /rsudp でホストされている）
@@ -26,35 +19,6 @@ api.interceptors.request.use((config) => {
 });
 
 export const screenshotApi = {
-    getYears: async (minMaxSignal?: number): Promise<number[]> => {
-        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
-        const response = await api.get<YearsResponse>("/years/", { params });
-        return response.data.years;
-    },
-
-    getMonths: async (year: number, minMaxSignal?: number): Promise<number[]> => {
-        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
-        const response = await api.get<MonthsResponse>(`/${year}/months/`, { params });
-        return response.data.months;
-    },
-
-    getDays: async (year: number, month: number, minMaxSignal?: number): Promise<number[]> => {
-        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
-        const response = await api.get<DaysResponse>(`/${year}/${month}/days/`, { params });
-        return response.data.days;
-    },
-
-    getScreenshotsByDate: async (
-        year: number,
-        month: number,
-        day: number,
-        minMaxSignal?: number,
-    ): Promise<Screenshot[]> => {
-        const params = minMaxSignal !== undefined ? { min_max_signal: minMaxSignal } : {};
-        const response = await api.get<ScreenshotListResponse>(`/${year}/${month}/${day}/`, { params });
-        return response.data.screenshots;
-    },
-
     getAllScreenshots: async (minMaxSignal?: number, earthquakeOnly?: boolean): Promise<Screenshot[]> => {
         const params: Record<string, string | number | boolean> = {};
         if (minMaxSignal !== undefined) {
