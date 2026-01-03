@@ -133,10 +133,11 @@ def create_app(config):
 
     app.config["CONFIG"] = config
 
+    # OGPルートを優先するため、viewer blueprintを先に登録
+    app.register_blueprint(rsudp.webui.api.viewer.blueprint)
     app.register_blueprint(my_lib.webapp.base.blueprint, url_prefix=my_lib.webapp.config.URL_PREFIX)
     app.register_blueprint(my_lib.webapp.base.blueprint_default)
     app.register_blueprint(my_lib.webapp.util.blueprint, url_prefix=my_lib.webapp.config.URL_PREFIX)
-    app.register_blueprint(rsudp.webui.api.viewer.blueprint)
 
     my_lib.webapp.config.show_handler_list(app)
 
