@@ -67,6 +67,7 @@ const App: React.FC = () => {
     const initialUrlParams = useRef<UrlParams>(getUrlParams());
     const hasProcessedInitialUrl = useRef(false); // 初回URL処理済みフラグ
     const isHandlingPopstate = useRef(false);
+    const wasInitialLoad = useRef(true); // 前回のisInitialLoad値を追跡
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -255,10 +256,16 @@ const App: React.FC = () => {
     }, [loadInitialData]);
 
     // 地震フィルタ変更時はAPIからデータ再取得（初回ロード後のみ）
+    // isInitialLoadがfalseになった瞬間ではなく、既にfalseだった時のみ実行
     useEffect(() => {
         if (!isInitialLoad) {
-            loadDataWithFilter();
+            // 前回既にisInitialLoad=falseだった場合のみ実行
+            // （＝earthquakeOnlyの変更による発火）
+            if (!wasInitialLoad.current) {
+                loadDataWithFilter();
+            }
         }
+        wasInitialLoad.current = isInitialLoad;
     }, [earthquakeOnly, loadDataWithFilter, isInitialLoad]);
 
     // フィルタ変更時にURLを更新（popstate処理中は除く）
