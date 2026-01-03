@@ -171,8 +171,14 @@ const App: React.FC = () => {
                     const targetScreenshot = screenshotsData.find((s) => s.filename === urlFilename);
                     if (targetScreenshot) {
                         setCurrentScreenshot(targetScreenshot);
+                        // URLで指定されたファイルがシグナル閾値より低い場合、閾値を調整
+                        let adjustedSignalThreshold = signalThreshold;
+                        if (signalThreshold !== undefined && targetScreenshot.max_count < signalThreshold) {
+                            adjustedSignalThreshold = Math.floor(targetScreenshot.max_count);
+                            setMinMaxSignalThreshold(adjustedSignalThreshold);
+                        }
                         // URLが正しい場合は履歴を置き換え（初回のみ）
-                        updateUrl(urlFilename, earthquakeOnly, signalThreshold, true);
+                        updateUrl(urlFilename, earthquakeOnly, adjustedSignalThreshold, true);
                     } else {
                         // URLのファイルが見つからない場合は最新を表示
                         setCurrentScreenshot(screenshotsData[0]);
@@ -275,7 +281,10 @@ const App: React.FC = () => {
     }, [days, selectedDay]);
 
     // filteredScreenshotsが変わったら、現在の画像が範囲外なら先頭に移動
+    // ただし初回ロード中はスキップ（URLからの指定を優先するため）
     useEffect(() => {
+        if (isInitialLoad) return;
+
         setCurrentScreenshot((prev) => {
             if (filteredScreenshots.length > 0) {
                 if (!prev || !filteredScreenshots.find((s) => s.filename === prev.filename)) {
@@ -288,7 +297,7 @@ const App: React.FC = () => {
             }
             return prev;
         });
-    }, [filteredScreenshots, signalFilteredScreenshots]);
+    }, [filteredScreenshots, signalFilteredScreenshots, isInitialLoad]);
 
     const handleYearChange = (year: number | null) => {
         setSelectedYear(year);
