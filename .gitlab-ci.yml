@@ -156,8 +156,8 @@ test-webui:
             --publish :5000
             ${CI_REGISTRY_IMAGE}:${TAG} sleep infinity
 
-        # webui.py を起動
-        - docker exec --detach ${CI_JOB_NAME}-${CI_JOB_ID} uv run ./src/webui.py
+        # webui.py を起動（/opt/rsudp/webui から実行）
+        - docker exec --detach --workdir /opt/rsudp/webui ${CI_JOB_NAME}-${CI_JOB_ID} uv run src/webui.py
 
         - uv run playwright install --with-deps chromium
 
