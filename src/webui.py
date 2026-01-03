@@ -41,7 +41,7 @@ def start_quake_crawler(config: dict, interval: int = QUAKE_CRAWL_INTERVAL):
     def _log_crawl_results(new_earthquakes: list[dict]):
         """クロール結果をログ出力する"""
         if new_earthquakes:
-            logging.info("Earthquake crawler: %d件の新規地震を追加", len(new_earthquakes))
+            logging.info("地震クローラー: %d件の新規地震を追加", len(new_earthquakes))
             for eq in new_earthquakes:
                 logging.info(
                     "  - %s %s M%.1f 震度%s 深さ%dkm",
@@ -52,31 +52,31 @@ def start_quake_crawler(config: dict, interval: int = QUAKE_CRAWL_INTERVAL):
                     eq["depth"],
                 )
         else:
-            logging.info("Earthquake crawler: 新規地震なし")
+            logging.info("地震クローラー: 新規地震なし")
 
     def crawler_loop():
         from rsudp.quake.crawl import crawl_earthquakes
 
-        logging.info("Earthquake crawler started (interval: %d seconds)", interval)
+        logging.info("地震クローラー開始 (収集間隔: %d秒)", interval)
 
         # 起動時に即座に1回実行
         try:
-            logging.info("Earthquake crawler: 地震データの収集を開始")
+            logging.info("地震クローラー: 地震データの収集を開始")
             new_earthquakes = crawl_earthquakes(config, min_intensity=3)
             _log_crawl_results(new_earthquakes)
         except Exception:
-            logging.exception("Earthquake crawler error")
+            logging.exception("地震クローラーエラー")
 
         # 定期実行ループ
         while not _quake_crawler_stop_event.wait(interval):
             try:
-                logging.info("Earthquake crawler: 地震データの収集を開始")
+                logging.info("地震クローラー: 地震データの収集を開始")
                 new_earthquakes = crawl_earthquakes(config, min_intensity=3)
                 _log_crawl_results(new_earthquakes)
             except Exception:
-                logging.exception("Earthquake crawler error")
+                logging.exception("地震クローラーエラー")
 
-        logging.info("Earthquake crawler stopped")
+        logging.info("地震クローラー停止")
 
     _quake_crawler_stop_event.clear()
     _quake_crawler_thread = threading.Thread(target=crawler_loop, daemon=True)
