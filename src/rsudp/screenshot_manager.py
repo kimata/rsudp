@@ -11,13 +11,10 @@ import logging
 import re
 import shutil
 import sqlite3
-import zoneinfo
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from PIL import Image
-
-JST = zoneinfo.ZoneInfo("Asia/Tokyo")
 
 
 class ScreenshotManager:
@@ -432,32 +429,29 @@ class ScreenshotManager:
         if not quake_db_path or not quake_db_path.exists():
             return None
 
-        # スクリーンショットのタイムスタンプ（UTC）を JST に変換
-        # 地震データは JST で保存されているため
+        # スクリーンショットのタイムスタンプを datetime オブジェクトに変換
         screenshot_dt = datetime.fromisoformat(screenshot_timestamp)
-        screenshot_jst = screenshot_dt.astimezone(JST).isoformat()
 
+        # 地震データを取得
         with sqlite3.connect(quake_db_path) as quake_conn:
             quake_conn.row_factory = sqlite3.Row
-            cursor = quake_conn.execute(
-                """
-                SELECT * FROM earthquakes
-                WHERE datetime(detected_at) BETWEEN
-                    datetime(?, '-' || ? || ' seconds') AND
-                    datetime(?, '+' || ? || ' seconds')
-                ORDER BY ABS(julianday(detected_at) - julianday(?))
-                LIMIT 1
-            """,
-                (
-                    screenshot_jst,
-                    after_seconds,
-                    screenshot_jst,
-                    before_seconds,
-                    screenshot_jst,
-                ),
-            )
-            row = cursor.fetchone()
+            cursor = quake_conn.execute("SELECT * FROM earthquakes")
+            earthquakes = [dict(row) for row in cursor.fetchall()]
 
-            if row:
-                return dict(row)
-            return None
+        # Python で時間範囲の比較を行う（タイムゾーン情報付き datetime で正しく比較）
+        best_match = None
+        best_diff = None
+
+        for eq in earthquakes:
+            detected_at = datetime.fromisoformat(eq["detected_at"])
+            start_time = detected_at - timedelta(seconds=before_seconds)
+            end_time = detected_at + timedelta(seconds=after_seconds)
+
+            if start_time <= screenshot_dt <= end_time:
+                # 時間差の絶対値を計算
+                diff = abs((screenshot_dt - detected_at).total_seconds())
+                if best_diff is None or diff < best_diff:
+                    best_diff = diff
+                    best_match = eq
+
+        return best_match

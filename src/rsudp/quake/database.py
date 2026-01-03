@@ -4,15 +4,12 @@
 タイムゾーンの扱い:
     - detected_at (発生時刻): 気象庁 API から取得した JST (+09:00) で保存
     - created_at, updated_at: UTC で保存
-    - 検索時は引数のタイムスタンプを JST に変換して比較
+    - 検索時は Python の datetime オブジェクト（タイムゾーン情報付き）で比較
 """
 
 import sqlite3
-import zoneinfo
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-
-JST = zoneinfo.ZoneInfo("Asia/Tokyo")
 
 # スキーマファイルのパス（プロジェクトルートからの相対パス）
 SCHEMA_FILE = Path(__file__).parent.parent.parent.parent / "schema" / "sqlite.schema"
@@ -139,7 +136,7 @@ class QuakeDatabase:
         の範囲内であれば該当とみなす.
 
         Args:
-            timestamp: 検索するタイムスタンプ（任意のタイムゾーン、内部で JST に変換）
+            timestamp: 検索するタイムスタンプ（タイムゾーン情報付き datetime）
             before_seconds: 地震発生前の許容秒数（デフォルト: 30）
             after_seconds: 地震発生後の許容秒数（デフォルト: 240 = 4分）
 
@@ -147,43 +144,26 @@ class QuakeDatabase:
             地震データの辞書、または見つからない場合は None
 
         """
-        # 地震データは JST で保存されているため、検索タイムスタンプを JST に変換
-        timestamp_jst = timestamp.astimezone(JST).isoformat()
+        # 地震データを取得
+        earthquakes = self.get_all_earthquakes(limit=1000)
 
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute(
-                """
-                SELECT * FROM earthquakes
-                WHERE datetime(detected_at) BETWEEN
-                    datetime(?, '-' || ? || ' seconds') AND
-                    datetime(?, '+' || ? || ' seconds')
-                ORDER BY ABS(julianday(detected_at) - julianday(?))
-                LIMIT 1
-            """,
-                (
-                    timestamp_jst,
-                    after_seconds,
-                    timestamp_jst,
-                    before_seconds,
-                    timestamp_jst,
-                ),
-            )
-            row = cursor.fetchone()
+        # Python で時間範囲の比較を行う（タイムゾーン情報付き datetime で正しく比較）
+        best_match = None
+        best_diff = None
 
-            if row:
-                return {
-                    "id": row["id"],
-                    "event_id": row["event_id"],
-                    "detected_at": row["detected_at"],
-                    "latitude": row["latitude"],
-                    "longitude": row["longitude"],
-                    "magnitude": row["magnitude"],
-                    "depth": row["depth"],
-                    "epicenter_name": row["epicenter_name"],
-                    "max_intensity": row["max_intensity"],
-                }
-            return None
+        for eq in earthquakes:
+            detected_at = datetime.fromisoformat(eq["detected_at"])
+            start_time = detected_at - timedelta(seconds=before_seconds)
+            end_time = detected_at + timedelta(seconds=after_seconds)
+
+            if start_time <= timestamp <= end_time:
+                # 時間差の絶対値を計算
+                diff = abs((timestamp - detected_at).total_seconds())
+                if best_diff is None or diff < best_diff:
+                    best_diff = diff
+                    best_match = eq
+
+        return best_match
 
     def get_all_earthquakes(self, limit: int = 100) -> list[dict]:
         """すべての地震データを発生時刻の降順で取得する."""
