@@ -65,6 +65,7 @@ const App: React.FC = () => {
 
     // URL連携用
     const initialUrlParams = useRef<UrlParams>(getUrlParams());
+    const hasProcessedInitialUrl = useRef(false); // 初回URL処理済みフラグ
     const isHandlingPopstate = useRef(false);
 
     const [loading, setLoading] = useState(false);
@@ -160,6 +161,13 @@ const App: React.FC = () => {
 
             // URLにファイル名が指定されている場合はそれを選択、なければ最新を選択
             if (screenshotsData.length > 0) {
+                // 初回URL処理済みの場合はスキップ（StrictModeの2回目の呼び出し対策）
+                if (hasProcessedInitialUrl.current) {
+                    // 既に処理済みなので何もしない
+                    setIsInitialLoad(false);
+                    return;
+                }
+
                 const urlFilename = initialUrlParams.current.file;
                 // URLからのシグナル閾値を優先、なければ統計情報の最小値を使用
                 const signalThreshold =
@@ -184,13 +192,14 @@ const App: React.FC = () => {
                         setCurrentScreenshot(screenshotsData[0]);
                         updateUrl(screenshotsData[0].filename, earthquakeOnly, signalThreshold, true);
                     }
-                    // 初回URLは処理済みなのでクリア
-                    initialUrlParams.current.file = null;
                 } else {
                     setCurrentScreenshot(screenshotsData[0]);
                     // 初回読み込み時はURLを設定（replaceで履歴に残さない）
                     updateUrl(screenshotsData[0].filename, earthquakeOnly, signalThreshold, true);
                 }
+
+                // 初回URL処理完了をマーク
+                hasProcessedInitialUrl.current = true;
             }
 
             setIsInitialLoad(false);
