@@ -1,82 +1,82 @@
-# rsudp Docker
+# 🌏 rsudp Docker
 
 Raspberry Shake の地震データをリアルタイムで監視・解析するための Docker 環境
 
-## 目次
+## 📑 目次
 
-- [概要](#概要)
+- [📋 概要](#-概要)
     - [主な特徴](#主な特徴)
-    - [動作サンプル](#動作サンプル)
-- [スクリーンショット](#スクリーンショット)
-- [システム構成](#システム構成)
-- [セットアップ](#セットアップ)
+    - [🌐 動作サンプル](#-動作サンプル)
+- [🖼️ スクリーンショット](#️-スクリーンショット)
+- [🏗️ システム構成](#️-システム構成)
+- [🚀 セットアップ](#-セットアップ)
     - [必要な環境](#必要な環境)
     - [1. プロジェクトのクローン](#1-プロジェクトのクローン)
     - [2. Dockerイメージのビルド](#2-dockerイメージのビルド)
-- [実行方法](#実行方法)
+- [💻 実行方法](#-実行方法)
     - [Docker コンテナでの起動](#docker-コンテナでの起動)
     - [設定の変更](#設定の変更)
-- [Web画像ビューワー](#web画像ビューワー)
+- [🌐 Web画像ビューワー](#-web画像ビューワー)
     - [機能概要](#機能概要)
     - [API エンドポイント](#api-エンドポイント)
-- [データ出力](#データ出力)
+- [📊 データ出力](#-データ出力)
     - [ファイル名の形式](#ファイル名の形式)
     - [PNGメタデータの構造](#pngメタデータの構造)
     - [データベース](#データベース)
-- [稼働監視とヘルスチェック](#稼働監視とヘルスチェック)
-- [カスタマイズ](#カスタマイズ)
+- [❤️ 稼働監視とヘルスチェック](#️-稼働監視とヘルスチェック)
+- [🔧 カスタマイズ](#-カスタマイズ)
     - [設定ファイルの変更](#設定ファイルの変更)
     - [パッチファイルについて](#パッチファイルについて)
-- [ライセンス](#ライセンス)
+- [📝 ライセンス](#-ライセンス)
 
-## 概要
+## 📋 概要
 
 このプロジェクトは [rsudp](https://github.com/raspishake/rsudp) を Docker コンテナで動作させるための設定です。
 
 ### 主な特徴
 
-- **Docker対応** - 環境構築不要の簡単セットアップ
-- **ヘッドレス対応** - GUI環境なしでの動作をサポート
-- **Web画像ビューワー** - React製のスクリーンショット閲覧インターフェース
-- **気象庁地震情報連携** - 気象庁APIから地震情報を1時間間隔で自動収集
-- **ヘルスチェック対応** - アプリケーション稼働状況の監視機能
-- **JST時刻表示** - プロット上で日本標準時での地震データ表示
-- **最大振幅フィルタリング** - 地震波形の最大振幅値（MaxCount）による絞り込み機能
-- **地震時間帯フィルタリング** - 気象庁地震情報との照合によるフィルタリング
+- 🐋 **Docker対応** - 環境構築不要の簡単セットアップ
+- 🌍 **ヘッドレス対応** - GUI環境なしでの動作をサポート
+- 🖼️ **Web画像ビューワー** - React製のスクリーンショット閲覧インターフェース
+- 🌏 **気象庁地震情報連携** - 気象庁APIから地震情報を1時間間隔で自動収集
+- ❤️ **ヘルスチェック対応** - アプリケーション稼働状況の監視機能
+- 🕘 **JST時刻表示** - プロット上で日本標準時での地震データ表示
+- 🎛️ **最大振幅フィルタリング** - 地震波形の最大振幅値（MaxCount）による絞り込み機能
+- 🔍 **地震時間帯フィルタリング** - 気象庁地震情報との照合によるフィルタリング
 
-### 動作サンプル
+### 🌐 動作サンプル
 
 実際の動作は以下のリンクで確認できます：
 **[Web画像ビューワーのデモ](https://rsudp-webui.kubernetes.green-rabbit.net/rsudp/)**
 
-## スクリーンショット
+## 🖼️ スクリーンショット
 
 ![rsudp Plot](img/screenshot.png)
 
 _Raspberry Shake 4Dで記録された地震波形の例_
 
-## システム構成
+## 🏗️ システム構成
 
 ```mermaid
 flowchart TD
-    RS[Raspberry Shake<br/>地震計] --> UDP[UDP Stream<br/>Port: 8888]
-    UDP --> DC[Docker Container<br/>rsudp]
-    DC --> PLOT[Plot Module<br/>リアルタイム可視化]
-    DC --> ALERT[Alert Module<br/>地震検知]
-    DC --> WRITE[Writer Module<br/>データ記録]
-    DC --> NOTIF[Notification<br/>Twitter/Telegram]
-    DC --> WEBUI[Web UI<br/>Flask API + React]
-    DC --> HEALTH[Liveness Monitor<br/>ヘルスチェック]
+    RS[🌍 Raspberry Shake<br/>地震計] --> UDP[📡 UDP Stream<br/>Port: 8888]
+    UDP --> DC[🐋 Docker Container<br/>rsudp]
+    DC --> PLOT[📊 Plot Module<br/>リアルタイム可視化]
+    DC --> ALERT[🚨 Alert Module<br/>地震検知]
+    DC --> WRITE[💾 Writer Module<br/>データ記録]
+    DC --> NOTIF[📱 Notification<br/>Twitter/Telegram]
+    DC --> WEBUI[🌐 Web UI<br/>Flask API + React]
+    DC --> HEALTH[❤️ Liveness Monitor<br/>ヘルスチェック]
 
-    WRITE --> OUTPUT[/opt/rsudp/data<br/>地震データファイル]
-    PLOT --> IMGS[スクリーンショット<br/>PNG画像]
-    WEBUI --> VIEWER[Screenshot Viewer<br/>最大振幅フィルタ・日付フィルタ]
-    HEALTH --> STATUS[/dev/shm/rsudp.liveness<br/>稼働状況ファイル]
+    WRITE --> OUTPUT[📁 /opt/rsudp/data<br/>地震データファイル]
+    PLOT --> IMGS[🖼️ スクリーンショット<br/>PNG画像]
+    WEBUI --> VIEWER[📱 Screenshot Viewer<br/>最大振幅フィルタ・日付フィルタ]
+    HEALTH --> STATUS[📄 /dev/shm/rsudp.liveness<br/>稼働状況ファイル]
 
-    JMA[気象庁API] --> CRAWLER[QuakeCrawler<br/>1時間間隔]
-    CRAWLER --> QUAKEDB[quake.db<br/>地震データベース]
+    JMA[🌏 気象庁API] --> CRAWLER[🔄 QuakeCrawler<br/>1時間間隔]
+    CRAWLER --> QUAKEDB[🗄️ quake.db<br/>地震データベース]
 
-    subgraph "Docker Environment"
+    subgraph "🐋 Docker Environment"
         DC
         PLOT
         ALERT
@@ -87,19 +87,19 @@ flowchart TD
         CRAWLER
     end
 
-    subgraph "Data Output"
+    subgraph "💾 Data Output"
         OUTPUT
         IMGS
         STATUS
         QUAKEDB
     end
 
-    subgraph "Web Interface"
+    subgraph "🌐 Web Interface"
         VIEWER
     end
 ```
 
-## セットアップ
+## 🚀 セットアップ
 
 ### 必要な環境
 
@@ -120,7 +120,7 @@ cd rsudp
 docker build -t rsudp .
 ```
 
-## 実行方法
+## 💻 実行方法
 
 ### Docker コンテナでの起動
 
@@ -159,7 +159,7 @@ docker run --rm -p 8888:8888/udp -p 5000:5000 \
   rsudp
 ```
 
-## Web画像ビューワー
+## 🌐 Web画像ビューワー
 
 スクリーンショットをブラウザで閲覧できるWebインターフェースです。
 
@@ -211,7 +211,7 @@ Blueprint: `viewer_api` (URL prefix: `/rsudp`)
 - `min_max_signal`: 最小信号値（MaxCount）フィルタ
 - `earthquake_only`: 地震時間窓のみ返却（true/false）
 
-## データ出力
+## 📊 データ出力
 
 ### ファイル名の形式
 
@@ -255,7 +255,7 @@ Web画像ビューワーは、メタデータをSQLiteデータベースに保�
     - epicenter_name: 震央地名
     - max_intensity: 最大震度
 
-## 稼働監視とヘルスチェック
+## ❤️ 稼働監視とヘルスチェック
 
 アプリケーションの稼働状況を監視するためのヘルスチェック機能が組み込まれています：
 
@@ -267,7 +267,7 @@ Web画像ビューワーは、メタデータをSQLiteデータベースに保�
 
 この機能により、外部監視システムからファイルの更新タイムスタンプを確認することで、rsudpの稼働状況を監視できます。
 
-## カスタマイズ
+## 🔧 カスタマイズ
 
 ### 設定ファイルの変更
 
@@ -346,7 +346,7 @@ rsudp をヘッドレス環境（DISPLAY環境変数なし）で動作させる�
 - PlotsControllerのハートビート機能追加
 - 共有メモリ上でのライブネスファイル管理
 
-## ライセンス
+## 📝 ライセンス
 
 このプロジェクトは Apache License Version 2.0 のもとで公開されています。
 
@@ -356,8 +356,8 @@ rsudp をヘッドレス環境（DISPLAY環境変数なし）で動作させる�
 
 <div align="center">
 
-**このプロジェクトが役に立った場合は、Star をお願いします！**
+**⭐ このプロジェクトが役に立った場合は、Star をお願いします！**
 
-[Issue 報告](../../issues) | [Feature Request](../../issues/new) | [rsudp 公式ドキュメント](https://raspishake.github.io/rsudp/)
+[🐛 Issue 報告](../../issues) | [💡 Feature Request](../../issues/new) | [📖 rsudp 公式ドキュメント](https://raspishake.github.io/rsudp/)
 
 </div>
