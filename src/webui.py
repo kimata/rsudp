@@ -150,6 +150,7 @@ if __name__ == "__main__":
 
     import docopt
 
+    assert __doc__ is not None  # noqa: S101 - type narrowing for pyright
     args = docopt.docopt(__doc__)
 
     config_file = args["-c"]
