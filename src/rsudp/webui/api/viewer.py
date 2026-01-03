@@ -339,6 +339,60 @@ def get_image(filename: str):
         return jsonify({"error": str(e)}), 500
 
 
+@viewer_api.route("/api/screenshot/ogp/<path:filename>", methods=["GET"])
+def get_ogp_image(filename: str):
+    """
+    OGP用に最適化された画像を返す.
+
+    画像の上部を切り出し、Twitter Cards推奨の1.91:1アスペクト比にクロップする。
+    """
+    import io
+
+    from PIL import Image
+
+    try:
+        file_path_str = _get_image_file_path(filename)
+
+        if not file_path_str:
+            return jsonify({"error": "File not found"}), 404
+
+        file_path = Path(file_path_str)
+
+        if file_path.stat().st_size == 0:
+            return jsonify({"error": "File is empty"}), 404
+
+        # 画像を開く
+        with Image.open(file_path) as img:
+            width, height = img.size
+
+            # Twitter Cards推奨アスペクト比 1.91:1
+            target_ratio = 1.91
+            target_height = int(width / target_ratio)
+
+            # 画像の上部から切り出し（波形の冒頭を表示）
+            cropped = img.crop((0, 0, width, target_height)) if target_height < height else img
+
+            # PNGとして出力
+            output = io.BytesIO()
+            cropped.save(output, format="PNG", optimize=True)
+            output.seek(0)
+
+            response = send_file(
+                output,
+                mimetype="image/png",
+                as_attachment=False,
+                download_name=None,
+            )
+
+            # キャッシュヘッダーを設定
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+
+            return response
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @viewer_api.route("/api/screenshot/latest/", methods=["GET"])
 def get_latest():
     """
@@ -612,8 +666,8 @@ def _generate_ogp_meta_tags(
                         else:
                             description = "Raspberry Shake 地震計のスクリーンショット"
 
-                    # 画像URLとページURL
-                    image_url = f"{base_url}/api/screenshot/image/{filename}"
+                    # 画像URLとページURL（OGP用にクロップされた画像を使用）
+                    image_url = f"{base_url}/api/screenshot/ogp/{filename}"
                     page_url = f"{base_url}/?file={filename}"
 
         except Exception:  # noqa: S110
