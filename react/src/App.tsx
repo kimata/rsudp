@@ -76,8 +76,8 @@ const App: React.FC = () => {
     setError(null);
     try {
       console.log('Loading initial data from API...');
-      // Load statistics first
-      const stats = await screenshotApi.getStatistics();
+      // Load statistics first (with earthquake filter)
+      const stats = await screenshotApi.getStatistics(earthquakeOnly);
       setStatistics(stats);
 
       // Set initial minimum maximum signal threshold to the actual minimum value
@@ -115,10 +115,24 @@ const App: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      // Load statistics with earthquake filter to update the range
+      const stats = await screenshotApi.getStatistics(earthquakeOnly);
+      setStatistics(stats);
+
+      // Update threshold to be within new range if needed
+      let threshold = minMaxSignalThreshold;
+      if (stats.min_signal !== undefined) {
+        const newMin = Math.floor(stats.min_signal);
+        if (threshold === undefined || threshold < newMin) {
+          threshold = newMin;
+          setMinMaxSignalThreshold(newMin);
+        }
+      }
+
       // Load all screenshots and years with filter
       const [screenshotsData, yearsData] = await Promise.all([
-        screenshotApi.getAllScreenshots(minMaxSignalThreshold, earthquakeOnly),
-        screenshotApi.getYears(minMaxSignalThreshold)
+        screenshotApi.getAllScreenshots(threshold, earthquakeOnly),
+        screenshotApi.getYears(threshold)
       ]);
 
       setAllScreenshots(screenshotsData);
@@ -428,13 +442,6 @@ const App: React.FC = () => {
             loading={loading}
           />
 
-          <SignalFilter
-            statistics={statistics}
-            minMaxSignalThreshold={minMaxSignalThreshold}
-            onThresholdChange={setMinMaxSignalThreshold}
-            loading={loading && !statistics}
-          />
-
           <div className="box">
             <h2 className="title is-5">
               <span className="icon" style={{ marginRight: '0.5rem' }}>
@@ -455,11 +462,18 @@ const App: React.FC = () => {
               <p className="help">
                 気象庁発表の震度3以上の地震時刻前後のデータのみ表示
                 {statistics?.earthquake_count !== undefined && (
-                  <span>（記録済み: {statistics.earthquake_count}件）</span>
+                  <><br />（記録済み: {statistics.earthquake_count}件）</>
                 )}
               </p>
             </div>
           </div>
+
+          <SignalFilter
+            statistics={statistics}
+            minMaxSignalThreshold={minMaxSignalThreshold}
+            onThresholdChange={setMinMaxSignalThreshold}
+            loading={loading && !statistics}
+          />
 
           <div className="box" style={{ minHeight: '120px' }}>
             <h2 className="title is-5">
@@ -636,13 +650,6 @@ const App: React.FC = () => {
           loading={loading}
         />
 
-        <SignalFilter
-          statistics={statistics}
-          minMaxSignalThreshold={minMaxSignalThreshold}
-          onThresholdChange={setMinMaxSignalThreshold}
-          loading={loading && !statistics}
-        />
-
         <div className="box">
           <h2 className="title is-5">
             <span className="icon" style={{ marginRight: '0.5rem' }}>
@@ -663,11 +670,18 @@ const App: React.FC = () => {
             <p className="help">
               気象庁発表の震度3以上の地震時刻前後のデータのみ表示
               {statistics?.earthquake_count !== undefined && (
-                <span>（記録済み: {statistics.earthquake_count}件）</span>
+                <><br />（記録済み: {statistics.earthquake_count}件）</>
               )}
             </p>
           </div>
         </div>
+
+        <SignalFilter
+          statistics={statistics}
+          minMaxSignalThreshold={minMaxSignalThreshold}
+          onThresholdChange={setMinMaxSignalThreshold}
+          loading={loading && !statistics}
+        />
 
         <div className="box" style={{ minHeight: '120px' }}>
           <h2 className="title is-5">

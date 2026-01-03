@@ -73,8 +73,12 @@ export const screenshotApi = {
         return response.data;
     },
 
-    getStatistics: async (): Promise<StatisticsResponse> => {
-        const response = await api.get<StatisticsResponse>("/statistics/");
+    getStatistics: async (earthquakeOnly?: boolean): Promise<StatisticsResponse> => {
+        const params: Record<string, string> = {};
+        if (earthquakeOnly) {
+            params.earthquake_only = "true";
+        }
+        const response = await api.get<StatisticsResponse>("/statistics/", { params });
         return response.data;
     },
 

@@ -289,8 +289,51 @@ class ScreenshotManager:
 
             return [{"year": row[0], "month": row[1], "day": row[2]} for row in cursor]
 
-    def get_signal_statistics(self):
-        """信号値（max_count）の統計情報を取得する."""
+    def get_signal_statistics(
+        self,
+        quake_db_path: Path | None = None,
+        *,
+        earthquake_only: bool = False,
+        before_seconds: int = 30,
+        after_seconds: int = 240,
+    ):
+        """
+        信号値（max_count）の統計情報を取得する.
+
+        Args:
+            quake_db_path: 地震データベースのパス
+            earthquake_only: Trueの場合、地震時間帯のスクリーンショットのみ対象
+            before_seconds: 地震発生前の許容秒数
+            after_seconds: 地震発生後の許容秒数
+
+        """
+        if earthquake_only and quake_db_path and quake_db_path.exists():
+            # 地震フィルタ時は該当するスクリーンショットのみで統計を計算
+            screenshots = self.get_screenshots_with_earthquake_filter(
+                quake_db_path=quake_db_path,
+                before_seconds=before_seconds,
+                after_seconds=after_seconds,
+            )
+
+            if not screenshots:
+                return {
+                    "total": 0,
+                    "min_signal": None,
+                    "max_signal": None,
+                    "avg_signal": None,
+                    "with_signal": 0,
+                }
+
+            max_counts = [s["max_count"] for s in screenshots if s["max_count"] is not None]
+            return {
+                "total": len(screenshots),
+                "min_signal": min(max_counts) if max_counts else None,
+                "max_signal": max(max_counts) if max_counts else None,
+                "avg_signal": sum(max_counts) / len(max_counts) if max_counts else None,
+                "with_signal": len(max_counts),
+            }
+
+        # 通常の統計
         with sqlite3.connect(self.cache_path) as conn:
             cursor = conn.execute("""
                 SELECT

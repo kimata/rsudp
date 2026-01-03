@@ -381,13 +381,23 @@ def get_latest():
 
 @viewer_api.route("/api/screenshot/statistics/", methods=["GET"])
 def get_statistics():
-    """Get signal value statistics for all screenshots."""
+    """
+    Get signal value statistics for screenshots.
+
+    Query parameters:
+    - earthquake_only: If true, only include screenshots during earthquake windows
+    """
     try:
         manager = get_screenshot_manager()
-        stats = manager.get_signal_statistics()
+        quake_db_path = get_quake_db_path()
+        earthquake_only = request.args.get("earthquake_only", "false").lower() == "true"
+
+        stats = manager.get_signal_statistics(
+            quake_db_path=quake_db_path,
+            earthquake_only=earthquake_only,
+        )
 
         # Add earthquake count
-        quake_db_path = get_quake_db_path()
         if quake_db_path and quake_db_path.exists():
             from rsudp.quake.database import QuakeDatabase
 
