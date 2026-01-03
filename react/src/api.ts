@@ -56,4 +56,9 @@ export const screenshotApi = {
         );
         return response.data;
     },
+
+    scanScreenshots: async (): Promise<{ success: boolean; new_files?: number; skipped: boolean }> => {
+        const response = await api.post<{ success: boolean; new_files?: number; skipped: boolean }>("/scan/");
+        return response.data;
+    },
 };

@@ -1,6 +1,7 @@
 """Screenshot viewer API endpoints for rsudp web interface."""
 
 import re
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -15,6 +16,10 @@ blueprint = viewer_api  # Alias for compatibility with webui.py
 
 # Global instance of ScreenshotManager
 _screenshot_manager: ScreenshotManager | None = None
+
+# Lock for scan operation to prevent concurrent scans
+_scan_lock = threading.Lock()
+_is_scanning = False
 
 
 def get_screenshot_manager() -> ScreenshotManager:
@@ -406,6 +411,41 @@ def get_statistics():
         return jsonify(stats)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@viewer_api.route("/api/screenshot/scan/", methods=["POST"])
+def scan_screenshots():
+    """
+    Scan for new screenshot files and update cache.
+
+    Uses a lock to prevent concurrent scans. If a scan is already in progress,
+    returns immediately with a message indicating that.
+    """
+    global _is_scanning  # noqa: PLW0603
+
+    # Try to acquire lock without blocking
+    if not _scan_lock.acquire(blocking=False):
+        return jsonify({"success": True, "message": "Scan already in progress", "skipped": True})
+
+    try:
+        if _is_scanning:
+            return jsonify({"success": True, "message": "Scan already in progress", "skipped": True})
+
+        _is_scanning = True
+        manager = get_screenshot_manager()
+
+        # Organize files and scan for new ones
+        manager.organize_files()
+        new_count = manager.scan_and_cache_all()
+
+        return jsonify({"success": True, "new_files": new_count, "skipped": False})
+    except Exception as e:
+        import traceback
+
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+    finally:
+        _is_scanning = False
+        _scan_lock.release()
 
 
 @viewer_api.route("/api/earthquake/crawl/", methods=["POST"])

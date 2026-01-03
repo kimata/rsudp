@@ -224,9 +224,17 @@ const App: React.FC = () => {
     setTimeout(() => setShouldScrollToCurrentImage(false), 100);
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(async () => {
+    // まずサーバー側で新規ファイルをスキャン
+    try {
+      await screenshotApi.scanScreenshots();
+    } catch (err) {
+      console.error('Scan error:', err);
+      // スキャンが失敗してもデータ読み込みは続行
+    }
+    // データを再読み込み
     loadInitialData();
-  };
+  }, [loadInitialData]);
 
   // 表示用の画像リスト（日付フィルタが適用されている場合はfilteredScreenshots、そうでなければ振幅フィルタ適用後のリスト）
   const displayImages = useMemo(() => {
