@@ -184,3 +184,4 @@ react/node_modules/
 *.deb
 output/
 !output/.gitkeep
+tests/evidence/
