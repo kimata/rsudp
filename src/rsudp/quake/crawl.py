@@ -124,18 +124,18 @@ class QuakeCrawler:
             logging.exception("Failed to fetch earthquake detail: %s", json_file)
             return None
 
-    def _process_earthquake(self, eq: dict) -> bool:
+    def _process_earthquake(self, eq: dict) -> dict | None:  # noqa: PLR0911
         """Process a single earthquake entry and store if valid."""
         max_intensity_str = eq.get("maxi", "0")
         event_id = eq.get("eid")
         json_file = eq.get("json")
 
         if not event_id or not json_file:
-            return False
+            return None
 
         detail = self.fetch_earthquake_detail(json_file)
         if not detail:
-            return False
+            return None
 
         try:
             earthquake_data = detail.get("Body", {}).get("Earthquake", {})
@@ -143,13 +143,13 @@ class QuakeCrawler:
 
             origin_time_str = earthquake_data.get("OriginTime")
             if not origin_time_str:
-                return False
+                return None
 
             detected_at = _parse_origin_time(origin_time_str)
 
             coord_str = hypocenter.get("Coordinate", "")
             if not coord_str:
-                return False
+                return None
 
             latitude, longitude, depth = parse_coordinate(coord_str)
 
@@ -171,21 +171,21 @@ class QuakeCrawler:
             )
 
             if is_new:
-                logging.info(
-                    "New earthquake: %s %s M%s 震度%s",
-                    detected_at,
-                    epicenter_name,
-                    magnitude,
-                    max_intensity_str,
-                )
+                return {
+                    "detected_at": detected_at,
+                    "epicenter_name": epicenter_name,
+                    "magnitude": float(magnitude),
+                    "max_intensity": max_intensity_str,
+                    "depth": depth,
+                }
 
-            return is_new
+            return None
 
         except (ValueError, KeyError, TypeError):
             logging.warning("Failed to parse earthquake: %s", event_id)
-            return False
+            return None
 
-    def crawl_and_store(self, min_intensity: int = 3) -> int:
+    def crawl_and_store(self, min_intensity: int = 3) -> list[dict]:
         """
         Crawl earthquake data and store in database.
 
@@ -193,11 +193,11 @@ class QuakeCrawler:
             min_intensity: Minimum intensity to store (default: 3)
 
         Returns:
-            Number of new earthquakes added
+            新規追加された地震情報のリスト
 
         """
         earthquakes = self.fetch_earthquake_list()
-        new_count = 0
+        new_earthquakes = []
 
         for eq in earthquakes:
             max_intensity_str = eq.get("maxi", "0")
@@ -206,13 +206,14 @@ class QuakeCrawler:
             if max_intensity < min_intensity:
                 continue
 
-            if self._process_earthquake(eq):
-                new_count += 1
+            result = self._process_earthquake(eq)
+            if result:
+                new_earthquakes.append(result)
 
-        return new_count
+        return new_earthquakes
 
 
-def crawl_earthquakes(config: dict, min_intensity: int = 3) -> int:
+def crawl_earthquakes(config: dict, min_intensity: int = 3) -> list[dict]:
     """
     Crawl and store earthquakes from JMA.
 
@@ -221,7 +222,7 @@ def crawl_earthquakes(config: dict, min_intensity: int = 3) -> int:
         min_intensity: Minimum intensity to store (default: 3)
 
     Returns:
-        Number of new earthquakes added
+        新規追加された地震情報のリスト
 
     """
     crawler = QuakeCrawler(config)
@@ -315,8 +316,8 @@ if __name__ == "__main__":
         logging.info(my_lib.pretty.format(collected_data))
 
         # データベースに保存
-        new_count = crawler.crawl_and_store(min_intensity=3)
-        logging.info("新規追加: %d件", new_count)
+        new_earthquakes = crawler.crawl_and_store(min_intensity=3)
+        logging.info("新規追加: %d件", len(new_earthquakes))
 
     except Exception:
         logging.exception("Error during earthquake crawl")

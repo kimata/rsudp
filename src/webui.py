@@ -27,7 +27,7 @@ import my_lib.proc_util
 SCHEMA_CONFIG = "schema/config.schema"
 
 # 地震データクローラーのデフォルト設定
-QUAKE_CRAWL_INTERVAL = 600  # 10分間隔
+QUAKE_CRAWL_INTERVAL = 3600  # 1時間間隔
 
 # グローバル変数でクローラースレッドを管理
 _quake_crawler_stop_event = threading.Event()
@@ -38,6 +38,22 @@ def start_quake_crawler(config: dict, interval: int = QUAKE_CRAWL_INTERVAL):
     """地震データクローラーをバックグラウンドで開始する"""
     global _quake_crawler_thread  # noqa: PLW0603
 
+    def _log_crawl_results(new_earthquakes: list[dict]):
+        """クロール結果をログ出力する"""
+        if new_earthquakes:
+            logging.info("Earthquake crawler: %d件の新規地震を追加", len(new_earthquakes))
+            for eq in new_earthquakes:
+                logging.info(
+                    "  - %s %s M%.1f 震度%s 深さ%dkm",
+                    eq["detected_at"].strftime("%Y-%m-%d %H:%M"),
+                    eq["epicenter_name"],
+                    eq["magnitude"],
+                    eq["max_intensity"],
+                    eq["depth"],
+                )
+        else:
+            logging.info("Earthquake crawler: 新規地震なし")
+
     def crawler_loop():
         from rsudp.quake.crawl import crawl_earthquakes
 
@@ -45,18 +61,18 @@ def start_quake_crawler(config: dict, interval: int = QUAKE_CRAWL_INTERVAL):
 
         # 起動時に即座に1回実行
         try:
-            new_count = crawl_earthquakes(config, min_intensity=3)
-            if new_count > 0:
-                logging.info("Earthquake crawler: Added %d new earthquakes", new_count)
+            logging.info("Earthquake crawler: 地震データの収集を開始")
+            new_earthquakes = crawl_earthquakes(config, min_intensity=3)
+            _log_crawl_results(new_earthquakes)
         except Exception:
             logging.exception("Earthquake crawler error")
 
         # 定期実行ループ
         while not _quake_crawler_stop_event.wait(interval):
             try:
-                new_count = crawl_earthquakes(config, min_intensity=3)
-                if new_count > 0:
-                    logging.info("Earthquake crawler: Added %d new earthquakes", new_count)
+                logging.info("Earthquake crawler: 地震データの収集を開始")
+                new_earthquakes = crawl_earthquakes(config, min_intensity=3)
+                _log_crawl_results(new_earthquakes)
             except Exception:
                 logging.exception("Earthquake crawler error")
 
