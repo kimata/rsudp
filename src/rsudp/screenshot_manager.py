@@ -1,32 +1,42 @@
-"""Screenshot management with metadata caching and file organization."""
+"""
+スクリーンショットファイルの管理とメタデータキャッシュ機能を提供する.
+
+タイムゾーンの扱い:
+    - スクリーンショットのファイル名に含まれるタイムスタンプ: UTC
+    - 地震データ（気象庁API由来）のタイムスタンプ: JST (+09:00)
+    - 比較時は datetime オブジェクト同士で比較し、タイムゾーンを正しく考慮する
+"""
 
 import logging
 import re
 import shutil
 import sqlite3
+import zoneinfo
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from PIL import Image
 
+JST = zoneinfo.ZoneInfo("Asia/Tokyo")
+
 
 class ScreenshotManager:
-    """Manages screenshot files with metadata caching and organization."""
+    """スクリーンショットファイルの管理とメタデータキャッシュを行うクラス."""
 
     def __init__(self, config: dict):
-        """Initialize ScreenshotManager with configuration."""
+        """設定を使用して ScreenshotManager を初期化する."""
         self.config = config
         self.screenshot_path = Path(config["plot"]["screenshot"]["path"])
         self.cache_path = Path(config.get("data", {}).get("cache", "data/cache.db"))
 
-        # Ensure cache directory exists
+        # キャッシュディレクトリを作成
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Initialize database
+        # データベースを初期化
         self._init_database()
 
     def _init_database(self):
-        """Initialize SQLite database for metadata caching."""
+        """メタデータキャッシュ用の SQLite データベースを初期化する."""
         with sqlite3.connect(self.cache_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS screenshot_metadata (
@@ -62,36 +72,40 @@ class ScreenshotManager:
             """)
 
     def organize_files(self):
-        """Organize screenshot files by date into subdirectories."""
+        """スクリーンショットファイルを日付ベースのサブディレクトリに整理する."""
         if not self.screenshot_path.exists():
             return
 
-        # Get all PNG files in root directory
+        # ルートディレクトリ内のすべての PNG ファイルを取得
         for file_path in self.screenshot_path.glob("*.png"):
             if not file_path.is_file():
                 continue
 
-            # Parse filename to get date
+            # ファイル名から日付を解析
             parsed = self._parse_filename(file_path.name)
             if not parsed:
                 continue
 
-            # Create date-based subdirectory (YYYY/MM/DD)
+            # 日付ベースのサブディレクトリを作成 (YYYY/MM/DD)
             date_dir = (
                 self.screenshot_path / str(parsed["year"]) / f"{parsed['month']:02d}" / f"{parsed['day']:02d}"
             )
             date_dir.mkdir(parents=True, exist_ok=True)
 
-            # Move file to subdirectory
+            # ファイルをサブディレクトリに移動
             new_path = date_dir / file_path.name
             if not new_path.exists():
                 shutil.move(str(file_path), str(new_path))
 
-                # Update cache with new file location
+                # キャッシュを新しいファイル位置で更新
                 self._cache_file_metadata(new_path)
 
     def _parse_filename(self, filename: str) -> dict | None:
-        """Parse screenshot filename to extract timestamp information."""
+        """
+        スクリーンショットのファイル名からタイムスタンプ情報を抽出する.
+
+        ファイル名のタイムスタンプは UTC として解釈される.
+        """
         pattern = r"^(.+?)-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})\.png$"
         match = re.match(pattern, filename)
 
@@ -99,6 +113,11 @@ class ScreenshotManager:
             return None
 
         prefix, year, month, day, hour, minute, second = match.groups()
+
+        # ファイル名のタイムスタンプは UTC
+        timestamp_utc = datetime(
+            int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=UTC
+        )
 
         return {
             "filename": filename,
@@ -109,28 +128,24 @@ class ScreenshotManager:
             "hour": int(hour),
             "minute": int(minute),
             "second": int(second),
-            "timestamp": datetime(
-                int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=UTC
-            ).isoformat(),
+            "timestamp": timestamp_utc.isoformat(),
         }
 
     def _extract_metadata(self, file_path: Path) -> dict:
-        """Extract metadata from PNG file including STA values."""
+        """PNG ファイルから STA 値などのメタデータを抽出する."""
         metadata = {}
 
         try:
-            # Open image with PIL
             with Image.open(file_path) as img:
-                # Get PNG metadata
                 info = img.info
 
-                # Check for Description field in PNG metadata
+                # PNG メタデータの Description フィールドを確認
                 description = info.get("Description", "")
 
                 if description:
                     metadata["raw"] = description
 
-                    # Parse STA, LTA, ratio, and MaxCount values
+                    # STA, LTA, ratio, MaxCount の値を解析
                     sta_match = re.search(r"STA=([0-9.]+)", description)
                     lta_match = re.search(r"LTA=([0-9.]+)", description)
                     ratio_match = re.search(r"STA/LTA=([0-9.]+)", description)
@@ -145,20 +160,19 @@ class ScreenshotManager:
                     if max_count_match:
                         metadata["max_count"] = float(max_count_match.group(1))
 
-                # Also check Comment field if Description is not found
+                # Description がない場合は Comment フィールドも確認
                 if not description and "Comment" in info:
                     comment = info.get("Comment", "")
-                    # Store comment for reference
                     if comment and "raw" not in metadata:
                         metadata["comment"] = comment
 
         except Exception:
-            logging.exception("Error extracting metadata from %s", file_path)
+            logging.exception("メタデータの抽出に失敗: %s", file_path)
 
         return metadata
 
     def _cache_file_metadata(self, file_path: Path):
-        """Cache file metadata in SQLite database."""
+        """ファイルのメタデータを SQLite データベースにキャッシュする."""
         if not file_path.exists():
             return
 
@@ -166,13 +180,9 @@ class ScreenshotManager:
         if not parsed:
             return
 
-        # Extract metadata
         metadata = self._extract_metadata(file_path)
-
-        # Get file stats
         stat = file_path.stat()
 
-        # Store in database
         with sqlite3.connect(self.cache_path) as conn:
             conn.execute(
                 """
@@ -203,31 +213,30 @@ class ScreenshotManager:
             )
 
     def scan_and_cache_all(self):
-        """Scan all screenshot files and update cache."""
+        """すべてのスクリーンショットファイルをスキャンしてキャッシュを更新する."""
         if not self.screenshot_path.exists():
             return
 
-        # Get all PNG files recursively
+        # すべての PNG ファイルを再帰的に取得
         for file_path in self.screenshot_path.rglob("*.png"):
             if not file_path.is_file():
                 continue
 
-            # Check if already cached
+            # すでにキャッシュされているか確認
             with sqlite3.connect(self.cache_path) as conn:
                 cursor = conn.execute(
                     "SELECT file_size FROM screenshot_metadata WHERE filename = ?", (file_path.name,)
                 )
                 row = cursor.fetchone()
 
-                # Skip if already cached and file size hasn't changed
+                # キャッシュ済みでファイルサイズが変わっていなければスキップ
                 if row and row[0] == file_path.stat().st_size:
                     continue
 
-            # Cache the file metadata
             self._cache_file_metadata(file_path)
 
     def get_screenshots_with_signal_filter(self, min_max_signal: float | None = None):
-        """Get screenshots filtered by minimum maximum signal value (max_count)."""
+        """最小信号値（max_count）でフィルタリングしたスクリーンショットを取得する."""
         with sqlite3.connect(self.cache_path) as conn:
             query = """
                 SELECT filename, filepath, year, month, day, hour, minute, second,
@@ -265,7 +274,7 @@ class ScreenshotManager:
             ]
 
     def get_available_dates(self, min_max_signal: float | None = None):
-        """Get available dates that have screenshots with minimum maximum signal value."""
+        """最小信号値を満たすスクリーンショットが存在する日付のリストを取得する."""
         with sqlite3.connect(self.cache_path) as conn:
             query = """
                 SELECT DISTINCT year, month, day
@@ -284,7 +293,7 @@ class ScreenshotManager:
             return [{"year": row[0], "month": row[1], "day": row[2]} for row in cursor]
 
     def get_signal_statistics(self):
-        """Get signal value statistics (max_count values)."""
+        """信号値（max_count）の統計情報を取得する."""
         with sqlite3.connect(self.cache_path) as conn:
             cursor = conn.execute("""
                 SELECT
@@ -313,22 +322,22 @@ class ScreenshotManager:
         after_seconds: int = 240,
     ) -> list[dict]:
         """
-        Get screenshots that occurred during earthquake time windows.
+        地震発生時刻の前後に記録されたスクリーンショットを取得する.
 
         Args:
-            min_max_signal: Minimum max_count filter (optional)
-            quake_db_path: Path to quake database
-            before_seconds: Seconds before earthquake to include
-            after_seconds: Seconds after earthquake to include
+            min_max_signal: 最小 max_count フィルタ（オプション）
+            quake_db_path: 地震データベースのパス
+            before_seconds: 地震発生前の許容秒数
+            after_seconds: 地震発生後の許容秒数
 
         Returns:
-            List of screenshots with earthquake info attached.
+            地震情報が付加されたスクリーンショットのリスト
 
         """
         if not quake_db_path or not quake_db_path.exists():
             return []
 
-        # Get all earthquake time ranges
+        # 地震データを取得（タイムスタンプは JST）
         with sqlite3.connect(quake_db_path) as quake_conn:
             quake_conn.row_factory = sqlite3.Row
             quake_cursor = quake_conn.execute("SELECT * FROM earthquakes ORDER BY detected_at DESC")
@@ -337,15 +346,16 @@ class ScreenshotManager:
         if not earthquakes:
             return []
 
-        # Build time range conditions for SQL
+        # 地震ごとの時間範囲を作成（datetime オブジェクトとして保持）
+        # detected_at は JST のタイムゾーン情報を含む ISO 形式文字列
         time_conditions = []
         for eq in earthquakes:
             detected_at = datetime.fromisoformat(eq["detected_at"])
             start_time = detected_at - timedelta(seconds=before_seconds)
             end_time = detected_at + timedelta(seconds=after_seconds)
-            time_conditions.append((start_time.isoformat(), end_time.isoformat(), eq))
+            time_conditions.append((start_time, end_time, eq))
 
-        # Get screenshots from cache database
+        # スクリーンショットを取得
         with sqlite3.connect(self.cache_path) as conn:
             query = """
                 SELECT filename, filepath, year, month, day, hour, minute, second,
@@ -364,9 +374,12 @@ class ScreenshotManager:
 
             screenshots = []
             for row in cursor:
-                screenshot_ts = row[8]  # timestamp field
+                # スクリーンショットのタイムスタンプ（UTC、タイムゾーン情報付き）を解析
+                screenshot_ts_str = row[8]
+                screenshot_ts = datetime.fromisoformat(screenshot_ts_str)
 
-                # Check if screenshot falls within any earthquake window
+                # 地震の時間範囲と照合
+                # 両方ともタイムゾーン情報を持つ datetime なので正しく比較される
                 matched_earthquake = None
                 for start_time, end_time, eq in time_conditions:
                     if start_time <= screenshot_ts <= end_time:
@@ -404,20 +417,25 @@ class ScreenshotManager:
         after_seconds: int = 240,
     ) -> dict | None:
         """
-        Get earthquake info for a specific screenshot timestamp.
+        指定されたスクリーンショットのタイムスタンプに対応する地震情報を取得する.
 
         Args:
-            screenshot_timestamp: ISO format timestamp
-            quake_db_path: Path to quake database
-            before_seconds: Seconds before earthquake to include
-            after_seconds: Seconds after earthquake to include
+            screenshot_timestamp: ISO 形式のタイムスタンプ（UTC）
+            quake_db_path: 地震データベースのパス
+            before_seconds: 地震発生前の許容秒数
+            after_seconds: 地震発生後の許容秒数
 
         Returns:
-            Earthquake dict or None.
+            地震情報の辞書、または None
 
         """
         if not quake_db_path or not quake_db_path.exists():
             return None
+
+        # スクリーンショットのタイムスタンプ（UTC）を JST に変換
+        # 地震データは JST で保存されているため
+        screenshot_dt = datetime.fromisoformat(screenshot_timestamp)
+        screenshot_jst = screenshot_dt.astimezone(JST).isoformat()
 
         with sqlite3.connect(quake_db_path) as quake_conn:
             quake_conn.row_factory = sqlite3.Row
@@ -431,11 +449,11 @@ class ScreenshotManager:
                 LIMIT 1
             """,
                 (
-                    screenshot_timestamp,
+                    screenshot_jst,
                     after_seconds,
-                    screenshot_timestamp,
+                    screenshot_jst,
                     before_seconds,
-                    screenshot_timestamp,
+                    screenshot_jst,
                 ),
             )
             row = cursor.fetchone()

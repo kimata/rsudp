@@ -1,31 +1,41 @@
-"""Earthquake database management with SQLite."""
+"""
+地震データの SQLite データベース管理モジュール.
+
+タイムゾーンの扱い:
+    - detected_at (発生時刻): 気象庁 API から取得した JST (+09:00) で保存
+    - created_at, updated_at: UTC で保存
+    - 検索時は引数のタイムスタンプを JST に変換して比較
+"""
 
 import sqlite3
+import zoneinfo
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-# Schema file path (relative to project root)
+JST = zoneinfo.ZoneInfo("Asia/Tokyo")
+
+# スキーマファイルのパス（プロジェクトルートからの相対パス）
 SCHEMA_FILE = Path(__file__).parent.parent.parent.parent / "schema" / "sqlite.schema"
 
 
 class QuakeDatabase:
-    """Manages earthquake data storage in SQLite."""
+    """地震データの SQLite ストレージを管理するクラス."""
 
     def __init__(self, config: dict):
-        """Initialize the database with configuration."""
+        """設定を使用してデータベースを初期化する."""
         self.config = config
         self.db_path = Path(config.get("data", {}).get("quake", "data/quake.db"))
 
-        # Ensure directory exists
+        # ディレクトリを作成
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Initialize database
+        # データベースを初期化
         self._init_database()
 
     def _init_database(self):
-        """Initialize SQLite database for earthquake data."""
+        """地震データ用の SQLite データベースを初期化する."""
         with sqlite3.connect(self.db_path) as conn:
-            # Read and execute schema from file
+            # スキーマファイルを読み込んで実行
             schema_sql = SCHEMA_FILE.read_text(encoding="utf-8")
             conn.executescript(schema_sql)
 
@@ -41,19 +51,31 @@ class QuakeDatabase:
         max_intensity: str | None = None,
     ) -> bool:
         """
-        Insert or update earthquake data.
+        地震データを挿入または更新する.
 
-        Returns True if a new record was inserted, False if updated.
+        Args:
+            event_id: 地震イベントの一意識別子
+            detected_at: 発生時刻（タイムゾーン情報付き datetime）
+            latitude: 震源の緯度
+            longitude: 震源の経度
+            magnitude: マグニチュード
+            depth: 震源の深さ (km)
+            epicenter_name: 震源地名
+            max_intensity: 最大震度（文字列）
+
+        Returns:
+            新規レコードが挿入された場合は True、更新された場合は False
+
         """
         now = datetime.now(tz=UTC).isoformat()
 
         with sqlite3.connect(self.db_path) as conn:
-            # Check if record exists
+            # レコードが存在するか確認
             cursor = conn.execute("SELECT id FROM earthquakes WHERE event_id = ?", (event_id,))
             existing = cursor.fetchone()
 
             if existing:
-                # Update existing record
+                # 既存レコードを更新
                 conn.execute(
                     """
                     UPDATE earthquakes SET
@@ -80,7 +102,8 @@ class QuakeDatabase:
                     ),
                 )
                 return False
-            # Insert new record
+
+            # 新規レコードを挿入
             conn.execute(
                 """
                 INSERT INTO earthquakes
@@ -110,20 +133,23 @@ class QuakeDatabase:
         after_seconds: int = 240,
     ) -> dict | None:
         """
-        Get earthquake that matches a given timestamp.
+        指定されたタイムスタンプに該当する地震を取得する.
 
-        The timestamp should be within [earthquake_time - before_seconds,
-        earthquake_time + after_seconds].
+        タイムスタンプが [地震発生時刻 - before_seconds, 地震発生時刻 + after_seconds]
+        の範囲内であれば該当とみなす.
 
         Args:
-            timestamp: The timestamp to search for
-            before_seconds: Seconds before earthquake to include (default: 30)
-            after_seconds: Seconds after earthquake to include (default: 240 = 4 minutes)
+            timestamp: 検索するタイムスタンプ（任意のタイムゾーン、内部で JST に変換）
+            before_seconds: 地震発生前の許容秒数（デフォルト: 30）
+            after_seconds: 地震発生後の許容秒数（デフォルト: 240 = 4分）
 
         Returns:
-            Dictionary with earthquake data or None if not found
+            地震データの辞書、または見つからない場合は None
 
         """
+        # 地震データは JST で保存されているため、検索タイムスタンプを JST に変換
+        timestamp_jst = timestamp.astimezone(JST).isoformat()
+
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
@@ -136,11 +162,11 @@ class QuakeDatabase:
                 LIMIT 1
             """,
                 (
-                    timestamp.isoformat(),
+                    timestamp_jst,
                     after_seconds,
-                    timestamp.isoformat(),
+                    timestamp_jst,
                     before_seconds,
-                    timestamp.isoformat(),
+                    timestamp_jst,
                 ),
             )
             row = cursor.fetchone()
@@ -160,7 +186,7 @@ class QuakeDatabase:
             return None
 
     def get_all_earthquakes(self, limit: int = 100) -> list[dict]:
-        """Get all earthquakes, ordered by detection time (newest first)."""
+        """すべての地震データを発生時刻の降順で取得する."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
@@ -180,9 +206,11 @@ class QuakeDatabase:
         after_seconds: int = 240,
     ) -> list[tuple[datetime, datetime, dict]]:
         """
-        Get time ranges for all earthquakes.
+        すべての地震の時間範囲を取得する.
 
-        Returns a list of tuples: (start_time, end_time, earthquake_data)
+        Returns:
+            (開始時刻, 終了時刻, 地震データ) のタプルのリスト
+
         """
         earthquakes = self.get_all_earthquakes(limit=1000)
         ranges = []
@@ -196,7 +224,7 @@ class QuakeDatabase:
         return ranges
 
     def count_earthquakes(self) -> int:
-        """Get total number of earthquakes in database."""
+        """データベース内の地震データの総数を取得する."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT COUNT(*) FROM earthquakes")
             return cursor.fetchone()[0]
