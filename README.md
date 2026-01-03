@@ -2,6 +2,10 @@
 
 Raspberry Shake の地震データをリアルタイムで監視・解析するための Docker 環境
 
+[![Test Status](https://github.com/kimata/rsudp/actions/workflows/test.yaml/badge.svg)](https://github.com/kimata/rsudp/actions/workflows/test.yaml)
+[![Test Report](https://img.shields.io/badge/Test_Report-pytest.html-blue)](https://kimata.github.io/rsudp/pytest.html)
+[![Coverage Status](https://coveralls.io/repos/github/kimata/rsudp/badge.svg?branch=master)](https://coveralls.io/github/kimata/rsudp?branch=master)
+
 ## 📑 目次
 
 - [📋 概要](#-概要)
