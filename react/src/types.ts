@@ -33,18 +33,6 @@ export interface ScreenshotListResponse {
     total: number;
 }
 
-export interface YearsResponse {
-    years: number[];
-}
-
-export interface MonthsResponse {
-    months: number[];
-}
-
-export interface DaysResponse {
-    days: number[];
-}
-
 export interface StatisticsResponse {
     total: number;
     min_signal?: number;

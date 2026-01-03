@@ -114,7 +114,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         return newCache;
       });
     }
-  }, [currentImage, allImages]); // preloadedImagesを依存配列から削除
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- preloadedImagesを依存配列に含めると無限ループになる
+  }, [currentImage, allImages]);
 
   const handleImageLoad = () => {
     setImageLoading(false);
@@ -148,6 +149,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       setImageError(false);
       setIsTransitioning(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- preloadedImagesの変更では再実行不要
   }, [currentImage]);
 
   // 画像要素がマウントされた後、キャッシュ済みの画像の場合はすぐに表示

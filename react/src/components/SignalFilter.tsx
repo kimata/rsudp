@@ -18,17 +18,16 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   const minValue = Math.floor(statistics?.min_signal || 0);
   const maxValue = Math.ceil(statistics?.max_signal || 100000);
 
+  // 統計情報が読み込まれた時に閾値を初期化
   useEffect(() => {
-    // Initialize with minimum signal value if not set
-    if (statistics && minMaxSignalThreshold === undefined && statistics.min_signal !== undefined) {
+    if (statistics?.min_signal !== undefined && minMaxSignalThreshold === undefined) {
       const initialValue = Math.floor(statistics.min_signal);
       setInputValue(initialValue.toString());
       onThresholdChange(initialValue);
-    } else if (minMaxSignalThreshold !== undefined) {
-      setInputValue(Math.floor(minMaxSignalThreshold).toString());
     }
-  }, [statistics?.min_signal]); // Only run when statistics.min_signal changes
+  }, [statistics?.min_signal, minMaxSignalThreshold, onThresholdChange]);
 
+  // 閾値が外部から変更された時にinputValueを同期
   useEffect(() => {
     if (minMaxSignalThreshold !== undefined && !isDragging) {
       setInputValue(Math.floor(minMaxSignalThreshold).toString());

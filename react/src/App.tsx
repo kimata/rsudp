@@ -78,54 +78,8 @@ const App: React.FC = () => {
     return filtered;
   }, [signalFilteredScreenshots, selectedYear, selectedMonth, selectedDay]);
 
-  // Load data on mount
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  // 地震フィルタ変更時はAPIからデータ再取得（即時実行）
-  useEffect(() => {
-    if (statistics && !isInitialLoad) {
-      loadDataWithFilter();
-    }
-  }, [earthquakeOnly]);
-
-  // 年選択がリストに存在しなくなった場合はリセット
-  useEffect(() => {
-    if (selectedYear && !years.includes(selectedYear)) {
-      setSelectedYear(null);
-    }
-  }, [years, selectedYear]);
-
-  // 月選択がリストに存在しなくなった場合はリセット
-  useEffect(() => {
-    if (selectedMonth && !months.includes(selectedMonth)) {
-      setSelectedMonth(null);
-    }
-  }, [months, selectedMonth]);
-
-  // 日選択がリストに存在しなくなった場合はリセット
-  useEffect(() => {
-    if (selectedDay && !days.includes(selectedDay)) {
-      setSelectedDay(null);
-    }
-  }, [days, selectedDay]);
-
-  // filteredScreenshotsが変わったら、現在の画像が範囲外なら先頭に移動
-  useEffect(() => {
-    if (filteredScreenshots.length > 0) {
-      if (!currentScreenshot || !filteredScreenshots.find(s => s.filename === currentScreenshot.filename)) {
-        setCurrentScreenshot(filteredScreenshots[0]);
-      }
-    } else if (signalFilteredScreenshots.length > 0) {
-      // 日付フィルタで0件になった場合、signalFilteredScreenshotsの先頭を表示
-      if (!currentScreenshot || !signalFilteredScreenshots.find(s => s.filename === currentScreenshot.filename)) {
-        setCurrentScreenshot(signalFilteredScreenshots[0]);
-      }
-    }
-  }, [filteredScreenshots, signalFilteredScreenshots]);
-
-  const loadInitialData = async () => {
+  // データ読み込み関数（useCallbackでメモ化）
+  const loadInitialData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -133,7 +87,7 @@ const App: React.FC = () => {
       // Load statistics and screenshots in parallel
       const [stats, screenshotsData] = await Promise.all([
         screenshotApi.getStatistics(earthquakeOnly),
-        screenshotApi.getAllScreenshots(undefined, earthquakeOnly), // 振幅フィルタなしで全件取得
+        screenshotApi.getAllScreenshots(undefined, earthquakeOnly),
       ]);
 
       setStatistics(stats);
@@ -160,10 +114,10 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [earthquakeOnly]);
 
   // 地震フィルタ変更時に呼ばれる（振幅フィルタ変更時はAPIを呼ばない）
-  const loadDataWithFilter = async () => {
+  const loadDataWithFilter = useCallback(async () => {
     setIsFiltering(true);
     setLoading(true);
     setError(null);
@@ -171,7 +125,7 @@ const App: React.FC = () => {
       // Load statistics and screenshots in parallel
       const [stats, screenshotsData] = await Promise.all([
         screenshotApi.getStatistics(earthquakeOnly),
-        screenshotApi.getAllScreenshots(undefined, earthquakeOnly), // 振幅フィルタなしで全件取得
+        screenshotApi.getAllScreenshots(undefined, earthquakeOnly),
       ]);
 
       setStatistics(stats);
@@ -180,9 +134,7 @@ const App: React.FC = () => {
       // Update threshold to be within new range if needed
       if (stats.min_signal !== undefined) {
         const newMin = Math.floor(stats.min_signal);
-        if (minMaxSignalThreshold === undefined || minMaxSignalThreshold < newMin) {
-          setMinMaxSignalThreshold(newMin);
-        }
+        setMinMaxSignalThreshold(prev => (prev === undefined || prev < newMin) ? newMin : prev);
       }
 
       // Set the latest screenshot as current (フィルタ変更時はスクロールしない)
@@ -199,7 +151,56 @@ const App: React.FC = () => {
       setLoading(false);
       setIsFiltering(false);
     }
-  };
+  }, [earthquakeOnly]);
+
+  // Load data on mount
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // 地震フィルタ変更時はAPIからデータ再取得（初回ロード後のみ）
+  useEffect(() => {
+    if (!isInitialLoad) {
+      loadDataWithFilter();
+    }
+  }, [earthquakeOnly, loadDataWithFilter, isInitialLoad]);
+
+  // 年選択がリストに存在しなくなった場合はリセット
+  useEffect(() => {
+    if (selectedYear && !years.includes(selectedYear)) {
+      setSelectedYear(null);
+    }
+  }, [years, selectedYear]);
+
+  // 月選択がリストに存在しなくなった場合はリセット
+  useEffect(() => {
+    if (selectedMonth && !months.includes(selectedMonth)) {
+      setSelectedMonth(null);
+    }
+  }, [months, selectedMonth]);
+
+  // 日選択がリストに存在しなくなった場合はリセット
+  useEffect(() => {
+    if (selectedDay && !days.includes(selectedDay)) {
+      setSelectedDay(null);
+    }
+  }, [days, selectedDay]);
+
+  // filteredScreenshotsが変わったら、現在の画像が範囲外なら先頭に移動
+  useEffect(() => {
+    setCurrentScreenshot(prev => {
+      if (filteredScreenshots.length > 0) {
+        if (!prev || !filteredScreenshots.find(s => s.filename === prev.filename)) {
+          return filteredScreenshots[0];
+        }
+      } else if (signalFilteredScreenshots.length > 0) {
+        if (!prev || !signalFilteredScreenshots.find(s => s.filename === prev.filename)) {
+          return signalFilteredScreenshots[0];
+        }
+      }
+      return prev;
+    });
+  }, [filteredScreenshots, signalFilteredScreenshots]);
 
   const handleYearChange = (year: number | null) => {
     setSelectedYear(year);
