@@ -455,6 +455,16 @@ def get_statistics():
             earthquake_only=earthquake_only,
         )
 
+        # Add absolute total (without earthquake filter)
+        if earthquake_only:
+            all_stats = manager.get_signal_statistics(
+                quake_db_path=quake_db_path,
+                earthquake_only=False,
+            )
+            stats["absolute_total"] = all_stats["total"]
+        else:
+            stats["absolute_total"] = stats["total"]
+
         # Add earthquake count
         if quake_db_path and quake_db_path.exists():
             from rsudp.quake.database import QuakeDatabase

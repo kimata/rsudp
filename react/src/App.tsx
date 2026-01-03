@@ -712,7 +712,7 @@ const App: React.FC = () => {
                                 <>
                                     <p>
                                         全スクリーンショット数:{" "}
-                                        <strong>{statistics?.total.toLocaleString() || "0"}</strong> 件
+                                        <strong>{statistics?.absolute_total.toLocaleString() || "0"}</strong> 件
                                     </p>
                                     <p>
                                         フィルタ後:{" "}
@@ -957,7 +957,7 @@ const App: React.FC = () => {
                             <>
                                 <p>
                                     全スクリーンショット数:{" "}
-                                    <strong>{statistics?.total.toLocaleString() || "0"}</strong> 件
+                                    <strong>{statistics?.absolute_total.toLocaleString() || "0"}</strong> 件
                                 </p>
                                 <p>
                                     フィルタ後:{" "}

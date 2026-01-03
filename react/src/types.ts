@@ -35,6 +35,7 @@ export interface ScreenshotListResponse {
 
 export interface StatisticsResponse {
     total: number;
+    absolute_total: number;
     min_signal?: number;
     max_signal?: number;
     avg_signal?: number;
