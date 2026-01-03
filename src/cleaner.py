@@ -6,12 +6,15 @@
 地震がないスクリーンショットを削除します。
 
 Usage:
-  cleaner.py [-c CONFIG] [-n] [-D]
+  cleaner.py [-c CONFIG] [-n] [-D] [--min-count=COUNT] [--time-window=MINUTES] [--min-mag=MAG]
 
 Options:
-  -c CONFIG         : 設定ファイルを指定します。[default: config.yaml]
-  -n                : dry-run モード。実際には削除せず、削除対象を表示します。
-  -D                : デバッグモードで動作します。
+  -c CONFIG               : 設定ファイルを指定します。[default: config.yaml]
+  -n                      : dry-run モード。実際には削除せず、削除対象を表示します。
+  -D                      : デバッグモードで動作します。
+  --min-count=COUNT       : 最小振幅閾値を指定します。[default: 100000]
+  --time-window=MINUTES   : 地震との時間窓（分）を指定します。[default: 10]
+  --min-mag=MAG           : 最小マグニチュードを指定します。[default: 3.0]
 """
 
 import logging
@@ -114,6 +117,43 @@ def get_screenshots_to_clean(
     return to_delete
 
 
+def remove_empty_directories(base_dir: pathlib.Path, *, dry_run: bool = False) -> int:
+    """
+    空のディレクトリを再帰的に削除する.
+
+    Args:
+        base_dir: 基準ディレクトリ
+        dry_run: True の場合、実際には削除しない
+
+    Returns:
+        削除したディレクトリ数
+
+    """
+    removed_count = 0
+
+    # 深い階層から順に処理するため、全ディレクトリを取得してソート
+    all_dirs = sorted(base_dir.rglob("*"), key=lambda p: len(p.parts), reverse=True)
+
+    for dir_path in all_dirs:
+        if not dir_path.is_dir():
+            continue
+
+        # ディレクトリが空かどうか確認
+        try:
+            if not any(dir_path.iterdir()):
+                if dry_run:
+                    logging.info("[dry-run] 空ディレクトリ削除対象: %s", dir_path)
+                else:
+                    dir_path.rmdir()
+                    logging.info("空ディレクトリ削除: %s", dir_path)
+                removed_count += 1
+        except OSError:
+            # ディレクトリが空でない、またはアクセスエラー
+            pass
+
+    return removed_count
+
+
 def delete_screenshots(config: dict, screenshots: list[dict], *, dry_run: bool = False) -> int:
     """
     スクリーンショットを削除する.
@@ -161,6 +201,15 @@ def delete_screenshots(config: dict, screenshots: list[dict], *, dry_run: bool =
 
         if not dry_run:
             cache_db.commit()
+
+    # 空ディレクトリを削除
+    if deleted_count > 0:
+        removed_dirs = remove_empty_directories(screenshot_dir, dry_run=dry_run)
+        if removed_dirs > 0:
+            if dry_run:
+                logging.info("[dry-run] 空ディレクトリ削除対象: %d件", removed_dirs)
+            else:
+                logging.info("空ディレクトリ削除: %d件", removed_dirs)
 
     return deleted_count
 
@@ -229,9 +278,18 @@ if __name__ == "__main__":
     config_file = args["-c"]
     dry_run = args["-n"]
     debug_mode = args["-D"]
+    min_max_count = int(args["--min-count"])
+    time_window_minutes = int(args["--time-window"])
+    min_magnitude = float(args["--min-mag"])
 
     my_lib.logger.init("cleaner", level=logging.DEBUG if debug_mode else logging.INFO)
 
     config = my_lib.config.load(config_file, pathlib.Path(SCHEMA_CONFIG))
 
-    run_cleaner(config, dry_run=dry_run)
+    run_cleaner(
+        config,
+        dry_run=dry_run,
+        min_max_count=min_max_count,
+        time_window_minutes=time_window_minutes,
+        min_magnitude=min_magnitude,
+    )
