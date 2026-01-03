@@ -2,39 +2,32 @@ diff --git a/rsudp/c_alert.py b/rsudp/c_alert.py
 index faf7abf..3d39863 100644
 --- a/rsudp/c_alert.py
 +++ b/rsudp/c_alert.py
-@@ -300,6 +300,35 @@ class Alert(rs.ConsumerThread):
+@@ -300,6 +300,26 @@ class Alert(rs.ConsumerThread):
  																			 trigger_onset(self.stalta, self.thresh,
  																						   self.reset)[-1][0] *
  																			 self.stream[0].stats.delta))
-+		
-+		# Calculate STA and LTA values at trigger time
-+		trigger_index = int(len(self.stalta) - 1)  # Index of the trigger point
++
++		# Get the actual trigger point index from trigger_onset
++		trigger_index = int(trigger_onset(self.stalta, self.thresh, self.reset)[-1][0])
 +		data_len = len(self.stream[0].data)
-+		
-+		# Calculate STA and LTA windows
-+		sta_samples = int(self.sta * self.sps)
-+		lta_samples = int(self.lta * self.sps)
-+		
-+		if trigger_index >= sta_samples and data_len >= lta_samples:
-+			# Calculate STA value (short term average)
-+			sta_start = max(0, trigger_index - sta_samples)
-+			sta_end = trigger_index
-+			sta_data = self.stream[0].data[sta_start:sta_end]
-+			sta_val = np.sqrt(np.mean(sta_data**2)) if len(sta_data) > 0 else 0.0
-+			
-+			# Calculate LTA value (long term average)
++
++		# Get STA/LTA ratio directly from the pre-calculated array
++		if 0 <= trigger_index < len(self.stalta):
++			sta_lta_ratio = self.stalta[trigger_index]
++			# Store the ratio (we don't have separate STA/LTA values from recursive_sta_lta)
++			# Use ratio and a reference value to reconstruct approximate values
++			# LTA is relatively stable, so we estimate it from data before trigger
++			lta_samples = int(self.lta * self.sps)
 +			lta_start = max(0, trigger_index - lta_samples)
-+			lta_end = trigger_index
-+			lta_data = self.stream[0].data[lta_start:lta_end]
-+			lta_val = np.sqrt(np.mean(lta_data**2)) if len(lta_data) > 0 else 0.0
-+			
-+			# Store STA/LTA values for use by the alarm message
++			lta_data = self.stream[0].data[lta_start:trigger_index]
++			lta_val = np.sqrt(np.mean(lta_data**2)) if len(lta_data) > 0 else 1.0
++			sta_val = lta_val * sta_lta_ratio
 +			self.trigger_sta_val = sta_val
 +			self.trigger_lta_val = lta_val
 +		else:
 +			self.trigger_sta_val = None
 +			self.trigger_lta_val = None
-+		
++
  		print()
  		printM('Trigger threshold of %s exceeded at %s'
  			   % (self.thresh, self.alarm.strftime('%Y-%m-%d %H:%M:%S.%f')[:22]), self.sender)
@@ -251,16 +244,18 @@ diff --git a/rsudp/c_alert.py b/rsudp/c_alert.py
 index 3d39863..0b4c6dd 100644
 --- a/rsudp/c_alert.py
 +++ b/rsudp/c_alert.py
-@@ -325,9 +325,20 @@ class Alert(rs.ConsumerThread):
+@@ -325,9 +325,21 @@ class Alert(rs.ConsumerThread):
  			# Store STA/LTA values for use by the alarm message
  			self.trigger_sta_val = sta_val
  			self.trigger_lta_val = lta_val
-+			
++
 +			# Calculate max count value for EHZ channel at trigger time
 +			if self.cha == 'EHZ' or (self.cha == 'all' and 'EHZ' in rs.chns):
 +				# Get the maximum absolute value around the trigger point
-+				window_start = max(0, trigger_index - sta_samples)
-+				window_end = min(data_len, trigger_index + sta_samples)
++				# Use STA window size for the search range
++				sta_window = int(self.sta * self.sps)
++				window_start = max(0, trigger_index - sta_window)
++				window_end = min(data_len, trigger_index + sta_window)
 +				window_data = self.stream[0].data[window_start:window_end]
 +				self.trigger_max_count = int(np.max(np.abs(window_data))) if len(window_data) > 0 else 0
 +			else:
@@ -269,7 +264,7 @@ index 3d39863..0b4c6dd 100644
  			self.trigger_sta_val = None
  			self.trigger_lta_val = None
 +			self.trigger_max_count = None
- 		
+
  		print()
  		printM('Trigger threshold of %s exceeded at %s'
 diff --git a/rsudp/c_plots.py b/rsudp/c_plots.py
