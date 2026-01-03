@@ -6,9 +6,10 @@ interface SignalFilterProps {
   minMaxSignalThreshold?: number;
   onThresholdChange: (threshold: number | undefined) => void;
   loading?: boolean;
+  isFiltering?: boolean;
 }
 
-const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSignalThreshold, onThresholdChange, loading = false }) => {
+const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSignalThreshold, onThresholdChange, loading = false, isFiltering = false }) => {
   const [inputValue, setInputValue] = useState('');
   const [isDragging, setIsDragging] = useState(false);
 
@@ -120,6 +121,11 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
           <i className="fas fa-filter"></i>
         </span>
         最大振幅フィルタ
+        {isFiltering && (
+          <span className="icon is-small has-text-info" style={{ marginLeft: '0.5rem' }}>
+            <i className="fas fa-spinner fa-pulse"></i>
+          </span>
+        )}
       </h2>
 
       <div className="field">
@@ -151,6 +157,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
             min={minValue}
             max={maxValue}
             step={step}
+            disabled={isFiltering}
           />
         </div>
         <p className="help">

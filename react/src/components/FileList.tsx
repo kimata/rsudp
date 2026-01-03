@@ -10,6 +10,8 @@ interface FileListProps {
   loading?: boolean;
   /** ユーザーが明示的に画像を選択した時のみtrue（フィルタ変更時はfalse） */
   shouldScrollToCurrentImage?: boolean;
+  /** フィルタ適用中フラグ */
+  isFiltering?: boolean;
 }
 
 const FileList: React.FC<FileListProps> = memo(({
@@ -18,6 +20,7 @@ const FileList: React.FC<FileListProps> = memo(({
   onImageSelect,
   loading = false,
   shouldScrollToCurrentImage = false,
+  isFiltering = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const currentItemRef = useRef<HTMLDivElement>(null);
@@ -177,17 +180,50 @@ const FileList: React.FC<FileListProps> = memo(({
           <i className="fas fa-list"></i>
         </span>
         ファイル一覧
+        {isFiltering && (
+          <span className="icon is-small has-text-info" style={{ marginLeft: '0.5rem' }}>
+            <i className="fas fa-spinner fa-pulse"></i>
+          </span>
+        )}
       </h2>
-      <div
-        ref={containerRef}
-        className="file-list-container"
-        style={{
-          height: '400px',
-          overflowY: 'auto',
-          border: '1px solid #dbdbdb',
-          borderRadius: '4px'
-        }}
-      >
+      <div style={{ position: 'relative' }}>
+        {/* フィルタ適用中のオーバーレイ */}
+        {isFiltering && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px',
+            }}
+          >
+            <div className="has-text-centered">
+              <span className="icon is-medium has-text-info">
+                <i className="fas fa-spinner fa-pulse fa-lg"></i>
+              </span>
+              <p className="is-size-7 has-text-grey mt-2">フィルタ適用中...</p>
+            </div>
+          </div>
+        )}
+        <div
+          ref={containerRef}
+          className="file-list-container"
+          style={{
+            height: '400px',
+            overflowY: 'auto',
+            border: '1px solid #dbdbdb',
+            borderRadius: '4px',
+            opacity: isFiltering ? 0.5 : 1,
+            transition: 'opacity 0.2s ease',
+          }}
+        >
         {allImages.map((image, index) => {
           const isCurrentImage = currentImage?.filename === image.filename;
           const dateTime = formatFileDateTime(image);
@@ -260,6 +296,7 @@ const FileList: React.FC<FileListProps> = memo(({
             </div>
           );
         })}
+        </div>
       </div>
       <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
         <span className="icon" style={{ marginRight: '0.25rem' }}>

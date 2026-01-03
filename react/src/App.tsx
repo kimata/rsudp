@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [earthquakeOnly, setEarthquakeOnly] = useState(true);
   const [shouldScrollToCurrentImage, setShouldScrollToCurrentImage] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false); // フィルタ適用中フラグ
 
   // Load years on mount
   useEffect(() => {
@@ -119,6 +120,7 @@ const App: React.FC = () => {
   };
 
   const loadDataWithFilter = async (updateStatistics = false) => {
+    setIsFiltering(true);
     setLoading(true);
     setError(null);
     try {
@@ -167,6 +169,7 @@ const App: React.FC = () => {
       console.error('API Error:', err);
     } finally {
       setLoading(false);
+      setIsFiltering(false);
     }
   };
 
@@ -454,6 +457,7 @@ const App: React.FC = () => {
             onImageSelect={handleNavigate}
             loading={loading}
             shouldScrollToCurrentImage={shouldScrollToCurrentImage}
+            isFiltering={isFiltering}
           />
 
           <div className="box">
@@ -462,6 +466,11 @@ const App: React.FC = () => {
                 <i className="fas fa-globe"></i>
               </span>
               地震フィルタ
+              {isFiltering && (
+                <span className="icon is-small has-text-info" style={{ marginLeft: '0.5rem' }}>
+                  <i className="fas fa-spinner fa-pulse"></i>
+                </span>
+              )}
             </h2>
             <div className="field">
               <label className="checkbox">
@@ -470,6 +479,7 @@ const App: React.FC = () => {
                   checked={earthquakeOnly}
                   onChange={(e) => setEarthquakeOnly(e.target.checked)}
                   style={{ marginRight: '0.5rem' }}
+                  disabled={isFiltering}
                 />
                 震度あり地震のみ表示
               </label>
@@ -487,6 +497,7 @@ const App: React.FC = () => {
             minMaxSignalThreshold={minMaxSignalThreshold}
             onThresholdChange={setMinMaxSignalThreshold}
             loading={loading && !statistics}
+            isFiltering={isFiltering}
           />
 
           <div className="box" style={{ minHeight: '120px' }}>
@@ -663,6 +674,7 @@ const App: React.FC = () => {
           onImageSelect={handleNavigate}
           loading={loading}
           shouldScrollToCurrentImage={shouldScrollToCurrentImage}
+          isFiltering={isFiltering}
         />
 
         <div className="box">
@@ -671,6 +683,11 @@ const App: React.FC = () => {
               <i className="fas fa-globe"></i>
             </span>
             地震フィルタ
+            {isFiltering && (
+              <span className="icon is-small has-text-info" style={{ marginLeft: '0.5rem' }}>
+                <i className="fas fa-spinner fa-pulse"></i>
+              </span>
+            )}
           </h2>
           <div className="field">
             <label className="checkbox">
@@ -679,6 +696,7 @@ const App: React.FC = () => {
                 checked={earthquakeOnly}
                 onChange={(e) => setEarthquakeOnly(e.target.checked)}
                 style={{ marginRight: '0.5rem' }}
+                disabled={isFiltering}
               />
               震度あり地震のみ表示
             </label>
@@ -696,6 +714,7 @@ const App: React.FC = () => {
           minMaxSignalThreshold={minMaxSignalThreshold}
           onThresholdChange={setMinMaxSignalThreshold}
           loading={loading && !statistics}
+          isFiltering={isFiltering}
         />
 
         <div className="box" style={{ minHeight: '120px' }}>
