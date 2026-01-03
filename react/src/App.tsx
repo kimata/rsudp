@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Screenshot, StatisticsResponse } from './types';
 import { screenshotApi } from './api';
 import DateSelector from './components/DateSelector';
@@ -8,6 +8,27 @@ import Footer from './components/Footer';
 import SignalFilter from './components/SignalFilter';
 import 'bulma/css/bulma.min.css';
 
+// URLからファイル名を取得
+const getFilenameFromUrl = (): string | null => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('file');
+};
+
+// URLを更新（履歴に追加）
+const updateUrl = (filename: string | null, replace = false) => {
+  const url = new URL(window.location.href);
+  if (filename) {
+    url.searchParams.set('file', filename);
+  } else {
+    url.searchParams.delete('file');
+  }
+  if (replace) {
+    window.history.replaceState({}, '', url.toString());
+  } else {
+    window.history.pushState({}, '', url.toString());
+  }
+};
+
 const App: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
@@ -16,6 +37,10 @@ const App: React.FC = () => {
   // allScreenshots: 地震フィルタ適用後の全データ（振幅フィルタ前）
   const [allScreenshots, setAllScreenshots] = useState<Screenshot[]>([]);
   const [currentScreenshot, setCurrentScreenshot] = useState<Screenshot | null>(null);
+
+  // URL連携用
+  const initialUrlFilename = useRef<string | null>(getFilenameFromUrl());
+  const isHandlingPopstate = useRef(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,9 +127,27 @@ const App: React.FC = () => {
 
       console.log('API Response - Screenshots:', screenshotsData.length);
 
-      // Set the latest screenshot as current
+      // URLにファイル名が指定されている場合はそれを選択、なければ最新を選択
       if (screenshotsData.length > 0) {
-        setCurrentScreenshot(screenshotsData[0]);
+        const urlFilename = initialUrlFilename.current;
+        if (urlFilename) {
+          const targetScreenshot = screenshotsData.find(s => s.filename === urlFilename);
+          if (targetScreenshot) {
+            setCurrentScreenshot(targetScreenshot);
+            // URLが正しい場合は履歴を置き換え（初回のみ）
+            updateUrl(urlFilename, true);
+          } else {
+            // URLのファイルが見つからない場合は最新を表示
+            setCurrentScreenshot(screenshotsData[0]);
+            updateUrl(screenshotsData[0].filename, true);
+          }
+          // 初回URLは処理済みなのでクリア
+          initialUrlFilename.current = null;
+        } else {
+          setCurrentScreenshot(screenshotsData[0]);
+          // 初回読み込み時はURLを設定（replaceで履歴に残さない）
+          updateUrl(screenshotsData[0].filename, true);
+        }
       }
 
       setIsInitialLoad(false);
@@ -218,12 +261,16 @@ const App: React.FC = () => {
     setSelectedDay(day);
   };
 
-  const handleNavigate = (screenshot: Screenshot) => {
+  const handleNavigate = useCallback((screenshot: Screenshot) => {
     setShouldScrollToCurrentImage(true);
     setCurrentScreenshot(screenshot);
+    // popstate処理中でなければURLを更新
+    if (!isHandlingPopstate.current) {
+      updateUrl(screenshot.filename);
+    }
     // スクロール後にフラグをリセット
     setTimeout(() => setShouldScrollToCurrentImage(false), 100);
-  };
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -301,6 +348,30 @@ const App: React.FC = () => {
       document.removeEventListener('keydown', handleGlobalKeyDown);
     };
   }, [handleGlobalKeyDown]);
+
+  // ブラウザの戻る/進むボタン対応
+  useEffect(() => {
+    const handlePopstate = () => {
+      const filename = getFilenameFromUrl();
+      if (filename && allScreenshots.length > 0) {
+        const targetScreenshot = allScreenshots.find(s => s.filename === filename);
+        if (targetScreenshot) {
+          isHandlingPopstate.current = true;
+          setShouldScrollToCurrentImage(true);
+          setCurrentScreenshot(targetScreenshot);
+          setTimeout(() => {
+            setShouldScrollToCurrentImage(false);
+            isHandlingPopstate.current = false;
+          }, 100);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopstate);
+    return () => {
+      window.removeEventListener('popstate', handlePopstate);
+    };
+  }, [allScreenshots]);
 
   return (
     <div className="container is-fluid" style={{ padding: '0.5rem', width: '100%', maxWidth: '100%' }}>
