@@ -50,7 +50,7 @@ class TestWebuiE2E:
         page.goto(rsudp_url(host, port), wait_until="domcontentloaded")
 
         # ページタイトルを確認
-        expect(page).to_have_title("RSUDP Viewer")
+        expect(page).to_have_title("RSUDP スクリーンショットビューア")
 
         # スクリーンショットを保存
         screenshot_path = EVIDENCE_DIR / "e2e_rsudp_page.png"
@@ -96,7 +96,8 @@ class TestWebuiE2E:
 
         assert response.ok
         data = response.json()
-        assert "status" in data
+        assert "success" in data
+        assert data["success"] is True
 
     def test_api_earthquake_filter(self, page, host, port):
         """地震フィルタ付きスクリーンショット API のテスト."""
