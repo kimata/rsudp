@@ -1,12 +1,14 @@
 """Screenshot viewer API endpoints for rsudp web interface."""
 
+import html
 import re
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
 import my_lib.flask_util
-from flask import Blueprint, current_app, jsonify, request, send_file
+import my_lib.webapp.config
+from flask import Blueprint, Response, current_app, jsonify, request, send_file
 
 from rsudp.quake.crawl import crawl_earthquakes
 from rsudp.screenshot_manager import ScreenshotManager
@@ -539,3 +541,159 @@ def clean_screenshots():
         import traceback
 
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+def _generate_ogp_meta_tags(
+    filename: str | None,
+    base_url: str,
+) -> str:
+    """
+    OGPメタタグを生成する.
+
+    Args:
+        filename: スクリーンショットのファイル名
+        base_url: ベースURL（例: https://example.com/rsudp）
+
+    Returns:
+        OGPメタタグのHTML文字列
+
+    """
+    # デフォルト値
+    title = "RSUDP スクリーンショットビューア"
+    description = "Raspberry Shake 地震計のスクリーンショットビューア"
+    image_url = ""
+    page_url = base_url
+
+    if filename:
+        try:
+            manager = get_screenshot_manager()
+            quake_db_path = get_quake_db_path()
+
+            # ファイル名からタイムスタンプを解析
+            parsed = parse_filename(filename)
+            if parsed:
+                # スクリーンショットのメタデータを取得
+                screenshots = manager.get_screenshots_with_signal_filter(None)
+                screenshot = next((s for s in screenshots if s["filename"] == filename), None)
+
+                if screenshot:
+                    # 日時をフォーマット
+                    ts = datetime.fromisoformat(screenshot["timestamp"])
+                    # JSTに変換（UTC+9）
+                    from datetime import timedelta
+
+                    jst = ts + timedelta(hours=9)
+                    date_str = jst.strftime("%-m/%-d %H:%M")
+
+                    # 地震情報を取得
+                    earthquake = None
+                    if quake_db_path:
+                        earthquake = manager.get_earthquake_for_screenshot(
+                            screenshot["timestamp"],
+                            quake_db_path,
+                        )
+
+                    if earthquake:
+                        # 地震情報がある場合
+                        eq_ts = datetime.fromisoformat(earthquake["detected_at"])
+                        eq_date_str = eq_ts.strftime("%-m/%-d %H:%M")
+                        title = f"{eq_date_str} {earthquake['epicenter_name']} M{earthquake['magnitude']}"
+                        description = (
+                            f"震度{earthquake['max_intensity']} | "
+                            f"深さ{earthquake['depth']}km | "
+                            f"Raspberry Shake 地震計記録"
+                        )
+                    else:
+                        # 地震情報がない場合
+                        title = f"{date_str} 地震計記録"
+                        max_count = screenshot.get("max_count")
+                        if max_count:
+                            description = f"最大振幅: {int(max_count):,} | Raspberry Shake 地震計"
+                        else:
+                            description = "Raspberry Shake 地震計のスクリーンショット"
+
+                    # 画像URLとページURL
+                    image_url = f"{base_url}/api/screenshot/image/{filename}"
+                    page_url = f"{base_url}/?file={filename}"
+
+        except Exception:  # noqa: S110
+            # エラー時はデフォルト値を使用
+            pass
+
+    # HTMLエスケープ
+    title = html.escape(title)
+    description = html.escape(description)
+    image_url = html.escape(image_url)
+    page_url = html.escape(page_url)
+
+    # OGPメタタグを生成
+    meta_tags = f"""
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{page_url}">
+    <meta property="og:title" content="{title}">
+    <meta property="og:description" content="{description}">
+    <meta property="og:site_name" content="RSUDP スクリーンショットビューア">"""
+
+    if image_url:
+        meta_tags += f"""
+    <meta property="og:image" content="{image_url}">
+    <meta property="og:image:type" content="image/png">"""
+
+    meta_tags += f"""
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="{"summary_large_image" if image_url else "summary"}">
+    <meta name="twitter:url" content="{page_url}">
+    <meta name="twitter:title" content="{title}">
+    <meta name="twitter:description" content="{description}">"""
+
+    if image_url:
+        meta_tags += f"""
+    <meta name="twitter:image" content="{image_url}">"""
+
+    return meta_tags
+
+
+@viewer_api.route("/", methods=["GET"])
+def index_with_ogp() -> Response:
+    """
+    OGPメタタグを含むindex.htmlを返す.
+
+    クエリパラメータ:
+    - file: スクリーンショットのファイル名（OGP生成に使用）
+    """
+    try:
+        # 静的ファイルディレクトリからindex.htmlを読み込む
+        if my_lib.webapp.config.STATIC_DIR_PATH is None:
+            return Response("Static directory not configured", status=500)
+
+        index_path = my_lib.webapp.config.STATIC_DIR_PATH / "index.html"
+        if not index_path.exists():
+            return Response("index.html not found", status=404)
+
+        # index.htmlを読み込む
+        with index_path.open(encoding="utf-8") as f:
+            html_content = f.read()
+
+        # ベースURLを構築
+        # X-Forwarded-Proto と X-Forwarded-Host を考慮
+        scheme = request.headers.get("X-Forwarded-Proto", request.scheme)
+        host = request.headers.get("X-Forwarded-Host", request.host)
+        base_url = f"{scheme}://{host}/rsudp"
+
+        # ファイル名を取得
+        filename = request.args.get("file")
+
+        # OGPメタタグを生成
+        ogp_tags = _generate_ogp_meta_tags(filename, base_url)
+
+        # </head>の前にOGPタグを挿入
+        html_content = html_content.replace("</head>", f"{ogp_tags}\n    </head>")
+
+        return Response(html_content, mimetype="text/html")
+
+    except Exception as e:
+        import traceback
+
+        return Response(f"Error: {e}\n{traceback.format_exc()}", status=500)
