@@ -597,90 +597,71 @@ def clean_screenshots():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
-def _generate_ogp_meta_tags(
-    filename: str | None,
+def _get_ogp_content_for_screenshot(
+    filename: str,
     base_url: str,
-) -> str:
-    """
-    OGPメタタグを生成する.
+) -> tuple[str, str, str, str]:
+    """スクリーンショットのOGPコンテンツを取得する."""
+    from datetime import timedelta
 
-    Args:
-        filename: スクリーンショットのファイル名
-        base_url: ベースURL（例: https://example.com/rsudp）
+    manager = get_screenshot_manager()
+    quake_db_path = get_quake_db_path()
 
-    Returns:
-        OGPメタタグのHTML文字列
+    # ファイル名からタイムスタンプを解析
+    parsed = parse_filename(filename)
+    if not parsed:
+        return ("", "", "", "")
 
-    """
-    # デフォルト値
-    title = "RSUDP スクリーンショットビューア"
-    description = "Raspberry Shake 地震計のスクリーンショットビューア"
-    image_url = ""
-    page_url = base_url
+    # スクリーンショットのメタデータを取得
+    screenshots = manager.get_screenshots_with_signal_filter(None)
+    screenshot = next((s for s in screenshots if s["filename"] == filename), None)
+    if not screenshot:
+        return ("", "", "", "")
 
-    if filename:
-        try:
-            manager = get_screenshot_manager()
-            quake_db_path = get_quake_db_path()
+    # 日時をフォーマット（JSTに変換）
+    ts = datetime.fromisoformat(screenshot["timestamp"])
+    jst = ts + timedelta(hours=9)
+    date_str = jst.strftime("%-m/%-d %H:%M")
 
-            # ファイル名からタイムスタンプを解析
-            parsed = parse_filename(filename)
-            if parsed:
-                # スクリーンショットのメタデータを取得
-                screenshots = manager.get_screenshots_with_signal_filter(None)
-                screenshot = next((s for s in screenshots if s["filename"] == filename), None)
+    # 地震情報を取得
+    earthquake = (
+        manager.get_earthquake_for_screenshot(screenshot["timestamp"], quake_db_path)
+        if quake_db_path
+        else None
+    )
 
-                if screenshot:
-                    # 日時をフォーマット
-                    ts = datetime.fromisoformat(screenshot["timestamp"])
-                    # JSTに変換（UTC+9）
-                    from datetime import timedelta
+    if earthquake:
+        eq_ts = datetime.fromisoformat(earthquake["detected_at"])
+        eq_date_str = eq_ts.strftime("%-m/%-d %H:%M")
+        title = f"{eq_date_str} {earthquake['epicenter_name']} M{earthquake['magnitude']}"
+        description = (
+            f"震度{earthquake['max_intensity']} | 深さ{earthquake['depth']}km | Raspberry Shake 地震計記録"
+        )
+    else:
+        title = f"{date_str} 地震計記録"
+        desc_parts = []
+        if screenshot.get("max_count"):
+            desc_parts.append(f"最大振幅: {int(screenshot['max_count']):,}")
+        if screenshot.get("sta"):
+            desc_parts.append(f"STA: {int(screenshot['sta']):,}")
+        if screenshot.get("sta_lta_ratio"):
+            desc_parts.append(f"比率: {screenshot['sta_lta_ratio']:.3f}")
+        description = " | ".join(desc_parts) if desc_parts else "Raspberry Shake 地震計のスクリーンショット"
 
-                    jst = ts + timedelta(hours=9)
-                    date_str = jst.strftime("%-m/%-d %H:%M")
+    image_url = f"{base_url}/api/screenshot/ogp/{filename}"
+    page_url = f"{base_url}/?file={filename}"
 
-                    # 地震情報を取得
-                    earthquake = None
-                    if quake_db_path:
-                        earthquake = manager.get_earthquake_for_screenshot(
-                            screenshot["timestamp"],
-                            quake_db_path,
-                        )
+    return (title, description, image_url, page_url)
 
-                    if earthquake:
-                        # 地震情報がある場合
-                        eq_ts = datetime.fromisoformat(earthquake["detected_at"])
-                        eq_date_str = eq_ts.strftime("%-m/%-d %H:%M")
-                        title = f"{eq_date_str} {earthquake['epicenter_name']} M{earthquake['magnitude']}"
-                        description = (
-                            f"震度{earthquake['max_intensity']} | "
-                            f"深さ{earthquake['depth']}km | "
-                            f"Raspberry Shake 地震計記録"
-                        )
-                    else:
-                        # 地震情報がない場合
-                        title = f"{date_str} 地震計記録"
-                        max_count = screenshot.get("max_count")
-                        if max_count:
-                            description = f"最大振幅: {int(max_count):,} | Raspberry Shake 地震計"
-                        else:
-                            description = "Raspberry Shake 地震計のスクリーンショット"
 
-                    # 画像URLとページURL（OGP用にクロップされた画像を使用）
-                    image_url = f"{base_url}/api/screenshot/ogp/{filename}"
-                    page_url = f"{base_url}/?file={filename}"
-
-        except Exception:  # noqa: S110
-            # エラー時はデフォルト値を使用
-            pass
-
+def _build_ogp_meta_tags(title: str, description: str, image_url: str, page_url: str) -> str:
+    """OGPメタタグのHTML文字列を構築する."""
     # HTMLエスケープ
     title = html.escape(title)
     description = html.escape(description)
     image_url = html.escape(image_url)
     page_url = html.escape(page_url)
 
-    # OGPメタタグを生成
     meta_tags = f"""
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -707,6 +688,25 @@ def _generate_ogp_meta_tags(
     <meta name="twitter:image" content="{image_url}">"""
 
     return meta_tags
+
+
+def _generate_ogp_meta_tags(filename: str | None, base_url: str) -> str:
+    """OGPメタタグを生成する."""
+    # デフォルト値
+    title = "RSUDP スクリーンショットビューア"
+    description = "Raspberry Shake 地震計のスクリーンショットビューア"
+    image_url = ""
+    page_url = base_url
+
+    if filename:
+        try:
+            content = _get_ogp_content_for_screenshot(filename, base_url)
+            if content[0]:  # titleが取得できた場合
+                title, description, image_url, page_url = content
+        except Exception:  # noqa: S110
+            pass  # エラー時はデフォルト値を使用
+
+    return _build_ogp_meta_tags(title, description, image_url, page_url)
 
 
 @viewer_api.route("/", methods=["GET"])
