@@ -12,7 +12,7 @@ Options:
   -c CONFIG               : 設定ファイルを指定します。[default: config.yaml]
   -n                      : dry-run モード。実際には削除せず、削除対象を表示します。
   -D                      : デバッグモードで動作します。
-  --min-count=COUNT       : 最小振幅閾値を指定します。[default: 100000]
+  --min-count=COUNT       : 最小振幅閾値を指定します。[default: 300000]
   --time-window=MINUTES   : 地震との時間窓（分）を指定します。[default: 10]
   --min-mag=MAG           : 最小マグニチュードを指定します。[default: 3.0]
 """
@@ -28,7 +28,7 @@ import my_lib.logger
 SCHEMA_CONFIG = "schema/config.schema"
 
 # クリーナーのデフォルト設定
-DEFAULT_MIN_MAX_COUNT = 100000  # 最小振幅閾値
+DEFAULT_MIN_MAX_COUNT = 300000  # 最小振幅閾値
 DEFAULT_TIME_WINDOW_MINUTES = 10  # 地震との時間差（分）
 DEFAULT_MIN_MAGNITUDE = 3.0  # 最小マグニチュード
 
