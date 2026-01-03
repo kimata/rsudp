@@ -1,0 +1,11 @@
+plot:
+    screenshot:
+        path: data/screenshots
+
+data:
+    cache: data/cache.db
+    quake: data/quake.db
+    selenium: ./data
+
+webapp:
+    static_dir_path: react/dist

@@ -156,6 +156,11 @@ test-webui:
             --publish :5000
             ${CI_REGISTRY_IMAGE}:${TAG} sleep infinity
 
+        # テスト用設定ファイルとデータディレクトリを配置
+        - >
+            docker exec --workdir /opt/rsudp/webui ${CI_JOB_NAME}-${CI_JOB_ID}
+            sh -c "cp config.example.yaml config.yaml && mkdir -p data/screenshots"
+
         # webui.py を起動（/opt/rsudp/webui から実行）
         - docker exec --detach --workdir /opt/rsudp/webui ${CI_JOB_NAME}-${CI_JOB_ID} uv run src/webui.py
 
