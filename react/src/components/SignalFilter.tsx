@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import type { StatisticsResponse } from '../types';
 
 interface SignalFilterProps {
@@ -8,8 +8,9 @@ interface SignalFilterProps {
   loading?: boolean;
 }
 
-const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThreshold, onThresholdChange, loading = false }) => {
+const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSignalThreshold, onThresholdChange, loading = false }) => {
   const [inputValue, setInputValue] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   // Calculate reasonable step (use 1 for integer steps)
   const step = 1;
@@ -28,18 +29,31 @@ const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThr
   }, [statistics?.min_signal]); // Only run when statistics.min_signal changes
 
   useEffect(() => {
-    if (minMaxSignalThreshold !== undefined) {
+    if (minMaxSignalThreshold !== undefined && !isDragging) {
       setInputValue(Math.floor(minMaxSignalThreshold).toString());
     }
-  }, [minMaxSignalThreshold]);
+  }, [minMaxSignalThreshold, isDragging]);
 
-
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ドラッグ中は表示のみ更新（APIは呼ばない）
+  const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const intValue = parseInt(value, 10);
     setInputValue(intValue.toString());
-    onThresholdChange(intValue);
-  };
+  }, []);
+
+  // ドラッグ開始
+  const handleSliderStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
+  // ドラッグ終了時にのみAPIを呼ぶ
+  const handleSliderEnd = useCallback(() => {
+    setIsDragging(false);
+    const intValue = parseInt(inputValue, 10);
+    if (!isNaN(intValue)) {
+      onThresholdChange(intValue);
+    }
+  }, [inputValue, onThresholdChange]);
 
   // スケルトン表示（ローディング中または統計データがない場合）
   if (loading || !statistics) {
@@ -107,7 +121,7 @@ const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThr
         </span>
         最大振幅フィルタ
       </h2>
-      
+
       <div className="field">
         <label className="label is-small">最大振幅最小値</label>
         <div className="control">
@@ -130,6 +144,10 @@ const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThr
             type="range"
             value={inputValue || minValue}
             onChange={handleSliderChange}
+            onMouseDown={handleSliderStart}
+            onMouseUp={handleSliderEnd}
+            onTouchStart={handleSliderStart}
+            onTouchEnd={handleSliderEnd}
             min={minValue}
             max={maxValue}
             step={step}
@@ -141,6 +159,6 @@ const SignalFilter: React.FC<SignalFilterProps> = ({ statistics, minMaxSignalThr
       </div>
     </div>
   );
-};
+});
 
 export default SignalFilter;

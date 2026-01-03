@@ -28,23 +28,30 @@ const App: React.FC = () => {
   const [statistics, setStatistics] = useState<StatisticsResponse | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [earthquakeOnly, setEarthquakeOnly] = useState(true);
+  const [shouldScrollToCurrentImage, setShouldScrollToCurrentImage] = useState(false);
 
   // Load years on mount
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  // Reload data when signal threshold or earthquake filter changes (with debounce)
+  // 地震フィルタ変更時は統計も含めて再取得（即時実行）
   useEffect(() => {
-    if (statistics && !isInitialLoad) { // Only reload if we've already loaded initial data and not initial load
-      // Debounce API calls to prevent too many requests
+    if (statistics && !isInitialLoad) {
+      loadDataWithFilter(true); // 統計も更新
+    }
+  }, [earthquakeOnly]);
+
+  // 振幅フィルタ変更時は統計なしで再取得（debounce 150ms）
+  useEffect(() => {
+    if (statistics && !isInitialLoad) {
       const timeoutId = setTimeout(() => {
-        loadDataWithFilter();
-      }, 500); // Wait 500ms after last change
+        loadDataWithFilter(false); // 統計は更新しない
+      }, 150);
 
       return () => clearTimeout(timeoutId);
     }
-  }, [minMaxSignalThreshold, earthquakeOnly]);
+  }, [minMaxSignalThreshold]);
 
   // Load months when year changes
   useEffect(() => {
@@ -111,21 +118,24 @@ const App: React.FC = () => {
     }
   };
 
-  const loadDataWithFilter = async () => {
+  const loadDataWithFilter = async (updateStatistics = false) => {
     setLoading(true);
     setError(null);
     try {
-      // Load statistics with earthquake filter to update the range
-      const stats = await screenshotApi.getStatistics(earthquakeOnly);
-      setStatistics(stats);
-
-      // Update threshold to be within new range if needed
       let threshold = minMaxSignalThreshold;
-      if (stats.min_signal !== undefined) {
-        const newMin = Math.floor(stats.min_signal);
-        if (threshold === undefined || threshold < newMin) {
-          threshold = newMin;
-          setMinMaxSignalThreshold(newMin);
+
+      // 統計を更新する場合（地震フィルタ変更時）
+      if (updateStatistics) {
+        const stats = await screenshotApi.getStatistics(earthquakeOnly);
+        setStatistics(stats);
+
+        // Update threshold to be within new range if needed
+        if (stats.min_signal !== undefined) {
+          const newMin = Math.floor(stats.min_signal);
+          if (threshold === undefined || threshold < newMin) {
+            threshold = newMin;
+            setMinMaxSignalThreshold(newMin);
+          }
         }
       }
 
@@ -145,7 +155,7 @@ const App: React.FC = () => {
         setSelectedDay(null);
       }
 
-      // Set the latest screenshot as current
+      // Set the latest screenshot as current (フィルタ変更時はスクロールしない)
       if (screenshotsData.length > 0) {
         setCurrentScreenshot(screenshotsData[0]);
       } else {
@@ -223,7 +233,10 @@ const App: React.FC = () => {
   };
 
   const handleNavigate = (screenshot: Screenshot) => {
+    setShouldScrollToCurrentImage(true);
     setCurrentScreenshot(screenshot);
+    // スクロール後にフラグをリセット
+    setTimeout(() => setShouldScrollToCurrentImage(false), 100);
   };
 
   const handleRefresh = () => {
@@ -440,6 +453,7 @@ const App: React.FC = () => {
             currentImage={currentScreenshot}
             onImageSelect={handleNavigate}
             loading={loading}
+            shouldScrollToCurrentImage={shouldScrollToCurrentImage}
           />
 
           <div className="box">
@@ -648,6 +662,7 @@ const App: React.FC = () => {
           currentImage={currentScreenshot}
           onImageSelect={handleNavigate}
           loading={loading}
+          shouldScrollToCurrentImage={shouldScrollToCurrentImage}
         />
 
         <div className="box">

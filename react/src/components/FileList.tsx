@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import type { Screenshot } from '../types';
 import { formatScreenshotDateTime } from '../utils/dateTime';
 import { TIMEOUTS } from '../utils/constants';
@@ -8,16 +8,20 @@ interface FileListProps {
   currentImage: Screenshot | null;
   onImageSelect: (screenshot: Screenshot) => void;
   loading?: boolean;
+  /** ユーザーが明示的に画像を選択した時のみtrue（フィルタ変更時はfalse） */
+  shouldScrollToCurrentImage?: boolean;
 }
 
-const FileList: React.FC<FileListProps> = ({
+const FileList: React.FC<FileListProps> = memo(({
   allImages,
   currentImage,
   onImageSelect,
   loading = false,
+  shouldScrollToCurrentImage = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const currentItemRef = useRef<HTMLDivElement>(null);
+  const hasInitialScrolled = useRef(false);
 
   // スクロール関数を定義
   const scrollToCurrentItem = (immediate = false) => {
@@ -41,8 +45,6 @@ const FileList: React.FC<FileListProps> = ({
       const containerHeight = container.clientHeight;
       const centeredScrollTop = targetScrollTop - (containerHeight / 2) + (itemHeight / 2);
 
-      console.log('Scrolling to index:', currentIndex, 'filename:', currentImage.filename, 'itemHeight:', itemHeight, 'scrollTop:', centeredScrollTop);
-
       container.scrollTo({
         top: Math.max(0, centeredScrollTop),
         behavior: immediate ? 'auto' : 'smooth'
@@ -52,24 +54,25 @@ const FileList: React.FC<FileListProps> = ({
     return () => clearTimeout(timer);
   };
 
-  // 現在の画像が変更されたときにスクロール
+  // ユーザーが明示的に画像を選択した時のみスクロール
   useEffect(() => {
-    if (currentImage && allImages.length > 0) {
+    if (shouldScrollToCurrentImage && currentImage && allImages.length > 0) {
       scrollToCurrentItem();
     }
-  }, [currentImage?.filename]);
+  }, [shouldScrollToCurrentImage, currentImage?.filename]);
 
-  // 初回レンダリング時の自動スクロール
+  // 初回レンダリング時の自動スクロール（1回のみ）
   useEffect(() => {
-    if (currentImage && allImages.length > 0) {
+    if (!hasInitialScrolled.current && currentImage && allImages.length > 0) {
+      hasInitialScrolled.current = true;
       // 初回は即座にスクロール（アニメーションなし）
       const timer = setTimeout(() => {
         scrollToCurrentItem(true);
-      }, TIMEOUTS.SCROLL_DELAY); // より長い遅延で確実にレンダリング完了を待つ
+      }, TIMEOUTS.SCROLL_DELAY);
 
       return () => clearTimeout(timer);
     }
-  }, [allImages.length]); // allImagesが設定された時
+  }, [currentImage, allImages.length]);
 
   const formatFileDateTime = (screenshot: Screenshot) => {
     const dateTime = formatScreenshotDateTime(screenshot);
@@ -266,6 +269,6 @@ const FileList: React.FC<FileListProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default FileList;
