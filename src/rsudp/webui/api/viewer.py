@@ -130,6 +130,7 @@ def format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = None
 
 
 @viewer_api.route("/api/screenshot/", methods=["GET"])
+@my_lib.flask_util.gzipped
 def list_screenshots():
     """
     List all screenshot files with parsed metadata.
@@ -247,6 +248,7 @@ def list_days(year: int, month: int):
 
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/<int:day>/", methods=["GET"])
+@my_lib.flask_util.gzipped
 def list_by_date(year: int, month: int, day: int):
     """
     Get screenshots for a specific date.
@@ -530,6 +532,7 @@ def crawl_earthquake_data():
 
 
 @viewer_api.route("/api/earthquake/list/", methods=["GET"])
+@my_lib.flask_util.gzipped
 def list_earthquakes():
     """List all stored earthquakes."""
     try:
