@@ -3,7 +3,7 @@
 import pathlib
 import sqlite3
 
-SCHEMA_FILE = pathlib.Path(__file__).parent.parent.parent / "schema" / "sqlite.schema"
+_SCHEMA_FILE = pathlib.Path(__file__).parent.parent.parent / "schema" / "sqlite.schema"
 
 
 def init_database(conn: sqlite3.Connection, table_name: str) -> None:
@@ -15,7 +15,7 @@ def init_database(conn: sqlite3.Connection, table_name: str) -> None:
         table_name: 初期化するテーブル名
 
     """
-    schema_content = SCHEMA_FILE.read_text(encoding="utf-8")
+    schema_content = _SCHEMA_FILE.read_text(encoding="utf-8")
 
     # スキーマを個別のステートメントに分割
     statements = [s.strip() for s in schema_content.split(";") if s.strip()]

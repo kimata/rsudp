@@ -19,15 +19,15 @@ import rsudp.config
 from rsudp.quake.database import QuakeDatabase
 
 # JMA API endpoints
-JMA_LIST_URL = "https://www.jma.go.jp/bosai/quake/data/list.json"
-JMA_DETAIL_URL = "https://www.jma.go.jp/bosai/quake/data/{json_file}"
+_JMA_LIST_URL = "https://www.jma.go.jp/bosai/quake/data/list.json"
+_JMA_DETAIL_URL = "https://www.jma.go.jp/bosai/quake/data/{json_file}"
 
 
 class InvalidCoordinateError(ValueError):
     """Invalid coordinate format error."""
 
 
-def parse_coordinate(coord_str: str) -> tuple[float, float, int]:
+def _parse_coordinate(coord_str: str) -> tuple[float, float, int]:
     """
     Parse JMA coordinate string.
 
@@ -59,7 +59,7 @@ def parse_coordinate(coord_str: str) -> tuple[float, float, int]:
     return lat, lon, depth_km
 
 
-def parse_intensity(intensity_str: str) -> int:
+def _parse_intensity(intensity_str: str) -> int:
     """
     Parse JMA intensity string to numeric value.
 
@@ -107,7 +107,7 @@ class QuakeCrawler:
     def fetch_earthquake_list(self) -> list[dict]:
         """Fetch list of recent earthquakes from JMA."""
         try:
-            response = self.session.get(JMA_LIST_URL, timeout=30)
+            response = self.session.get(_JMA_LIST_URL, timeout=30)
             response.raise_for_status()
             return response.json()
         except requests.RequestException:
@@ -117,7 +117,7 @@ class QuakeCrawler:
     def fetch_earthquake_detail(self, json_file: str) -> dict | None:
         """Fetch detailed earthquake information."""
         try:
-            url = JMA_DETAIL_URL.format(json_file=json_file)
+            url = _JMA_DETAIL_URL.format(json_file=json_file)
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
             return response.json()
@@ -152,7 +152,7 @@ class QuakeCrawler:
             if not coord_str:
                 return None
 
-            latitude, longitude, depth = parse_coordinate(coord_str)
+            latitude, longitude, depth = _parse_coordinate(coord_str)
 
             magnitude = earthquake_data.get("Magnitude", 0.0)
             if magnitude is None:
@@ -202,7 +202,7 @@ class QuakeCrawler:
 
         for eq in earthquakes:
             max_intensity_str = eq.get("maxi", "0")
-            max_intensity = parse_intensity(max_intensity_str)
+            max_intensity = _parse_intensity(max_intensity_str)
 
             if max_intensity < min_intensity:
                 continue
@@ -262,7 +262,7 @@ if __name__ == "__main__":
         collected_data = []
         for eq in earthquake_list:
             max_intensity_str = eq.get("maxi", "0")
-            max_intensity = parse_intensity(max_intensity_str)
+            max_intensity = _parse_intensity(max_intensity_str)
 
             if max_intensity < 3:
                 continue
@@ -289,7 +289,7 @@ if __name__ == "__main__":
                 if not coord_str:
                     continue
 
-                latitude, longitude, depth = parse_coordinate(coord_str)
+                latitude, longitude, depth = _parse_coordinate(coord_str)
 
                 magnitude = earthquake_data.get("Magnitude", 0.0)
                 if magnitude is None:

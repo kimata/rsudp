@@ -21,7 +21,7 @@ class TestParseCoordinate:
     def test_parse_normal_coordinate(self):
         """通常の座標文字列をパースできることを確認."""
         coord_str = "+35.6+139.7-50000/"
-        lat, lon, depth = crawl.parse_coordinate(coord_str)
+        lat, lon, depth = crawl._parse_coordinate(coord_str)
 
         assert lat == 35.6
         assert lon == 139.7
@@ -30,7 +30,7 @@ class TestParseCoordinate:
     def test_parse_negative_latitude(self):
         """南緯の座標をパースできることを確認."""
         coord_str = "-35.6+139.7-10000/"
-        lat, lon, depth = crawl.parse_coordinate(coord_str)
+        lat, lon, depth = crawl._parse_coordinate(coord_str)
 
         assert lat == -35.6
         assert lon == 139.7
@@ -39,7 +39,7 @@ class TestParseCoordinate:
     def test_parse_negative_longitude(self):
         """西経の座標をパースできることを確認."""
         coord_str = "+35.6-139.7-10000/"
-        lat, lon, depth = crawl.parse_coordinate(coord_str)
+        lat, lon, depth = crawl._parse_coordinate(coord_str)
 
         assert lat == 35.6
         assert lon == -139.7
@@ -48,7 +48,7 @@ class TestParseCoordinate:
     def test_parse_invalid_coordinate_raises_error(self):
         """無効な座標文字列でエラーが発生することを確認."""
         with pytest.raises(crawl.InvalidCoordinateError):
-            crawl.parse_coordinate("invalid")
+            crawl._parse_coordinate("invalid")
 
 
 class TestParseIntensity:
@@ -56,29 +56,29 @@ class TestParseIntensity:
 
     def test_parse_intensity_1_to_4(self):
         """震度 1〜4 が正しくパースされることを確認."""
-        assert crawl.parse_intensity("1") == 1
-        assert crawl.parse_intensity("2") == 2
-        assert crawl.parse_intensity("3") == 3
-        assert crawl.parse_intensity("4") == 4
+        assert crawl._parse_intensity("1") == 1
+        assert crawl._parse_intensity("2") == 2
+        assert crawl._parse_intensity("3") == 3
+        assert crawl._parse_intensity("4") == 4
 
     def test_parse_intensity_5_weak_strong(self):
         """震度 5弱・5強 が正しくパースされることを確認."""
-        assert crawl.parse_intensity("5-") == 50
-        assert crawl.parse_intensity("5+") == 55
+        assert crawl._parse_intensity("5-") == 50
+        assert crawl._parse_intensity("5+") == 55
 
     def test_parse_intensity_6_weak_strong(self):
         """震度 6弱・6強 が正しくパースされることを確認."""
-        assert crawl.parse_intensity("6-") == 60
-        assert crawl.parse_intensity("6+") == 65
+        assert crawl._parse_intensity("6-") == 60
+        assert crawl._parse_intensity("6+") == 65
 
     def test_parse_intensity_7(self):
         """震度 7 が正しくパースされることを確認."""
-        assert crawl.parse_intensity("7") == 7
+        assert crawl._parse_intensity("7") == 7
 
     def test_parse_intensity_unknown(self):
         """不明な震度で 0 が返されることを確認."""
-        assert crawl.parse_intensity("unknown") == 0
-        assert crawl.parse_intensity("") == 0
+        assert crawl._parse_intensity("unknown") == 0
+        assert crawl._parse_intensity("") == 0
 
 
 class TestQuakeCrawlerInit:

@@ -21,14 +21,14 @@ import my_lib.notify.slack
 
 import rsudp.config
 
-LIVENESS_FILE = pathlib.Path("/dev/shm/rsudp.liveness")  # noqa: S108
-RSUDP_LOG_FILE = pathlib.Path("/tmp/rsudp/rsudp.log")  # noqa: S108
-LIVENESS_INTERVAL = 60
-CONTAINER_STARTUP_GRACE_PERIOD = 60  # コンテナ起動後の猶予期間（秒）
-LOG_TAIL_LINES = 50  # エラー通知に含めるログの行数
+_LIVENESS_FILE = pathlib.Path("/dev/shm/rsudp.liveness")  # noqa: S108
+_RSUDP_LOG_FILE = pathlib.Path("/tmp/rsudp/rsudp.log")  # noqa: S108
+_LIVENESS_INTERVAL = 60
+_CONTAINER_STARTUP_GRACE_PERIOD = 60  # コンテナ起動後の猶予期間（秒）
+_LOG_TAIL_LINES = 50  # エラー通知に含めるログの行数
 
 
-def get_recent_logs(lines: int = LOG_TAIL_LINES) -> str:
+def _get_recent_logs(lines: int = _LOG_TAIL_LINES) -> str:
     """
     rsudp のログファイルから最新の指定行数を取得する.
 
@@ -39,11 +39,11 @@ def get_recent_logs(lines: int = LOG_TAIL_LINES) -> str:
         ログの内容。ファイルが存在しない場合は空文字列。
 
     """
-    if not RSUDP_LOG_FILE.exists():
+    if not _RSUDP_LOG_FILE.exists():
         return "(log file not found)"
 
     try:
-        with RSUDP_LOG_FILE.open(encoding="utf-8", errors="replace") as f:
+        with _RSUDP_LOG_FILE.open(encoding="utf-8", errors="replace") as f:
             recent_lines = collections.deque(f, maxlen=lines)
             return "".join(recent_lines)
     except Exception:
@@ -51,7 +51,7 @@ def get_recent_logs(lines: int = LOG_TAIL_LINES) -> str:
         return "(failed to read log file)"
 
 
-def check_liveness() -> float | None:
+def _check_liveness() -> float | None:
     """
     rsudp の liveness をチェックする.
 
@@ -63,15 +63,15 @@ def check_liveness() -> float | None:
         ファイルが存在しない場合は -1 を返す。
 
     """
-    if not LIVENESS_FILE.exists():
+    if not _LIVENESS_FILE.exists():
         logging.warning("rsudp is not executed.")
         return -1
 
-    mtime = LIVENESS_FILE.stat().st_mtime
+    mtime = _LIVENESS_FILE.stat().st_mtime
     elapsed = time.time() - mtime
 
     # NOTE: 少なくとも1分は様子を見る
-    if elapsed > max(LIVENESS_INTERVAL * 2, 60):
+    if elapsed > max(_LIVENESS_INTERVAL * 2, 60):
         logging.warning("Execution interval of rsudp is too long. (%s sec)", f"{elapsed:,.1f}")
         return elapsed
 
@@ -79,10 +79,10 @@ def check_liveness() -> float | None:
     return None
 
 
-def notify_error(config: rsudp.config.Config, message: str) -> None:
+def _notify_error(config: rsudp.config.Config, message: str) -> None:
     """Slack でエラー通知を送信する."""
     # ログの最新部分を取得してメッセージに追加
-    recent_logs = get_recent_logs()
+    recent_logs = _get_recent_logs()
     full_message = f"{message}\n\n*Recent logs:*\n```\n{recent_logs}\n```"
 
     my_lib.notify.slack.error(
@@ -108,18 +108,18 @@ if __name__ == "__main__":
     config_dict = my_lib.config.load(config_file)
     config = rsudp.config.load_from_dict(config_dict, pathlib.Path(config_file).parent)
 
-    elapsed = check_liveness()
+    elapsed = _check_liveness()
     if elapsed is None:
         logging.info("OK.")
         sys.exit(0)
     else:
         # コンテナ起動後の猶予期間を過ぎている場合のみ通知
         uptime = my_lib.container_util.get_uptime()
-        if uptime > CONTAINER_STARTUP_GRACE_PERIOD:
+        if uptime > _CONTAINER_STARTUP_GRACE_PERIOD:
             if elapsed < 0:
-                notify_error(config, "Liveness file does not exist.")
+                _notify_error(config, "Liveness file does not exist.")
             else:
-                notify_error(config, f"Liveness file is stale. Last updated {elapsed:,.1f} seconds ago.")
+                _notify_error(config, f"Liveness file is stale. Last updated {elapsed:,.1f} seconds ago.")
         else:
             logging.info("Within startup grace period (%.1f sec), skipping notification.", uptime)
 

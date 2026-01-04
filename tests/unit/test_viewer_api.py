@@ -18,7 +18,7 @@ class TestParseFilename:
 
     def test_parse_valid_filename(self):
         """有効なファイル名が正しくパースされることを確認."""
-        result = viewer.parse_filename("SHAKE-2025-08-12-104039.png")
+        result = viewer._parse_filename("SHAKE-2025-08-12-104039.png")
 
         assert result is not None
         assert result["prefix"] == "SHAKE"
@@ -31,12 +31,12 @@ class TestParseFilename:
 
     def test_parse_invalid_filename(self):
         """無効なファイル名で None が返されることを確認."""
-        assert viewer.parse_filename("invalid.png") is None
-        assert viewer.parse_filename("no-date.png") is None
+        assert viewer._parse_filename("invalid.png") is None
+        assert viewer._parse_filename("no-date.png") is None
 
     def test_parse_timestamp_is_utc(self):
         """タイムスタンプが UTC であることを確認."""
-        result = viewer.parse_filename("SHAKE-2025-08-12-104039.png")
+        result = viewer._parse_filename("SHAKE-2025-08-12-104039.png")
 
         assert result is not None
         assert "+00:00" in result["timestamp"]

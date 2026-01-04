@@ -27,14 +27,14 @@ import my_lib.logger
 
 import rsudp.config
 
-SCHEMA_CONFIG = "schema/config.schema"
+_SCHEMA_CONFIG = "schema/config.schema"
 
 # クリーナーのデフォルト設定
 DEFAULT_MIN_MAX_COUNT = 300000  # 最小振幅閾値
 DEFAULT_TIME_WINDOW_MINUTES = 10  # 地震との時間差（分）
 DEFAULT_MIN_MAGNITUDE = 3.0  # 最小マグニチュード
 
-JST = timezone(timedelta(hours=9))
+_JST = timezone(timedelta(hours=9))
 
 
 def get_screenshots_to_clean(
@@ -96,7 +96,7 @@ def get_screenshots_to_clean(
 
     for ss in screenshots:
         ss_time = datetime.fromisoformat(ss["timestamp"])
-        ss_time_jst = ss_time.astimezone(JST)
+        ss_time_jst = ss_time.astimezone(_JST)
 
         # 付近に地震があるか確認
         found_quake = None
@@ -119,7 +119,7 @@ def get_screenshots_to_clean(
     return to_delete
 
 
-def remove_empty_directories(base_dir: pathlib.Path, *, dry_run: bool = False) -> int:
+def _remove_empty_directories(base_dir: pathlib.Path, *, dry_run: bool = False) -> int:
     """
     空のディレクトリを再帰的に削除する.
 
@@ -206,7 +206,7 @@ def delete_screenshots(config: rsudp.config.Config, screenshots: list[dict], *, 
 
     # 空ディレクトリを削除
     if deleted_count > 0:
-        removed_dirs = remove_empty_directories(screenshot_dir, dry_run=dry_run)
+        removed_dirs = _remove_empty_directories(screenshot_dir, dry_run=dry_run)
         if removed_dirs > 0:
             if dry_run:
                 logging.info("[dry-run] 空ディレクトリ削除対象: %d件", removed_dirs)
@@ -216,7 +216,7 @@ def delete_screenshots(config: rsudp.config.Config, screenshots: list[dict], *, 
     return deleted_count
 
 
-def run_cleaner(
+def _run_cleaner(
     config: rsudp.config.Config,
     *,
     dry_run: bool = False,
@@ -287,10 +287,10 @@ if __name__ == "__main__":
 
     my_lib.logger.init("cleaner", level=logging.DEBUG if debug_mode else logging.INFO)
 
-    config_dict = my_lib.config.load(config_file, pathlib.Path(SCHEMA_CONFIG))
+    config_dict = my_lib.config.load(config_file, pathlib.Path(_SCHEMA_CONFIG))
     config = rsudp.config.load_from_dict(config_dict, pathlib.Path.cwd())
 
-    run_cleaner(
+    _run_cleaner(
         config,
         dry_run=dry_run,
         min_max_count=min_max_count,

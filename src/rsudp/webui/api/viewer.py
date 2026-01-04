@@ -25,16 +25,16 @@ _scan_lock = threading.Lock()
 _is_scanning = False
 
 
-def get_config() -> rsudp.config.Config:
+def _get_config() -> rsudp.config.Config:
     """Get Config instance from Flask app."""
     return current_app.config["CONFIG"]
 
 
-def get_screenshot_manager() -> ScreenshotManager:
+def _get_screenshot_manager() -> ScreenshotManager:
     """Get or create ScreenshotManager instance."""
     global _screenshot_manager
     if _screenshot_manager is None:
-        config = get_config()
+        config = _get_config()
         _screenshot_manager = ScreenshotManager(config)
         # Initialize: organize files and scan cache once at startup
         _screenshot_manager.organize_files()
@@ -42,7 +42,7 @@ def get_screenshot_manager() -> ScreenshotManager:
     return _screenshot_manager
 
 
-def parse_filename(filename: str) -> dict | None:
+def _parse_filename(filename: str) -> dict | None:
     """
     Parse screenshot filename to extract timestamp information.
 
@@ -71,9 +71,9 @@ def parse_filename(filename: str) -> dict | None:
     }
 
 
-def get_screenshots_path() -> Path:
+def _get_screenshots_path() -> Path:
     """Get the screenshots directory path from config."""
-    config = get_config()
+    config = _get_config()
     path = config.plot.screenshot.path
 
     # 相対パスの場合は、プロジェクトルートから解決
@@ -85,9 +85,9 @@ def get_screenshots_path() -> Path:
     return path
 
 
-def get_quake_db_path() -> Path | None:
+def _get_quake_db_path() -> Path | None:
     """Get the quake database path from config."""
-    config = get_config()
+    config = _get_config()
     path = config.data.quake
 
     if not path.is_absolute():
@@ -97,9 +97,9 @@ def get_quake_db_path() -> Path | None:
     return path
 
 
-def format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = None) -> dict:
+def _format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = None) -> dict:
     """Format screenshot dict with optional earthquake info."""
-    manager = get_screenshot_manager()
+    manager = _get_screenshot_manager()
 
     result = {
         "filename": s["filename"],
@@ -141,13 +141,13 @@ def list_screenshots():
     - earthquake_only: If true, only return screenshots during earthquake windows
     """
     try:
-        manager = get_screenshot_manager()
+        manager = _get_screenshot_manager()
 
         # Get filter parameters
         min_max_signal = request.args.get("min_max_signal", type=float)
         earthquake_only = request.args.get("earthquake_only", "false").lower() == "true"
 
-        quake_db_path = get_quake_db_path()
+        quake_db_path = _get_quake_db_path()
 
         if earthquake_only and quake_db_path and quake_db_path.exists():
             # 事前計算された地震関連付けを使って高速にフィルタリング
@@ -156,18 +156,18 @@ def list_screenshots():
                 min_max_signal=min_max_signal,
             )
             # すでに earthquake キーが含まれているのでそのまま使用
-            formatted_screenshots = [format_screenshot_with_earthquake(s, None) for s in screenshots]
+            formatted_screenshots = [_format_screenshot_with_earthquake(s, None) for s in screenshots]
         else:
             # Get screenshots with optional maximum signal filter
             # 地震情報の付加は行わない（パフォーマンス向上のため）
             screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
-            formatted_screenshots = [format_screenshot_with_earthquake(s, None) for s in screenshots]
+            formatted_screenshots = [_format_screenshot_with_earthquake(s, None) for s in screenshots]
 
         return jsonify(
             {
                 "screenshots": formatted_screenshots,
                 "total": len(formatted_screenshots),
-                "path": str(get_screenshots_path()),
+                "path": str(_get_screenshots_path()),
             }
         )
 
@@ -186,7 +186,7 @@ def list_years():
     - min_max_signal: Minimum maximum signal value to filter years
     """
     try:
-        manager = get_screenshot_manager()
+        manager = _get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
 
         # Get available dates with maximum signal filter
@@ -210,7 +210,7 @@ def list_months(year: int):
     - min_max_signal: Minimum maximum signal value to filter months
     """
     try:
-        manager = get_screenshot_manager()
+        manager = _get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
 
         # Get available dates with maximum signal filter
@@ -234,7 +234,7 @@ def list_days(year: int, month: int):
     - min_max_signal: Minimum maximum signal value to filter days
     """
     try:
-        manager = get_screenshot_manager()
+        manager = _get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
 
         # Get available dates with maximum signal filter
@@ -259,7 +259,7 @@ def list_by_date(year: int, month: int, day: int):
     - min_max_signal: Minimum maximum signal value to filter screenshots
     """
     try:
-        manager = get_screenshot_manager()
+        manager = _get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
 
         # Get screenshots with optional maximum signal filter
@@ -295,7 +295,7 @@ def list_by_date(year: int, month: int, day: int):
 
 def _get_image_file_path(filename: str):
     """Get the actual file path for a given filename."""
-    screenshots_dir = get_screenshots_path()
+    screenshots_dir = _get_screenshots_path()
 
     # First try direct path
     file_path = screenshots_dir / filename
@@ -408,7 +408,7 @@ def get_latest():
     - min_max_signal: Minimum maximum signal value to filter screenshots
     """
     try:
-        manager = get_screenshot_manager()
+        manager = _get_screenshot_manager()
         min_max_signal = request.args.get("min_max_signal", type=float)
 
         # Get screenshots with optional maximum signal filter
@@ -452,8 +452,8 @@ def get_statistics():
     - earthquake_only: If true, only include screenshots during earthquake windows
     """
     try:
-        manager = get_screenshot_manager()
-        quake_db_path = get_quake_db_path()
+        manager = _get_screenshot_manager()
+        quake_db_path = _get_quake_db_path()
         earthquake_only = request.args.get("earthquake_only", "false").lower() == "true"
 
         stats = manager.get_signal_statistics(
@@ -475,7 +475,7 @@ def get_statistics():
         if quake_db_path and quake_db_path.exists():
             from rsudp.quake.database import QuakeDatabase
 
-            quake_db = QuakeDatabase(get_config())
+            quake_db = QuakeDatabase(_get_config())
             stats["earthquake_count"] = quake_db.count_earthquakes()
         else:
             stats["earthquake_count"] = 0
@@ -504,7 +504,7 @@ def scan_screenshots():
             return jsonify({"success": True, "message": "Scan already in progress", "skipped": True})
 
         _is_scanning = True
-        manager = get_screenshot_manager()
+        manager = _get_screenshot_manager()
 
         # Organize files and scan for new ones
         manager.organize_files()
@@ -524,7 +524,7 @@ def scan_screenshots():
 def crawl_earthquake_data():
     """Trigger earthquake data crawl from JMA."""
     try:
-        config = get_config()
+        config = _get_config()
         new_count = crawl_earthquakes(config, min_intensity=3)
         return jsonify({"success": True, "new_earthquakes": new_count})
     except Exception as e:
@@ -540,7 +540,7 @@ def list_earthquakes():
     try:
         from rsudp.quake.database import QuakeDatabase
 
-        config = get_config()
+        config = _get_config()
         quake_db = QuakeDatabase(config)
         earthquakes = quake_db.get_all_earthquakes(limit=100)
         return jsonify({"earthquakes": earthquakes, "total": len(earthquakes)})
@@ -562,7 +562,7 @@ def clean_screenshots():
     try:
         import cleaner
 
-        config = get_config()
+        config = _get_config()
 
         # リクエストパラメータを取得
         data = request.get_json() or {}
@@ -621,11 +621,11 @@ def _get_ogp_content_for_screenshot(
     """スクリーンショットのOGPコンテンツを取得する."""
     from datetime import timedelta
 
-    manager = get_screenshot_manager()
-    quake_db_path = get_quake_db_path()
+    manager = _get_screenshot_manager()
+    quake_db_path = _get_quake_db_path()
 
     # ファイル名からタイムスタンプを解析
-    parsed = parse_filename(filename)
+    parsed = _parse_filename(filename)
     if not parsed:
         return ("", "", "", "")
 

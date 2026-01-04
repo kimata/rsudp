@@ -26,17 +26,17 @@ import my_lib.proc_util
 
 import rsudp.config
 
-SCHEMA_CONFIG = "schema/config.schema"
+_SCHEMA_CONFIG = "schema/config.schema"
 
 # 地震データクローラーのデフォルト設定
-QUAKE_CRAWL_INTERVAL = 3600  # 1時間間隔
+_QUAKE_CRAWL_INTERVAL = 3600  # 1時間間隔
 
 # グローバル変数でクローラースレッドを管理
 _quake_crawler_stop_event = threading.Event()
 _quake_crawler_thread = None
 
 
-def start_quake_crawler(config: rsudp.config.Config, interval: int = QUAKE_CRAWL_INTERVAL):
+def _start_quake_crawler(config: rsudp.config.Config, interval: int = _QUAKE_CRAWL_INTERVAL):
     """地震データクローラーをバックグラウンドで開始する"""
     global _quake_crawler_thread
 
@@ -100,7 +100,7 @@ def start_quake_crawler(config: rsudp.config.Config, interval: int = QUAKE_CRAWL
     _quake_crawler_thread.start()
 
 
-def stop_quake_crawler():
+def _stop_quake_crawler():
     """地震データクローラーを停止する"""
     global _quake_crawler_thread
 
@@ -111,9 +111,9 @@ def stop_quake_crawler():
         _quake_crawler_thread = None
 
 
-def term():
+def _term():
     # 地震データクローラーを停止
-    stop_quake_crawler()
+    _stop_quake_crawler()
 
     # 子プロセスを終了
     my_lib.proc_util.kill_child()
@@ -123,14 +123,14 @@ def term():
     sys.exit(0)
 
 
-def sig_handler(num, frame):
+def _sig_handler(num, frame):
     logging.warning("receive signal %d", num)
 
     if num in (signal.SIGTERM, signal.SIGINT):
-        term()
+        _term()
 
 
-def create_app(config: rsudp.config.Config):
+def _create_app(config: rsudp.config.Config):
     # NOTE: アクセスログは無効にする
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
@@ -180,10 +180,10 @@ if __name__ == "__main__":
 
     my_lib.logger.init("rsudp", level=logging.DEBUG if debug_mode else logging.INFO)
 
-    config_dict = my_lib.config.load(config_file, pathlib.Path(SCHEMA_CONFIG))
+    config_dict = my_lib.config.load(config_file, pathlib.Path(_SCHEMA_CONFIG))
     config = rsudp.config.load_from_dict(config_dict, pathlib.Path.cwd())
 
-    app = create_app(config)
+    app = _create_app(config)
 
     # プロセスグループリーダーとして実行（リローダープロセスの適切な管理のため）
     with contextlib.suppress(PermissionError):
@@ -219,7 +219,7 @@ if __name__ == "__main__":
                 # プロセスグループ操作に失敗した場合は通常の終了処理
                 pass
 
-            term()
+            _term()
 
     signal.signal(signal.SIGTERM, enhanced_sig_handler)
     signal.signal(signal.SIGINT, enhanced_sig_handler)
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     # 親プロセスでは WERKZEUG_RUN_MAIN が未設定、子プロセスでは "true"
     # クローラーは子プロセスでのみ開始する
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        start_quake_crawler(config)
+        _start_quake_crawler(config)
 
     # Flaskアプリケーションを実行
     try:
