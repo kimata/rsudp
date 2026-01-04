@@ -225,13 +225,14 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, enhanced_sig_handler)
 
     # 地震データクローラーをバックグラウンドで開始
-    # リローダー使用時は子プロセス（WERKZEUG_RUN_MAIN=true）でのみ開始
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not debug_mode:
+    # use_reloader=True の場合、親プロセスと子プロセスの2つが起動する
+    # 親プロセスでは WERKZEUG_RUN_MAIN が未設定、子プロセスでは "true"
+    # クローラーは子プロセスでのみ開始する
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         start_quake_crawler(config)
 
     # Flaskアプリケーションを実行
     try:
-        # NOTE: キャッシュ機能により初期化が重いため、開発時も自動リロードは無効化
         app.run(host="0.0.0.0", port=port, threaded=True, use_reloader=True, debug=debug_mode)  # noqa: S104
     except KeyboardInterrupt:
         logging.info("Received KeyboardInterrupt, shutting down...")
