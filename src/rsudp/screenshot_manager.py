@@ -58,11 +58,6 @@ class ScreenshotManager:
                     earthquake_event_id TEXT
                 )
             """)
-            # 既存テーブルに earthquake_event_id カラムがない場合は追加
-            cursor = conn.execute("PRAGMA table_info(screenshot_metadata)")
-            columns = [row[1] for row in cursor.fetchall()]
-            if "earthquake_event_id" not in columns:
-                conn.execute("ALTER TABLE screenshot_metadata ADD COLUMN earthquake_event_id TEXT")
 
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_screenshot_date
