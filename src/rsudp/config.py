@@ -77,21 +77,29 @@ def _parse_slack_config(
     return my_lib.notify.slack.SlackEmptyConfig()
 
 
+def _resolve_path(path_str: str, base_dir: pathlib.Path) -> pathlib.Path:
+    """相対パスを base_dir から解決して絶対パスに変換する."""
+    path = pathlib.Path(path_str)
+    if path.is_absolute():
+        return path
+    return (base_dir / path).resolve()
+
+
 def load_from_dict(config_dict: dict[str, Any], base_dir: pathlib.Path) -> Config:
     """辞書形式の設定を Config に変換する"""
     return Config(
         plot=PlotConfig(
             screenshot=ScreenshotConfig(
-                path=pathlib.Path(config_dict["plot"]["screenshot"]["path"]),
+                path=_resolve_path(config_dict["plot"]["screenshot"]["path"], base_dir),
             ),
         ),
         data=DataConfig(
-            cache=pathlib.Path(config_dict["data"]["cache"]),
-            quake=pathlib.Path(config_dict["data"]["quake"]),
-            selenium=pathlib.Path(config_dict["data"]["selenium"]),
+            cache=_resolve_path(config_dict["data"]["cache"], base_dir),
+            quake=_resolve_path(config_dict["data"]["quake"], base_dir),
+            selenium=_resolve_path(config_dict["data"]["selenium"], base_dir),
         ),
         webapp=WebappConfig(
-            static_dir_path=pathlib.Path(config_dict["webapp"]["static_dir_path"]),
+            static_dir_path=_resolve_path(config_dict["webapp"]["static_dir_path"], base_dir),
         ),
         slack=_parse_slack_config(config_dict.get("slack", {})),
         base_dir=base_dir,
