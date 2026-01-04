@@ -52,7 +52,8 @@ RUN cd rsudp && \
     rm -rf ../patch
 
 # パッチ適用後に rsudp を再インストール（c_liveness.py 等のパッチで追加されたファイルを含める）
-RUN bash rsudp/unix-install-rsudp.sh
+# build/ ディレクトリを削除してキャッシュされた古いファイルを使わないようにする
+RUN rm -rf rsudp/build rsudp/*.egg-info && bash rsudp/unix-install-rsudp.sh
 
 # /opt/rsudp/__init__.py を削除（カレントディレクトリがパッケージとして認識されるのを防ぐ）
 RUN rm -f rsudp/__init__.py
