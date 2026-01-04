@@ -155,11 +155,13 @@ def list_screenshots():
                 min_max_signal=min_max_signal,
                 quake_db_path=quake_db_path,
             )
+            # 地震フィルタ時のみ地震情報を付加（すでに earthquake キーが含まれている）
             formatted_screenshots = [format_screenshot_with_earthquake(s, quake_db_path) for s in screenshots]
         else:
             # Get screenshots with optional maximum signal filter
+            # 地震情報の付加は行わない（パフォーマンス向上のため）
             screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
-            formatted_screenshots = [format_screenshot_with_earthquake(s, quake_db_path) for s in screenshots]
+            formatted_screenshots = [format_screenshot_with_earthquake(s, None) for s in screenshots]
 
         return jsonify(
             {
