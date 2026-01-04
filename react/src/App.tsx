@@ -569,7 +569,7 @@ const App: React.FC = () => {
         <div className="container is-fluid" style={{ padding: "0.5rem", width: "100%", maxWidth: "100%" }}>
             <nav className="navbar is-dark" role="navigation" style={{ width: "100%" }}>
                 <div className="navbar-brand">
-                    <div className="navbar-item">
+                    <a className="navbar-item" href="/rsudp/">
                         <h1 className="title is-4 has-text-white">
                             <span className="icon" style={{ marginLeft: "0.5rem", marginRight: "0.5rem" }}>
                                 <i className="fas fa-camera"></i>
@@ -581,7 +581,7 @@ const App: React.FC = () => {
                                 <span style={{ fontSize: "0.9em" }}>スクリーンショットビューア</span>
                             </span>
                         </h1>
-                    </div>
+                    </a>
                 </div>
 
                 {/* デスクトップ表示時 */}
