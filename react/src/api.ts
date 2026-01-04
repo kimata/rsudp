@@ -52,7 +52,7 @@ export const screenshotApi = {
 
     crawlEarthquakes: async (): Promise<{ success: boolean; new_earthquakes: number }> => {
         const response = await axios.post<{ success: boolean; new_earthquakes: number }>(
-            "/rsudp/api/earthquake/crawl/",
+            "/rsudp/api/earthquake/crawl/"
         );
         return response.data;
     },

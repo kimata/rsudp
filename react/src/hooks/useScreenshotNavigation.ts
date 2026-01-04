@@ -4,11 +4,11 @@ import type { Screenshot } from "../types";
 export const useScreenshotNavigation = (
     currentImage: Screenshot | null,
     allImages: Screenshot[],
-    onNavigate: (screenshot: Screenshot) => void,
+    onNavigate: (screenshot: Screenshot) => void
 ) => {
     const currentIndex = useMemo(
         () => (currentImage ? allImages.findIndex((img) => img.filename === currentImage.filename) : -1),
-        [currentImage, allImages],
+        [currentImage, allImages]
     );
 
     const navigateNext = useCallback(() => {
