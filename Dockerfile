@@ -54,6 +54,9 @@ RUN cd rsudp && \
 # パッチ適用後に rsudp を再インストール（c_liveness.py 等のパッチで追加されたファイルを含める）
 RUN bash rsudp/unix-install-rsudp.sh
 
+# /opt/rsudp/__init__.py を削除（カレントディレクトリがパッケージとして認識されるのを防ぐ）
+RUN rm -f rsudp/__init__.py
+
 RUN jq '.settings.station = "Shake" \
       | .settings.output_dir = "/opt/rsudp/data" \
       | .write.enabled = true \
