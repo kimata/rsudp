@@ -150,13 +150,13 @@ def list_screenshots():
         quake_db_path = get_quake_db_path()
 
         if earthquake_only and quake_db_path and quake_db_path.exists():
-            # Get screenshots filtered by earthquake time windows
-            screenshots = manager.get_screenshots_with_earthquake_filter(
-                min_max_signal=min_max_signal,
+            # 事前計算された地震関連付けを使って高速にフィルタリング
+            screenshots = manager.get_screenshots_with_earthquake_filter_fast(
                 quake_db_path=quake_db_path,
+                min_max_signal=min_max_signal,
             )
-            # 地震フィルタ時のみ地震情報を付加（すでに earthquake キーが含まれている）
-            formatted_screenshots = [format_screenshot_with_earthquake(s, quake_db_path) for s in screenshots]
+            # すでに earthquake キーが含まれているのでそのまま使用
+            formatted_screenshots = [format_screenshot_with_earthquake(s, None) for s in screenshots]
         else:
             # Get screenshots with optional maximum signal filter
             # 地震情報の付加は行わない（パフォーマンス向上のため）

@@ -54,9 +54,16 @@ class ScreenshotManager:
                     max_count REAL,
                     created_at REAL NOT NULL,
                     file_size INTEGER NOT NULL,
-                    metadata_raw TEXT
+                    metadata_raw TEXT,
+                    earthquake_event_id TEXT
                 )
             """)
+            # 既存テーブルに earthquake_event_id カラムがない場合は追加
+            cursor = conn.execute("PRAGMA table_info(screenshot_metadata)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "earthquake_event_id" not in columns:
+                conn.execute("ALTER TABLE screenshot_metadata ADD COLUMN earthquake_event_id TEXT")
+
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_screenshot_date
                 ON screenshot_metadata(year, month, day)
@@ -68,6 +75,10 @@ class ScreenshotManager:
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_screenshot_timestamp
                 ON screenshot_metadata(timestamp)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_screenshot_earthquake
+                ON screenshot_metadata(earthquake_event_id)
             """)
 
     def organize_files(self):
@@ -500,3 +511,148 @@ class ScreenshotManager:
                     best_match = eq
 
         return best_match
+
+    def update_earthquake_associations(
+        self,
+        quake_db_path: Path,
+        before_seconds: int = 30,
+        after_seconds: int = 240,
+    ) -> int:
+        """
+        全スクリーンショットの地震関連付けを更新する.
+
+        地震データベースを参照し、各スクリーンショットがどの地震に関連するか
+        事前計算してキャッシュに保存する。
+
+        Args:
+            quake_db_path: 地震データベースのパス
+            before_seconds: 地震発生前の許容秒数
+            after_seconds: 地震発生後の許容秒数
+
+        Returns:
+            更新されたスクリーンショット数
+
+        """
+        if not quake_db_path.exists():
+            return 0
+
+        # 地震データを取得
+        with sqlite3.connect(quake_db_path) as quake_conn:
+            quake_conn.row_factory = sqlite3.Row
+            quake_cursor = quake_conn.execute("SELECT event_id, detected_at FROM earthquakes")
+            earthquakes = [
+                (row["event_id"], datetime.fromisoformat(row["detected_at"])) for row in quake_cursor
+            ]
+
+        if not earthquakes:
+            return 0
+
+        # 地震ごとの時間範囲を作成
+        time_ranges = [
+            (
+                event_id,
+                detected_at - timedelta(seconds=before_seconds),
+                detected_at + timedelta(seconds=after_seconds),
+            )
+            for event_id, detected_at in earthquakes
+        ]
+
+        updated_count = 0
+        with sqlite3.connect(self.cache_path) as conn:
+            # 全スクリーンショットのタイムスタンプを取得
+            cursor = conn.execute("SELECT filename, timestamp FROM screenshot_metadata")
+            rows = cursor.fetchall()
+
+            for filename, timestamp_str in rows:
+                screenshot_ts = datetime.fromisoformat(timestamp_str)
+
+                # マッチする地震を探す
+                matched_event_id = None
+                for event_id, start_time, end_time in time_ranges:
+                    if start_time <= screenshot_ts <= end_time:
+                        matched_event_id = event_id
+                        break
+
+                # 関連付けを更新
+                conn.execute(
+                    "UPDATE screenshot_metadata SET earthquake_event_id = ? WHERE filename = ?",
+                    (matched_event_id, filename),
+                )
+                if matched_event_id:
+                    updated_count += 1
+
+            conn.commit()
+
+        logging.info("地震関連付けを更新: %d 件のスクリーンショットが地震に関連付けられました", updated_count)
+        return updated_count
+
+    def get_screenshots_with_earthquake_filter_fast(
+        self,
+        quake_db_path: Path,
+        min_max_signal: float | None = None,
+    ) -> list[dict]:
+        """
+        事前計算された地震関連付けを使って高速にフィルタリングする.
+
+        Args:
+            quake_db_path: 地震データベースのパス（地震情報の取得に使用）
+            min_max_signal: 最小 max_count フィルタ（オプション）
+
+        Returns:
+            地震情報が付加されたスクリーンショットのリスト
+
+        """
+        # 地震データを辞書形式で取得
+        earthquake_map: dict[str, dict] = {}
+        if quake_db_path.exists():
+            with sqlite3.connect(quake_db_path) as quake_conn:
+                quake_conn.row_factory = sqlite3.Row
+                quake_cursor = quake_conn.execute("SELECT * FROM earthquakes")
+                for row in quake_cursor:
+                    earthquake_map[row["event_id"]] = dict(row)
+
+        # キャッシュから地震関連スクリーンショットを取得
+        with sqlite3.connect(self.cache_path) as conn:
+            query = """
+                SELECT filename, filepath, year, month, day, hour, minute, second,
+                       timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
+                       metadata_raw, earthquake_event_id
+                FROM screenshot_metadata
+                WHERE earthquake_event_id IS NOT NULL
+            """
+            params: list = []
+
+            if min_max_signal is not None:
+                query += " AND max_count >= ?"
+                params.append(min_max_signal)
+
+            query += " ORDER BY timestamp DESC"
+
+            cursor = conn.execute(query, params)
+
+            screenshots = []
+            for row in cursor:
+                event_id = row[14]
+                earthquake = earthquake_map.get(event_id)
+
+                screenshots.append(
+                    {
+                        "filename": row[0],
+                        "filepath": row[1],
+                        "year": row[2],
+                        "month": row[3],
+                        "day": row[4],
+                        "hour": row[5],
+                        "minute": row[6],
+                        "second": row[7],
+                        "timestamp": row[8],
+                        "sta": row[9],
+                        "lta": row[10],
+                        "sta_lta_ratio": row[11],
+                        "max_count": row[12],
+                        "metadata": row[13],
+                        "earthquake": earthquake,
+                    }
+                )
+
+            return screenshots

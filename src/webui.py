@@ -56,6 +56,17 @@ def start_quake_crawler(config: rsudp.config.Config, interval: int = QUAKE_CRAWL
         else:
             logging.info("地震クローラー: 新規地震なし")
 
+    def _update_earthquake_associations():
+        """スクリーンショットと地震の関連付けを更新する."""
+        from rsudp.screenshot_manager import ScreenshotManager
+
+        try:
+            manager = ScreenshotManager(config)
+            updated = manager.update_earthquake_associations(config.data.quake)
+            logging.info("地震関連付け更新完了: %d 件", updated)
+        except Exception:
+            logging.exception("地震関連付け更新エラー")
+
     def crawler_loop():
         from rsudp.quake.crawl import crawl_earthquakes
 
@@ -66,6 +77,8 @@ def start_quake_crawler(config: rsudp.config.Config, interval: int = QUAKE_CRAWL
             logging.info("地震クローラー: 地震データの収集を開始")
             new_earthquakes = crawl_earthquakes(config, min_intensity=3)
             _log_crawl_results(new_earthquakes)
+            # 地震データ取得後に関連付けを更新
+            _update_earthquake_associations()
         except Exception:
             logging.exception("地震クローラーエラー")
 
@@ -75,6 +88,8 @@ def start_quake_crawler(config: rsudp.config.Config, interval: int = QUAKE_CRAWL
                 logging.info("地震クローラー: 地震データの収集を開始")
                 new_earthquakes = crawl_earthquakes(config, min_intensity=3)
                 _log_crawl_results(new_earthquakes)
+                # 地震データ取得後に関連付けを更新
+                _update_earthquake_associations()
             except Exception:
                 logging.exception("地震クローラーエラー")
 
