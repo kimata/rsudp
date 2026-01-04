@@ -41,7 +41,9 @@ RUN bash rsudp/unix-install-rsudp.sh
 
 COPY --chown=ubuntu:ubuntu patch/ patch/
 
+# rsudp のソースファイルを CRLF から LF に変換してからパッチを適用
 RUN cd rsudp && \
+    find . -name '*.py' -exec sed -i 's/\r$//' {} \; && \
     for patch_file in ../patch/*.diff; do \
         patch -p1 < "$patch_file"; \
     done && \
