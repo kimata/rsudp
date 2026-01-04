@@ -37,6 +37,8 @@ ARG RSUDP_COMMIT=e4bf7abbbe4db4e70e04150d436e7d68dd16312a
 RUN git clone https://github.com/raspishake/rsudp.git \
  && cd rsudp && git checkout ${RSUDP_COMMIT}
 
+# conda 環境のセットアップと rsudp の初回インストール
+# （パッチ適用後に再インストールが必要）
 RUN bash rsudp/unix-install-rsudp.sh
 
 COPY --chown=ubuntu:ubuntu patch/ patch/
@@ -48,6 +50,9 @@ RUN cd rsudp && \
         patch -p1 < "$patch_file"; \
     done && \
     rm -rf ../patch
+
+# パッチ適用後に rsudp を再インストール（c_liveness.py 等のパッチで追加されたファイルを含める）
+RUN bash rsudp/unix-install-rsudp.sh
 
 RUN jq '.settings.station = "Shake" \
       | .settings.output_dir = "/opt/rsudp/data" \
