@@ -17,6 +17,7 @@ from pathlib import Path
 from PIL import Image
 
 import rsudp.config
+import rsudp.schema_util
 
 
 class ScreenshotManager:
@@ -37,44 +38,7 @@ class ScreenshotManager:
     def _init_database(self):
         """メタデータキャッシュ用の SQLite データベースを初期化する."""
         with sqlite3.connect(self.cache_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS screenshot_metadata (
-                    filename TEXT PRIMARY KEY,
-                    filepath TEXT NOT NULL,
-                    year INTEGER NOT NULL,
-                    month INTEGER NOT NULL,
-                    day INTEGER NOT NULL,
-                    hour INTEGER NOT NULL,
-                    minute INTEGER NOT NULL,
-                    second INTEGER NOT NULL,
-                    timestamp TEXT NOT NULL,
-                    sta_value REAL,
-                    lta_value REAL,
-                    sta_lta_ratio REAL,
-                    max_count REAL,
-                    created_at REAL NOT NULL,
-                    file_size INTEGER NOT NULL,
-                    metadata_raw TEXT,
-                    earthquake_event_id TEXT
-                )
-            """)
-
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_screenshot_date
-                ON screenshot_metadata(year, month, day)
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_screenshot_sta
-                ON screenshot_metadata(sta_value)
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_screenshot_timestamp
-                ON screenshot_metadata(timestamp)
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_screenshot_earthquake
-                ON screenshot_metadata(earthquake_event_id)
-            """)
+            rsudp.schema_util.init_database(conn, "screenshot_metadata")
 
     def organize_files(self):
         """スクリーンショットファイルを日付ベースのサブディレクトリに整理する."""

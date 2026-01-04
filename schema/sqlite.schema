@@ -1,4 +1,8 @@
--- Earthquake database schema for rsudp
+-- SQLite database schemas for rsudp
+
+--------------------------------------------------------------------------------
+-- Earthquake database (quake.db)
+--------------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS earthquakes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,3 +23,39 @@ ON earthquakes(detected_at);
 
 CREATE INDEX IF NOT EXISTS idx_earthquakes_event_id
 ON earthquakes(event_id);
+
+--------------------------------------------------------------------------------
+-- Screenshot metadata cache (cache.db)
+--------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS screenshot_metadata (
+    filename TEXT PRIMARY KEY,
+    filepath TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    day INTEGER NOT NULL,
+    hour INTEGER NOT NULL,
+    minute INTEGER NOT NULL,
+    second INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    sta_value REAL,
+    lta_value REAL,
+    sta_lta_ratio REAL,
+    max_count REAL,
+    created_at REAL NOT NULL,
+    file_size INTEGER NOT NULL,
+    metadata_raw TEXT,
+    earthquake_event_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_screenshot_date
+ON screenshot_metadata(year, month, day);
+
+CREATE INDEX IF NOT EXISTS idx_screenshot_sta
+ON screenshot_metadata(sta_value);
+
+CREATE INDEX IF NOT EXISTS idx_screenshot_timestamp
+ON screenshot_metadata(timestamp);
+
+CREATE INDEX IF NOT EXISTS idx_screenshot_earthquake
+ON screenshot_metadata(earthquake_event_id);

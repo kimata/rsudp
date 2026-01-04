@@ -9,12 +9,9 @@
 
 import sqlite3
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import rsudp.config
-
-# スキーマファイルのパス（プロジェクトルートからの相対パス）
-SCHEMA_FILE = Path(__file__).parent.parent.parent.parent / "schema" / "sqlite.schema"
+import rsudp.schema_util
 
 
 class QuakeDatabase:
@@ -34,9 +31,7 @@ class QuakeDatabase:
     def _init_database(self):
         """地震データ用の SQLite データベースを初期化する."""
         with sqlite3.connect(self.db_path) as conn:
-            # スキーマファイルを読み込んで実行
-            schema_sql = SCHEMA_FILE.read_text(encoding="utf-8")
-            conn.executescript(schema_sql)
+            rsudp.schema_util.init_database(conn, "earthquakes")
 
     def insert_earthquake(
         self,
