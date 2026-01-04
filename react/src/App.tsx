@@ -29,20 +29,35 @@ const getUrlParams = (): UrlParams => {
     };
 };
 
-// URLを更新（履歴に追加）
-const updateUrl = (file: string | null, earthquake: boolean, signal: number | undefined, replace = false) => {
+// URL更新用のフラグ
+interface UrlUpdateFlags {
+    includeFile: boolean;
+    includeEarthquake: boolean;
+    includeSignal: boolean;
+}
+
+// URLを更新（履歴に追加）- フラグに応じてパラメータを含める
+const updateUrl = (
+    params: { file?: string | null; earthquake?: boolean; signal?: number },
+    flags: UrlUpdateFlags,
+    replace = false
+) => {
     const url = new URL(window.location.href);
 
-    if (file) {
-        url.searchParams.set("file", file);
+    if (flags.includeFile && params.file) {
+        url.searchParams.set("file", params.file);
     } else {
         url.searchParams.delete("file");
     }
 
-    url.searchParams.set("earthquake", earthquake.toString());
+    if (flags.includeEarthquake && params.earthquake !== undefined) {
+        url.searchParams.set("earthquake", params.earthquake.toString());
+    } else {
+        url.searchParams.delete("earthquake");
+    }
 
-    if (signal !== undefined) {
-        url.searchParams.set("signal", signal.toString());
+    if (flags.includeSignal && params.signal !== undefined) {
+        url.searchParams.set("signal", params.signal.toString());
     } else {
         url.searchParams.delete("signal");
     }
@@ -85,6 +100,12 @@ const App: React.FC = () => {
     const [shouldScrollToCurrentImage, setShouldScrollToCurrentImage] = useState(false);
     const [isFiltering, setIsFiltering] = useState(false); // フィルタ適用中フラグ
     const [isRefreshing, setIsRefreshing] = useState(false); // 更新ボタン押下中フラグ
+
+    // ユーザーが明示的に操作したかを追跡するフラグ
+    // URLにはユーザーが明示的に変更したパラメータのみ含める
+    const userSelectedFile = useRef(initialUrlParams.current.file !== null);
+    const userChangedEarthquake = useRef(initialUrlParams.current.earthquake !== null);
+    const userChangedSignal = useRef(initialUrlParams.current.signal !== null);
 
     // クライアント側で振幅フィルタを適用（APIリクエスト不要）
     const signalFilteredScreenshots = useMemo(() => {
@@ -185,18 +206,59 @@ const App: React.FC = () => {
                         if (signalThreshold !== undefined && targetScreenshot.max_count < signalThreshold) {
                             adjustedSignalThreshold = Math.floor(targetScreenshot.max_count);
                             setMinMaxSignalThreshold(adjustedSignalThreshold);
+                            // シグナル閾値を調整した場合、ユーザーが変更したとみなす
+                            userChangedSignal.current = true;
                         }
                         // URLが正しい場合は履歴を置き換え（初回のみ）
-                        updateUrl(urlFilename, earthquakeOnly, adjustedSignalThreshold, true);
+                        // URLで指定されていたパラメータのみを維持
+                        updateUrl(
+                            {
+                                file: urlFilename,
+                                earthquake: earthquakeOnly,
+                                signal: adjustedSignalThreshold,
+                            },
+                            {
+                                includeFile: userSelectedFile.current,
+                                includeEarthquake: userChangedEarthquake.current,
+                                includeSignal: userChangedSignal.current,
+                            },
+                            true,
+                        );
                     } else {
                         // URLのファイルが見つからない場合は最新を表示
                         setCurrentScreenshot(screenshotsData[0]);
-                        updateUrl(screenshotsData[0].filename, earthquakeOnly, signalThreshold, true);
+                        // ファイルが見つからなかった場合、file パラメータは含めない
+                        userSelectedFile.current = false;
+                        updateUrl(
+                            {
+                                file: screenshotsData[0].filename,
+                                earthquake: earthquakeOnly,
+                                signal: signalThreshold,
+                            },
+                            {
+                                includeFile: false,
+                                includeEarthquake: userChangedEarthquake.current,
+                                includeSignal: userChangedSignal.current,
+                            },
+                            true,
+                        );
                     }
                 } else {
                     setCurrentScreenshot(screenshotsData[0]);
-                    // 初回読み込み時はURLを設定（replaceで履歴に残さない）
-                    updateUrl(screenshotsData[0].filename, earthquakeOnly, signalThreshold, true);
+                    // 初回読み込み時はURLパラメータを設定しない（ユーザーが明示的に操作していないため）
+                    updateUrl(
+                        {
+                            file: screenshotsData[0].filename,
+                            earthquake: earthquakeOnly,
+                            signal: signalThreshold,
+                        },
+                        {
+                            includeFile: false,
+                            includeEarthquake: userChangedEarthquake.current,
+                            includeSignal: userChangedSignal.current,
+                        },
+                        true,
+                    );
                 }
 
                 // 初回URL処理完了をマーク
@@ -271,7 +333,19 @@ const App: React.FC = () => {
     // フィルタ変更時にURLを更新（popstate処理中は除く）
     useEffect(() => {
         if (!isInitialLoad && !isHandlingPopstate.current && currentScreenshot) {
-            updateUrl(currentScreenshot.filename, earthquakeOnly, minMaxSignalThreshold, true);
+            updateUrl(
+                {
+                    file: currentScreenshot.filename,
+                    earthquake: earthquakeOnly,
+                    signal: minMaxSignalThreshold,
+                },
+                {
+                    includeFile: userSelectedFile.current,
+                    includeEarthquake: userChangedEarthquake.current,
+                    includeSignal: userChangedSignal.current,
+                },
+                true,
+            );
         }
     }, [earthquakeOnly, minMaxSignalThreshold, isInitialLoad, currentScreenshot]);
 
@@ -330,13 +404,38 @@ const App: React.FC = () => {
         setSelectedDay(day);
     };
 
+    // 地震フィルタ変更ハンドラ（ユーザーの明示的な操作を記録）
+    const handleEarthquakeFilterChange = useCallback((checked: boolean) => {
+        userChangedEarthquake.current = true;
+        setEarthquakeOnly(checked);
+    }, []);
+
+    // 振幅フィルタ変更ハンドラ（ユーザーの明示的な操作を記録）
+    const handleSignalThresholdChange = useCallback((value: number | undefined) => {
+        userChangedSignal.current = true;
+        setMinMaxSignalThreshold(value);
+    }, []);
+
     const handleNavigate = useCallback(
         (screenshot: Screenshot) => {
             setShouldScrollToCurrentImage(true);
             setCurrentScreenshot(screenshot);
+            // ユーザーがファイルを明示的に選択したことを記録
+            userSelectedFile.current = true;
             // popstate処理中でなければURLを更新
             if (!isHandlingPopstate.current) {
-                updateUrl(screenshot.filename, earthquakeOnly, minMaxSignalThreshold);
+                updateUrl(
+                    {
+                        file: screenshot.filename,
+                        earthquake: earthquakeOnly,
+                        signal: minMaxSignalThreshold,
+                    },
+                    {
+                        includeFile: true,
+                        includeEarthquake: userChangedEarthquake.current,
+                        includeSignal: userChangedSignal.current,
+                    },
+                );
             }
             // スクロール後にフラグをリセット
             setTimeout(() => setShouldScrollToCurrentImage(false), 100);
@@ -429,6 +528,11 @@ const App: React.FC = () => {
         const handlePopstate = () => {
             const urlParams = getUrlParams();
             isHandlingPopstate.current = true;
+
+            // フラグを復元（URLにパラメータがあればそのパラメータは明示的に設定されたとみなす）
+            userSelectedFile.current = urlParams.file !== null;
+            userChangedEarthquake.current = urlParams.earthquake !== null;
+            userChangedSignal.current = urlParams.signal !== null;
 
             // フィルタ状態を復元
             if (urlParams.earthquake !== null) {
@@ -645,7 +749,7 @@ const App: React.FC = () => {
                                 <input
                                     type="checkbox"
                                     checked={earthquakeOnly}
-                                    onChange={(e) => setEarthquakeOnly(e.target.checked)}
+                                    onChange={(e) => handleEarthquakeFilterChange(e.target.checked)}
                                     style={{ marginRight: "0.5rem" }}
                                     disabled={isFiltering}
                                 />
@@ -666,7 +770,7 @@ const App: React.FC = () => {
                     <SignalFilter
                         statistics={statistics}
                         minMaxSignalThreshold={minMaxSignalThreshold}
-                        onThresholdChange={setMinMaxSignalThreshold}
+                        onThresholdChange={handleSignalThresholdChange}
                         loading={loading && !statistics}
                         isFiltering={isFiltering}
                     />
@@ -890,7 +994,7 @@ const App: React.FC = () => {
                             <input
                                 type="checkbox"
                                 checked={earthquakeOnly}
-                                onChange={(e) => setEarthquakeOnly(e.target.checked)}
+                                onChange={(e) => handleEarthquakeFilterChange(e.target.checked)}
                                 style={{ marginRight: "0.5rem" }}
                                 disabled={isFiltering}
                             />
@@ -911,7 +1015,7 @@ const App: React.FC = () => {
                 <SignalFilter
                     statistics={statistics}
                     minMaxSignalThreshold={minMaxSignalThreshold}
-                    onThresholdChange={setMinMaxSignalThreshold}
+                    onThresholdChange={handleSignalThresholdChange}
                     loading={loading && !statistics}
                     isFiltering={isFiltering}
                 />
