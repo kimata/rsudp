@@ -38,13 +38,13 @@ index 9c44a1c..2187ba2 100644
 @@ -189,13 +189,15 @@ class AbcPlot():
          '''
          helpers.deconvolve(self)
- 
+
 -    def savefig(self, event_time=rs.UTCDateTime.now(), event_time_str=rs.UTCDateTime.now().strftime('%Y-%m-%d-%H%M%S')):
 +    def savefig(self, event_time=rs.UTCDateTime.now(), event_time_str=rs.UTCDateTime.now().strftime('%Y-%m-%d-%H%M%S'), sta_val=None, lta_val=None):
          '''
          Saves the figure and puts an IMGPATH message on the master queue.
          This message can be used to upload the image to various services.
- 
+
          :param obspy.core.utcdatetime.UTCDateTime event_time: Event time as an obspy UTCDateTime object. Defaults to ``UTCDateTime.now()``.
          :param str event_time_str: Event time as a string, in the format ``'%Y-%m-%d-%H%M%S'``. This is used to set the filename.
 +        :param float sta_val: STA value at trigger time. If provided, will be embedded in PNG metadata.
@@ -56,24 +56,24 @@ index 9c44a1c..2187ba2 100644
              elapsed = rs.UTCDateTime.now() - event_time
              if int(elapsed) > 0:
                  printM(f'Saving png {int(elapsed)} seconds after alarm', sender=self.sender)
-+            
++
 +            # Prepare metadata for PNG
 +            metadata = {}
 +            if sta_val is not None and lta_val is not None:
 +                metadata['Description'] = f'STA={sta_val:.6f}, LTA={lta_val:.6f}, STA/LTA={sta_val/lta_val if lta_val != 0 else 0:.6f}'
 +                metadata['Comment'] = f'Trigger STA/LTA values at {event_time_str}'
 +                printM(f'Embedding STA/LTA metadata: STA={sta_val:.6f}, LTA={lta_val:.6f}', sender=self.sender)
-+            
++
              try:
--                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none')          
-+                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none', metadata=metadata)          
+-                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none')
++                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none', metadata=metadata)
              except Exception as e:
                  printE(f'Error saving png image: {e}', sender=self.sender)
                  return
 @@ -387,12 +397,16 @@ class Plot(AbcPlot):
          self.spectrogram = spectrogram
          printM('Starting.', self.sender)
- 
+
 -    def _eventsave(self, event_time):
 +    def _eventsave(self, event_time, sta_val=None, lta_val=None):
          '''
@@ -81,7 +81,7 @@ index 9c44a1c..2187ba2 100644
          so that it can be saved and others preserved.
          Then, it sets the title to something having to do with the event,
          then calls the save figure function, and finally resets the title.
-+        
++
 +        :param obspy.core.utcdatetime.UTCDateTime event_time: Event time
 +        :param float sta_val: STA value at trigger time (optional)
 +        :param float lta_val: LTA value at trigger time (optional)
@@ -91,22 +91,22 @@ index 9c44a1c..2187ba2 100644
 @@ -402,8 +416,8 @@ class Plot(AbcPlot):
          self.fig.suptitle(f'{self.stn} Detected Event - {title_time_str} UTC',
                          fontsize=14, color=self.fgcolor, x=0.52)
- 
+
 -        # save the figure
 -        self.savefig(event_time=event_time, event_time_str=event_time_str)
 +        # save the figure with STA/LTA metadata
 +        self.savefig(event_time=event_time, event_time_str=event_time_str, sta_val=sta_val, lta_val=lta_val)
- 
+
          # reset the title
          self.set_fig_title(self.events)
 @@ -772,13 +786,22 @@ class Plot(AbcPlot):
                       helpers.fsec(helpers.get_msg_time(d))]  # event = [save after count, datetime]
              self.last_event_str = '%s UTC' % (event[1].strftime('%Y-%m-%d %H:%M:%S.%f')[:22])
              printM('Event time: %s' % (self.last_event_str), sender=self.sender)  # show event time in the logs
-+            
++
 +            # Extract STA/LTA values from ALARM message
 +            sta_lta_values = helpers.get_msg_sta_lta(d)
-+            
++
              if self.screencap:
                  printM('Saving png in about %i seconds' % (self.save_pct * (self.seconds)), self.sender)
                  event_time = helpers.fsec(helpers.get_msg_time(d))
@@ -133,7 +133,7 @@ index 9c44a1c..2187ba2 100644
 +                sta_val = e.get('sta_val')
 +                lta_val = e.get('lta_val')
 +                self._eventsave(event_time=e['event_time'], sta_val=sta_val, lta_val=lta_val)
-         
+
          u = 0
          time.sleep(0.005)  # wait a ms to see if another packet will arrive
 diff --git a/rsudp/helpers.py b/rsudp/helpers.py
@@ -142,8 +142,8 @@ index d23fa85..64da868 100644
 +++ b/rsudp/helpers.py
 @@ -133,7 +133,7 @@ def conn_stats(TESTING=False):
  			   sender=s, announce=False)
- 
- 
+
+
 -def msg_alarm(event_time):
 +def msg_alarm(event_time, sta_val=None, lta_val=None):
  	'''
@@ -152,7 +152,7 @@ index d23fa85..64da868 100644
 @@ -148,11 +148,24 @@ def msg_alarm(event_time):
  		>>> msg_alarm(ti)
  		b'ALARM 2020-01-01T00:00:00.599Z'
- 
+
 +	With STA/LTA values:
 +
 +	.. code-block:: python
@@ -172,13 +172,13 @@ index d23fa85..64da868 100644
 +		sta_lta_info = b' STA=%f LTA=%f' % (sta_val, lta_val)
 +		return base_msg + sta_lta_info
 +	return base_msg
- 
- 
+
+
  def msg_reset(reset_time):
 @@ -266,6 +279,43 @@ def get_msg_path(msg):
  	return msg.decode('utf-8').split(' ')[2]
- 
- 
+
+
 +def get_msg_sta_lta(msg):
 +	'''
 +	This function extracts STA and LTA values from ``ALARM`` messages.
@@ -274,7 +274,7 @@ index 2514bd7..6500baf 100644
 @@ -198,7 +198,7 @@ class AbcPlot():
          '''
          helpers.deconvolve(self)
- 
+
 -    def savefig(self, event_time=rs.UTCDateTime.now(), event_time_str=rs.UTCDateTime.now().strftime('%Y-%m-%d-%H%M%S'), sta_val=None, lta_val=None):
 +    def savefig(self, event_time=rs.UTCDateTime.now(), event_time_str=rs.UTCDateTime.now().strftime('%Y-%m-%d-%H%M%S'), sta_val=None, lta_val=None, max_count=None):
          '''
@@ -302,13 +302,13 @@ index 2514bd7..6500baf 100644
 +                if max_count is not None:
 +                    metadata['EHZ_MaxCount'] = str(max_count)
 +                    printM(f'Embedding EHZ max count: {max_count}', sender=self.sender)
-             
+
              try:
-                 plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none', metadata=metadata)          
+                 plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none', metadata=metadata)
 @@ -406,7 +413,7 @@ class Plot(AbcPlot):
          self.spectrogram = spectrogram
          printM('Starting.', self.sender)
- 
+
 -    def _eventsave(self, event_time, sta_val=None, lta_val=None):
 +    def _eventsave(self, event_time, sta_val=None, lta_val=None, max_count=None):
          '''
@@ -324,20 +324,20 @@ index 2514bd7..6500baf 100644
          event_time_str = event_time.strftime('%Y-%m-%d-%H%M%S')  # for filename
 @@ -429,7 +437,7 @@ class Plot(AbcPlot):
                          fontsize=18, color=self.fgcolor, x=0.52, y=0.99)
- 
+
          # save the figure with STA/LTA metadata
 -        self.savefig(event_time=event_time, event_time_str=event_time_str, sta_val=sta_val, lta_val=lta_val)
 +        self.savefig(event_time=event_time, event_time_str=event_time_str, sta_val=sta_val, lta_val=lta_val, max_count=max_count)
- 
+
          # reset the title
          self.set_fig_title(self.events)
 @@ -814,6 +822,8 @@ class Plot(AbcPlot):
-             
+
              # Extract STA/LTA values from ALARM message
              sta_lta_values = helpers.get_msg_sta_lta(d)
 +            # Extract max count value from ALARM message
 +            max_count = helpers.get_msg_max_count(d)
-             
+
              if self.screencap:
                  printM('Saving png in about %i seconds' % (self.save_pct * (self.seconds)), self.sender)
 @@ -826,6 +836,9 @@ class Plot(AbcPlot):
@@ -357,7 +357,7 @@ index 2514bd7..6500baf 100644
 -                self._eventsave(event_time=e['event_time'], sta_val=sta_val, lta_val=lta_val)
 +                max_count = e.get('max_count')
 +                self._eventsave(event_time=e['event_time'], sta_val=sta_val, lta_val=lta_val, max_count=max_count)
-         
+
          u = 0
          time.sleep(0.005)  # wait a ms to see if another packet will arrive
 diff --git a/rsudp/client.py b/rsudp/client.py
@@ -367,13 +367,13 @@ index ad1e116..bb09dc3 100644
 @@ -413,8 +413,8 @@ def run(settings, debug):
  		test = Testing(q=q)
  		mk_p(test)
- 
+
 -	# Start liveness monitor thread
 -	liveness = Liveness(testing=TESTING)
 +	# Create liveness monitor thread with threads to monitor and PlotsController if available
 +	liveness = Liveness(testing=TESTING, threads_to_monitor=THREADS, controller=CONTROLLER if CONTROLLER else None)
  	mk_p(liveness)
- 
+
  	# start the producer, consumer, and activated modules
 diff --git a/rsudp/helpers.py b/rsudp/helpers.py
 index 64da868..bb9e64f 100644
@@ -381,8 +381,8 @@ index 64da868..bb9e64f 100644
 +++ b/rsudp/helpers.py
 @@ -133,7 +133,7 @@ def conn_stats(TESTING=False):
  			   sender=s, announce=False)
- 
- 
+
+
 -def msg_alarm(event_time, sta_val=None, lta_val=None):
 +def msg_alarm(event_time, sta_val=None, lta_val=None, max_count=None):
  	'''
@@ -391,7 +391,7 @@ index 64da868..bb9e64f 100644
 @@ -155,17 +155,27 @@ def msg_alarm(event_time, sta_val=None, lta_val=None):
  		>>> msg_alarm(ti, 0.5, 0.25)
  		b'ALARM 2020-01-01T00:00:00.599Z STA=0.500000 LTA=0.250000'
- 
+
 +	With STA/LTA and max count values:
 +
 +	.. code-block:: python
@@ -416,13 +416,13 @@ index 64da868..bb9e64f 100644
 +	if max_count is not None:
 +		extra_info += b' COUNT=%d' % max_count
 +	return base_msg + extra_info
- 
- 
+
+
  def msg_reset(reset_time):
 @@ -316,6 +326,37 @@ def get_msg_sta_lta(msg):
  	return None
- 
- 
+
+
 +def get_msg_max_count(msg):
 +	'''
 +	This function extracts the max count value from ``ALARM`` messages.

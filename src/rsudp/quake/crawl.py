@@ -124,7 +124,7 @@ class QuakeCrawler:
             logging.exception("Failed to fetch earthquake detail: %s", json_file)
             return None
 
-    def _process_earthquake(self, eq: dict) -> dict | None:  # noqa: PLR0911
+    def _process_earthquake(self, eq: dict) -> dict | None:
         """Process a single earthquake entry and store if valid."""
         max_intensity_str = eq.get("maxi", "0")
         event_id = eq.get("eid")

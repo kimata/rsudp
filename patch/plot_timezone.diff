@@ -18,7 +18,7 @@ index 1cba4bd..2514bd7 100644
 -    from matplotlib.ticker import EngFormatter
 +    from matplotlib.ticker import EngFormatter, FuncFormatter
      import matplotlib.font_manager as fm
-     
+
      # Configure matplotlib settings
 @@ -419,10 +419,13 @@ class Plot(AbcPlot):
          '''
@@ -29,12 +29,12 @@ index 1cba4bd..2514bd7 100644
 +        jst_tz = timezone(timedelta(hours=9))
 +        event_time_jst = event_time.datetime.replace(tzinfo=timezone.utc).astimezone(jst_tz)
 +        title_time_str = event_time_jst.strftime('%Y-%m-%d %H:%M:%S.%f')[:22]  # for title
- 
+
          # temporarily set title for this event
 -        self.fig.suptitle(f'{self.stn} Detected Event - {title_time_str} UTC',
 +        self.fig.suptitle(f'{self.stn} Detected Event - {title_time_str} JST',
                          fontsize=18, color=self.fgcolor, x=0.52, y=0.99)
- 
+
          # save the figure with STA/LTA metadata
 @@ -468,7 +471,12 @@ class Plot(AbcPlot):
                                                  1, 1, label=str(1)))
@@ -79,7 +79,7 @@ index 1cba4bd..2514bd7 100644
                  # also can't be in the setup function
 -                self.ax[i * self.mult].set_xlabel('Time (UTC)', color=self.fgcolor)
 +                self.ax[i * self.mult].set_xlabel('Time (JST)', color=self.fgcolor)
- 
+
      def getq(self, d):
          '''
 @@ -793,7 +806,10 @@ class Plot(AbcPlot):
@@ -92,5 +92,5 @@ index 1cba4bd..2514bd7 100644
 +            event_jst = event[1].datetime.replace(tzinfo=timezone.utc).astimezone(jst_tz)
 +            self.last_event_str = '%s JST' % (event_jst.strftime('%Y-%m-%d %H:%M:%S.%f')[:22])
              printM('Event time: %s' % (self.last_event_str), sender=self.sender)  # show event time in the logs
-             
+
              # Extract STA/LTA values from ALARM message

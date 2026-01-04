@@ -36,7 +36,7 @@ _quake_crawler_thread = None
 
 def start_quake_crawler(config: dict, interval: int = QUAKE_CRAWL_INTERVAL):
     """地震データクローラーをバックグラウンドで開始する"""
-    global _quake_crawler_thread  # noqa: PLW0603
+    global _quake_crawler_thread
 
     def _log_crawl_results(new_earthquakes: list[dict]):
         """クロール結果をログ出力する"""
@@ -85,7 +85,7 @@ def start_quake_crawler(config: dict, interval: int = QUAKE_CRAWL_INTERVAL):
 
 def stop_quake_crawler():
     """地震データクローラーを停止する"""
-    global _quake_crawler_thread  # noqa: PLW0603
+    global _quake_crawler_thread
 
     if _quake_crawler_thread and _quake_crawler_thread.is_alive():
         logging.info("Stopping earthquake crawler...")
@@ -106,7 +106,7 @@ def term():
     sys.exit(0)
 
 
-def sig_handler(num, frame):  # noqa: ARG001
+def sig_handler(num, frame):
     logging.warning("receive signal %d", num)
 
     if num in (signal.SIGTERM, signal.SIGINT):
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     atexit.register(cleanup_on_exit)
 
     # Enhanced signal handler for process group management
-    def enhanced_sig_handler(num, frame):  # noqa: ARG001
+    def enhanced_sig_handler(num, frame):
         logging.warning("receive signal %d", num)
 
         if num in (signal.SIGTERM, signal.SIGINT):

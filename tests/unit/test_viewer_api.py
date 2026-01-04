@@ -1,4 +1,4 @@
-# ruff: noqa: S101,ARG002
+# ruff: noqa: S101
 """
 Viewer API のユニットテスト.
 

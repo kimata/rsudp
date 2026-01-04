@@ -36,7 +36,7 @@ class QuakeDatabase:
             schema_sql = SCHEMA_FILE.read_text(encoding="utf-8")
             conn.executescript(schema_sql)
 
-    def insert_earthquake(  # noqa: PLR0913
+    def insert_earthquake(
         self,
         event_id: str,
         detected_at: datetime,

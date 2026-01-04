@@ -1,4 +1,4 @@
-# ruff: noqa: S101,D213,D403
+# ruff: noqa: S101
 """
 WebUI E2E テスト.
 

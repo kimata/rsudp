@@ -1,4 +1,4 @@
-# ruff: noqa: S101,D403
+# ruff: noqa: S101
 """
 QuakeDatabase のユニットテスト.
 

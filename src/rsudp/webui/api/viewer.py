@@ -26,7 +26,7 @@ _is_scanning = False
 
 def get_screenshot_manager() -> ScreenshotManager:
     """Get or create ScreenshotManager instance."""
-    global _screenshot_manager  # noqa: PLW0603
+    global _screenshot_manager
     if _screenshot_manager is None:
         config = current_app.config["CONFIG"]
         # Ensure cache path is set
@@ -487,7 +487,7 @@ def scan_screenshots():
     Uses a lock to prevent concurrent scans. If a scan is already in progress,
     returns immediately with a message indicating that.
     """
-    global _is_scanning  # noqa: PLW0603
+    global _is_scanning
 
     # Try to acquire lock without blocking
     if not _scan_lock.acquire(blocking=False):

@@ -212,4 +212,3 @@ index 6911dc8..a1b2c3d 100644
 +
  	# start the producer, consumer, and activated modules
  	start()
-
