@@ -10,6 +10,7 @@ Options:
   -D                : デバッグモードで動作します。
 """
 
+import collections
 import logging
 import pathlib
 import sys
@@ -43,24 +44,28 @@ def get_recent_logs(lines: int = LOG_TAIL_LINES) -> str:
 
     try:
         with RSUDP_LOG_FILE.open(encoding="utf-8", errors="replace") as f:
-            all_lines = f.readlines()
-            recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            recent_lines = collections.deque(f, maxlen=lines)
             return "".join(recent_lines)
     except Exception:
         logging.exception("Failed to read log file")
         return "(failed to read log file)"
 
 
-def check_liveness() -> bool:
+def check_liveness() -> float | None:
     """
     rsudp の liveness をチェックする.
 
     rsudp の liveness ファイルは os.utime() で mtime を更新するため、
     ファイルの mtime を直接確認する。
+
+    Returns:
+        成功時は None、失敗時は最終更新からの経過秒数を返す。
+        ファイルが存在しない場合は -1 を返す。
+
     """
     if not LIVENESS_FILE.exists():
         logging.warning("rsudp is not executed.")
-        return False
+        return -1
 
     mtime = LIVENESS_FILE.stat().st_mtime
     elapsed = time.time() - mtime
@@ -68,10 +73,10 @@ def check_liveness() -> bool:
     # NOTE: 少なくとも1分は様子を見る
     if elapsed > max(LIVENESS_INTERVAL * 2, 60):
         logging.warning("Execution interval of rsudp is too long. (%s sec)", f"{elapsed:,.1f}")
-        return False
+        return elapsed
 
     logging.debug("Execution interval of rsudp: %s sec", f"{elapsed:,.1f}")
-    return True
+    return None
 
 
 def notify_error(config: rsudp.config.Config, message: str) -> None:
@@ -103,19 +108,18 @@ if __name__ == "__main__":
     config_dict = my_lib.config.load(config_file)
     config = rsudp.config.load_from_dict(config_dict, pathlib.Path(config_file).parent)
 
-    if check_liveness():
+    elapsed = check_liveness()
+    if elapsed is None:
         logging.info("OK.")
         sys.exit(0)
     else:
         # コンテナ起動後の猶予期間を過ぎている場合のみ通知
         uptime = my_lib.container_util.get_uptime()
         if uptime > CONTAINER_STARTUP_GRACE_PERIOD:
-            if not LIVENESS_FILE.exists():
+            if elapsed < 0:
                 notify_error(config, "Liveness file does not exist.")
             else:
-                mtime = LIVENESS_FILE.stat().st_mtime
-                elapsed = time.time() - mtime
-                notify_error(config, f"Liveness file is stale. Last updated {elapsed:.1f} seconds ago.")
+                notify_error(config, f"Liveness file is stale. Last updated {elapsed:,.1f} seconds ago.")
         else:
             logging.info("Within startup grace period (%.1f sec), skipping notification.", uptime)
 
