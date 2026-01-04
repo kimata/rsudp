@@ -10,6 +10,7 @@ import my_lib.flask_util
 import my_lib.webapp.config
 from flask import Blueprint, Response, current_app, jsonify, request, send_file
 
+import rsudp.config
 from rsudp.quake.crawl import crawl_earthquakes
 from rsudp.screenshot_manager import ScreenshotManager
 
@@ -24,16 +25,16 @@ _scan_lock = threading.Lock()
 _is_scanning = False
 
 
+def get_config() -> rsudp.config.Config:
+    """Get Config instance from Flask app."""
+    return current_app.config["CONFIG"]
+
+
 def get_screenshot_manager() -> ScreenshotManager:
     """Get or create ScreenshotManager instance."""
     global _screenshot_manager
     if _screenshot_manager is None:
-        config = current_app.config["CONFIG"]
-        # Ensure cache path is set
-        if "data" not in config:
-            config["data"] = {}
-        if "cache" not in config["data"]:
-            config["data"]["cache"] = "data/cache.db"
+        config = get_config()
         _screenshot_manager = ScreenshotManager(config)
         # Initialize: organize files and scan cache once at startup
         _screenshot_manager.organize_files()
@@ -72,7 +73,8 @@ def parse_filename(filename: str) -> dict | None:
 
 def get_screenshots_path() -> Path:
     """Get the screenshots directory path from config."""
-    path = Path(current_app.config["CONFIG"]["plot"]["screenshot"]["path"])
+    config = get_config()
+    path = config.plot.screenshot.path
 
     # 相対パスの場合は、プロジェクトルートから解決
     if not path.is_absolute():
@@ -85,14 +87,14 @@ def get_screenshots_path() -> Path:
 
 def get_quake_db_path() -> Path | None:
     """Get the quake database path from config."""
-    quake_path = current_app.config["CONFIG"].get("data", {}).get("quake")
-    if quake_path:
-        path = Path(quake_path)
-        if not path.is_absolute():
-            project_root = Path.cwd().parent if Path.cwd().name == "src" else Path.cwd()
-            path = project_root / path
-        return path
-    return None
+    config = get_config()
+    path = config.data.quake
+
+    if not path.is_absolute():
+        project_root = Path.cwd().parent if Path.cwd().name == "src" else Path.cwd()
+        path = project_root / path
+
+    return path
 
 
 def format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = None) -> dict:
@@ -469,7 +471,7 @@ def get_statistics():
         if quake_db_path and quake_db_path.exists():
             from rsudp.quake.database import QuakeDatabase
 
-            quake_db = QuakeDatabase(current_app.config["CONFIG"])
+            quake_db = QuakeDatabase(get_config())
             stats["earthquake_count"] = quake_db.count_earthquakes()
         else:
             stats["earthquake_count"] = 0
@@ -518,7 +520,7 @@ def scan_screenshots():
 def crawl_earthquake_data():
     """Trigger earthquake data crawl from JMA."""
     try:
-        config = current_app.config["CONFIG"]
+        config = get_config()
         new_count = crawl_earthquakes(config, min_intensity=3)
         return jsonify({"success": True, "new_earthquakes": new_count})
     except Exception as e:
@@ -533,7 +535,7 @@ def list_earthquakes():
     try:
         from rsudp.quake.database import QuakeDatabase
 
-        config = current_app.config["CONFIG"]
+        config = get_config()
         quake_db = QuakeDatabase(config)
         earthquakes = quake_db.get_all_earthquakes(limit=100)
         return jsonify({"earthquakes": earthquakes, "total": len(earthquakes)})
@@ -555,7 +557,7 @@ def clean_screenshots():
     try:
         import cleaner
 
-        config = current_app.config["CONFIG"]
+        config = get_config()
 
         # リクエストパラメータを取得
         data = request.get_json() or {}

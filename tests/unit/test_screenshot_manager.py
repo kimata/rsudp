@@ -99,14 +99,13 @@ class TestTimestampUTC:
 class TestGetEarthquakeForScreenshot:
     """スクリーンショットに対応する地震検索のテスト."""
 
-    def test_find_earthquake_for_screenshot(self, screenshot_config, temp_dir, sample_earthquake_jst):
+    def test_find_earthquake_for_screenshot(self, screenshot_config, sample_earthquake_jst):
         """スクリーンショットに対応する地震を検索できることを確認."""
         from rsudp.quake.database import QuakeDatabase
 
-        # 地震データベースを作成
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        # 地震データベースを作成（screenshot_config の quake パスを使用）
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
         quake_db.insert_earthquake(**sample_earthquake_jst)
 
         manager = ScreenshotManager(screenshot_config)
@@ -120,13 +119,12 @@ class TestGetEarthquakeForScreenshot:
         assert result is not None
         assert result["event_id"] == "test-quake-001"
 
-    def test_no_false_match_same_numbers_different_tz(self, screenshot_config, temp_dir):
+    def test_no_false_match_same_numbers_different_tz(self, screenshot_config):
         """同じ数字でもタイムゾーンが異なれば誤マッチしないことを確認."""
         from rsudp.quake.database import QuakeDatabase
 
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
 
         # 地震: 2025-12-12 19:05:00 JST（ファイル名と同じ数字だが異なるタイムゾーン）
         jst_earthquake = {
@@ -157,14 +155,13 @@ class TestGetEarthquakeForScreenshot:
 class TestGetScreenshotsWithEarthquakeFilter:
     """地震フィルタ付きスクリーンショット取得のテスト."""
 
-    def test_filter_matches_correct_earthquake(self, screenshot_config, temp_dir, sample_earthquake_jst):
+    def test_filter_matches_correct_earthquake(self, screenshot_config, sample_earthquake_jst):
         """地震フィルタが正しいタイムゾーンでマッチすることを確認."""
         from rsudp.quake.database import QuakeDatabase
 
-        # 地震データベースを作成
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        # 地震データベースを作成（screenshot_config の quake パスを使用）
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
         quake_db.insert_earthquake(**sample_earthquake_jst)
 
         manager = ScreenshotManager(screenshot_config)
@@ -204,13 +201,12 @@ class TestGetScreenshotsWithEarthquakeFilter:
         assert len(result) == 1
         assert result[0]["earthquake"]["event_id"] == "test-quake-001"
 
-    def test_filter_no_false_match(self, screenshot_config, temp_dir):
+    def test_filter_no_false_match(self, screenshot_config):
         """地震フィルタが誤マッチしないことを確認."""
         from rsudp.quake.database import QuakeDatabase
 
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
 
         # 地震: 2025-12-12 19:05:00 JST
         jst_earthquake = {

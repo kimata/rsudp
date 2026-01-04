@@ -25,6 +25,8 @@ from datetime import datetime, timedelta, timezone
 import my_lib.config
 import my_lib.logger
 
+import rsudp.config
+
 SCHEMA_CONFIG = "schema/config.schema"
 
 # クリーナーのデフォルト設定
@@ -36,7 +38,7 @@ JST = timezone(timedelta(hours=9))
 
 
 def get_screenshots_to_clean(
-    config: dict,
+    config: rsudp.config.Config,
     min_max_count: float = DEFAULT_MIN_MAX_COUNT,
     time_window_minutes: int = DEFAULT_TIME_WINDOW_MINUTES,
     min_magnitude: float = DEFAULT_MIN_MAGNITUDE,
@@ -54,8 +56,8 @@ def get_screenshots_to_clean(
         削除対象のスクリーンショット情報のリスト
 
     """
-    cache_db_path = pathlib.Path(config.get("data", {}).get("cache", "data/cache.db"))
-    quake_db_path = pathlib.Path(config.get("data", {}).get("quake", "data/quake.db"))
+    cache_db_path = config.data.cache
+    quake_db_path = config.data.quake
 
     # スクリーンショット取得
     with sqlite3.connect(cache_db_path) as cache_db:
@@ -154,7 +156,7 @@ def remove_empty_directories(base_dir: pathlib.Path, *, dry_run: bool = False) -
     return removed_count
 
 
-def delete_screenshots(config: dict, screenshots: list[dict], *, dry_run: bool = False) -> int:
+def delete_screenshots(config: rsudp.config.Config, screenshots: list[dict], *, dry_run: bool = False) -> int:
     """
     スクリーンショットを削除する.
 
@@ -167,8 +169,8 @@ def delete_screenshots(config: dict, screenshots: list[dict], *, dry_run: bool =
         削除した件数
 
     """
-    cache_db_path = pathlib.Path(config.get("data", {}).get("cache", "data/cache.db"))
-    screenshot_dir = pathlib.Path(config.get("data", {}).get("screenshot", "data/screenshots"))
+    cache_db_path = config.data.cache
+    screenshot_dir = config.plot.screenshot.path
 
     deleted_count = 0
 
@@ -215,7 +217,7 @@ def delete_screenshots(config: dict, screenshots: list[dict], *, dry_run: bool =
 
 
 def run_cleaner(
-    config: dict,
+    config: rsudp.config.Config,
     *,
     dry_run: bool = False,
     min_max_count: float = DEFAULT_MIN_MAX_COUNT,
@@ -285,7 +287,8 @@ if __name__ == "__main__":
 
     my_lib.logger.init("cleaner", level=logging.DEBUG if debug_mode else logging.INFO)
 
-    config = my_lib.config.load(config_file, pathlib.Path(SCHEMA_CONFIG))
+    config_dict = my_lib.config.load(config_file, pathlib.Path(SCHEMA_CONFIG))
+    config = rsudp.config.load_from_dict(config_dict, pathlib.Path.cwd())
 
     run_cleaner(
         config,

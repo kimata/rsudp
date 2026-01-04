@@ -84,12 +84,11 @@ class TestParseIntensity:
 class TestQuakeCrawlerInit:
     """QuakeCrawler 初期化のテスト."""
 
-    def test_init(self, temp_dir):
+    def test_init(self, quake_db_config):
         """QuakeCrawler が正しく初期化されることを確認."""
-        config = {"data": {"quake": str(temp_dir / "test.db")}}
-        crawler = crawl.QuakeCrawler(config)
+        crawler = crawl.QuakeCrawler(quake_db_config)
 
-        assert crawler.config == config
+        assert crawler.config == quake_db_config
         assert crawler.db is not None
         assert crawler.session is not None
 
@@ -97,10 +96,9 @@ class TestQuakeCrawlerInit:
 class TestFetchEarthquakeList:
     """地震一覧取得のテスト."""
 
-    def test_fetch_earthquake_list_success(self, temp_dir):
+    def test_fetch_earthquake_list_success(self, quake_db_config):
         """地震一覧を正常に取得できることを確認."""
-        config = {"data": {"quake": str(temp_dir / "test.db")}}
-        crawler = crawl.QuakeCrawler(config)
+        crawler = crawl.QuakeCrawler(quake_db_config)
 
         mock_response = MagicMock()
         mock_response.json.return_value = [
@@ -115,12 +113,11 @@ class TestFetchEarthquakeList:
         assert len(result) == 2
         assert result[0]["eid"] == "quake-001"
 
-    def test_fetch_earthquake_list_error(self, temp_dir):
+    def test_fetch_earthquake_list_error(self, quake_db_config):
         """API エラー時に空のリストが返されることを確認."""
         import requests
 
-        config = {"data": {"quake": str(temp_dir / "test.db")}}
-        crawler = crawl.QuakeCrawler(config)
+        crawler = crawl.QuakeCrawler(quake_db_config)
 
         with patch.object(crawler.session, "get", side_effect=requests.RequestException("Network error")):
             result = crawler.fetch_earthquake_list()
@@ -131,10 +128,9 @@ class TestFetchEarthquakeList:
 class TestFetchEarthquakeDetail:
     """地震詳細取得のテスト."""
 
-    def test_fetch_earthquake_detail_success(self, temp_dir):
+    def test_fetch_earthquake_detail_success(self, quake_db_config):
         """地震詳細を正常に取得できることを確認."""
-        config = {"data": {"quake": str(temp_dir / "test.db")}}
-        crawler = crawl.QuakeCrawler(config)
+        crawler = crawl.QuakeCrawler(quake_db_config)
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -154,12 +150,11 @@ class TestFetchEarthquakeDetail:
         assert result is not None
         assert result["Body"]["Earthquake"]["Magnitude"] == 4.5
 
-    def test_fetch_earthquake_detail_error(self, temp_dir):
+    def test_fetch_earthquake_detail_error(self, quake_db_config):
         """API エラー時に None が返されることを確認."""
         import requests
 
-        config = {"data": {"quake": str(temp_dir / "test.db")}}
-        crawler = crawl.QuakeCrawler(config)
+        crawler = crawl.QuakeCrawler(quake_db_config)
 
         with patch.object(crawler.session, "get", side_effect=requests.RequestException("Network error")):
             result = crawler.fetch_earthquake_detail("quake001.json")
@@ -170,10 +165,9 @@ class TestFetchEarthquakeDetail:
 class TestCrawlAndStore:
     """地震データ収集・保存のテスト."""
 
-    def test_crawl_and_store_filters_by_intensity(self, temp_dir):
+    def test_crawl_and_store_filters_by_intensity(self, quake_db_config):
         """min_intensity でフィルタリングされることを確認."""
-        config = {"data": {"quake": str(temp_dir / "test.db")}}
-        crawler = crawl.QuakeCrawler(config)
+        crawler = crawl.QuakeCrawler(quake_db_config)
 
         # 震度 2（min_intensity=3 未満）
         mock_list = [{"eid": "quake-001", "maxi": "2", "json": "quake001.json"}]

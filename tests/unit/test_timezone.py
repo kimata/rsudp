@@ -41,10 +41,9 @@ class TestTimezoneComparison:
 class TestQuakeDatabaseTimezone:
     """QuakeDatabase のタイムゾーン処理テスト."""
 
-    def test_get_earthquake_for_utc_timestamp(self, temp_dir, sample_earthquake_jst):
+    def test_get_earthquake_for_utc_timestamp(self, quake_db_config, sample_earthquake_jst):
         """UTC タイムスタンプで JST 地震データを正しく検索できることを確認."""
-        config = {"data": {"quake": str(temp_dir / "quake.db")}}
-        db = QuakeDatabase(config)
+        db = QuakeDatabase(quake_db_config)
 
         # JST で地震データを挿入
         db.insert_earthquake(**sample_earthquake_jst)
@@ -58,10 +57,9 @@ class TestQuakeDatabaseTimezone:
         assert result is not None
         assert result["event_id"] == "test-quake-001"
 
-    def test_get_earthquake_within_time_window(self, temp_dir, sample_earthquake_jst):
+    def test_get_earthquake_within_time_window(self, quake_db_config, sample_earthquake_jst):
         """時間窓内のタイムスタンプで地震を検索できることを確認."""
-        config = {"data": {"quake": str(temp_dir / "quake.db")}}
-        db = QuakeDatabase(config)
+        db = QuakeDatabase(quake_db_config)
         db.insert_earthquake(**sample_earthquake_jst)
 
         # 地震の 2 分後（after_seconds=240 のデフォルト範囲内）
@@ -72,10 +70,9 @@ class TestQuakeDatabaseTimezone:
         assert result is not None
         assert result["event_id"] == "test-quake-001"
 
-    def test_get_earthquake_outside_time_window(self, temp_dir, sample_earthquake_jst):
+    def test_get_earthquake_outside_time_window(self, quake_db_config, sample_earthquake_jst):
         """時間窓外のタイムスタンプでは地震が見つからないことを確認."""
-        config = {"data": {"quake": str(temp_dir / "quake.db")}}
-        db = QuakeDatabase(config)
+        db = QuakeDatabase(quake_db_config)
         db.insert_earthquake(**sample_earthquake_jst)
 
         # 地震の 10 分後（after_seconds=240 の範囲外）
@@ -85,7 +82,7 @@ class TestQuakeDatabaseTimezone:
 
         assert result is None
 
-    def test_no_false_match_with_same_numbers(self, temp_dir, sample_earthquake_jst):
+    def test_no_false_match_with_same_numbers(self, quake_db_config, sample_earthquake_jst):
         """
         同じ数字でもタイムゾーンが異なれば誤マッチしないことを確認.
 
@@ -93,8 +90,7 @@ class TestQuakeDatabaseTimezone:
         地震: 2025-12-13 04:05:00 JST
         検索: 2025-12-13 04:05:00 UTC（= 2025-12-13 13:05:00 JST、9時間後）
         """
-        config = {"data": {"quake": str(temp_dir / "quake.db")}}
-        db = QuakeDatabase(config)
+        db = QuakeDatabase(quake_db_config)
         db.insert_earthquake(**sample_earthquake_jst)
 
         # 同じ数字だが UTC（実際は 9 時間後）
@@ -109,12 +105,11 @@ class TestQuakeDatabaseTimezone:
 class TestScreenshotManagerTimezone:
     """ScreenshotManager のタイムゾーン処理テスト."""
 
-    def test_get_earthquake_for_screenshot_utc(self, screenshot_config, temp_dir, sample_earthquake_jst):
+    def test_get_earthquake_for_screenshot_utc(self, screenshot_config, sample_earthquake_jst):
         """UTC スクリーンショットタイムスタンプで JST 地震データを検索できることを確認."""
         # 地震データベースを作成
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
         quake_db.insert_earthquake(**sample_earthquake_jst)
 
         # ScreenshotManager を作成
@@ -130,7 +125,7 @@ class TestScreenshotManagerTimezone:
         assert result is not None
         assert result["event_id"] == "test-quake-001"
 
-    def test_no_false_match_for_screenshot(self, screenshot_config, temp_dir):
+    def test_no_false_match_for_screenshot(self, screenshot_config):
         """
         スクリーンショットと地震の誤マッチが発生しないことを確認.
 
@@ -139,9 +134,8 @@ class TestScreenshotManagerTimezone:
         - 地震: 12/12 19:05 JST
         - 実際は 9 時間離れているのに同じ時刻として扱われていた
         """
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
 
         # 地震: 2025-12-12 19:05:00 JST（ファイル名と同じ数字だが異なるタイムゾーン）
         jst_earthquake = {
@@ -168,11 +162,10 @@ class TestScreenshotManagerTimezone:
         # 9 時間離れているのでマッチしてはいけない
         assert result is None
 
-    def test_correct_match_across_date_boundary(self, screenshot_config, temp_dir):
+    def test_correct_match_across_date_boundary(self, screenshot_config):
         """日付境界をまたぐケースでも正しくマッチすることを確認."""
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
 
         # 地震: 2025-12-13 00:30:00 JST（= 2025-12-12 15:30:00 UTC）
         jst_earthquake = {
@@ -201,12 +194,11 @@ class TestScreenshotManagerTimezone:
 class TestScreenshotFilterTimezone:
     """get_screenshots_with_earthquake_filter のタイムゾーン処理テスト."""
 
-    def test_filter_matches_correct_earthquake(self, screenshot_config, temp_dir, sample_earthquake_jst):
+    def test_filter_matches_correct_earthquake(self, screenshot_config, sample_earthquake_jst):
         """地震フィルタが正しいタイムゾーンでマッチすることを確認."""
         # 地震データベースを作成
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
         quake_db.insert_earthquake(**sample_earthquake_jst)
 
         # ScreenshotManager を作成してスクリーンショットをキャッシュに追加
@@ -248,11 +240,10 @@ class TestScreenshotFilterTimezone:
         assert len(result) == 1
         assert result[0]["earthquake"]["event_id"] == "test-quake-001"
 
-    def test_filter_no_false_match(self, screenshot_config, temp_dir):
+    def test_filter_no_false_match(self, screenshot_config):
         """地震フィルタが誤マッチしないことを確認."""
-        quake_db_path = temp_dir / "quake.db"
-        quake_config = {"data": {"quake": str(quake_db_path)}}
-        quake_db = QuakeDatabase(quake_config)
+        quake_db_path = screenshot_config.data.quake
+        quake_db = QuakeDatabase(screenshot_config)
 
         # 地震: 2025-12-12 19:05:00 JST
         jst_earthquake = {

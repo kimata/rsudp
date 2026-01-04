@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+import rsudp.config
+
 # === 定数 ===
 CONFIG_FILE = "config.yaml"
 JST = zoneinfo.ZoneInfo("Asia/Tokyo")
@@ -48,13 +50,20 @@ def config(temp_dir):
     screenshot_dir = temp_dir / "screenshots"
     screenshot_dir.mkdir(parents=True, exist_ok=True)
 
-    return {
-        "plot": {"screenshot": {"path": str(screenshot_dir)}},
-        "data": {
-            "cache": str(temp_dir / "cache.db"),
-            "quake": str(temp_dir / "quake.db"),
-        },
-    }
+    return rsudp.config.Config(
+        plot=rsudp.config.PlotConfig(
+            screenshot=rsudp.config.ScreenshotConfig(path=screenshot_dir),
+        ),
+        data=rsudp.config.DataConfig(
+            cache=temp_dir / "cache.db",
+            quake=temp_dir / "quake.db",
+            selenium=temp_dir / "selenium",
+        ),
+        webapp=rsudp.config.WebappConfig(
+            static_dir_path=temp_dir / "static",
+        ),
+        base_dir=temp_dir,
+    )
 
 
 @pytest.fixture
@@ -63,10 +72,20 @@ def screenshot_config(temp_dir):
     screenshot_dir = temp_dir / "screenshots"
     screenshot_dir.mkdir(parents=True, exist_ok=True)
 
-    return {
-        "plot": {"screenshot": {"path": str(screenshot_dir)}},
-        "data": {"cache": str(temp_dir / "cache.db")},
-    }
+    return rsudp.config.Config(
+        plot=rsudp.config.PlotConfig(
+            screenshot=rsudp.config.ScreenshotConfig(path=screenshot_dir),
+        ),
+        data=rsudp.config.DataConfig(
+            cache=temp_dir / "cache.db",
+            quake=temp_dir / "quake.db",
+            selenium=temp_dir / "selenium",
+        ),
+        webapp=rsudp.config.WebappConfig(
+            static_dir_path=temp_dir / "static",
+        ),
+        base_dir=temp_dir,
+    )
 
 
 # === データベースフィクスチャ ===
@@ -93,6 +112,26 @@ def quake_db(temp_dir):
         """)
 
     return db_path
+
+
+# === データベーステスト用フィクスチャ ===
+@pytest.fixture
+def quake_db_config(temp_dir):
+    """地震データベーステスト用の最小設定を提供するフィクスチャ."""
+    return rsudp.config.Config(
+        plot=rsudp.config.PlotConfig(
+            screenshot=rsudp.config.ScreenshotConfig(path=temp_dir / "screenshots"),
+        ),
+        data=rsudp.config.DataConfig(
+            cache=temp_dir / "cache.db",
+            quake=temp_dir / "test.db",
+            selenium=temp_dir / "selenium",
+        ),
+        webapp=rsudp.config.WebappConfig(
+            static_dir_path=temp_dir / "static",
+        ),
+        base_dir=temp_dir,
+    )
 
 
 # === サンプルデータフィクスチャ ===

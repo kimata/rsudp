@@ -16,15 +16,17 @@ from pathlib import Path
 
 from PIL import Image
 
+import rsudp.config
+
 
 class ScreenshotManager:
     """スクリーンショットファイルの管理とメタデータキャッシュを行うクラス."""
 
-    def __init__(self, config: dict):
+    def __init__(self, config: rsudp.config.Config):
         """設定を使用して ScreenshotManager を初期化する."""
         self.config = config
-        self.screenshot_path = Path(config["plot"]["screenshot"]["path"])
-        self.cache_path = Path(config.get("data", {}).get("cache", "data/cache.db"))
+        self.screenshot_path = config.plot.screenshot.path
+        self.cache_path = config.data.cache
 
         # キャッシュディレクトリを作成
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)

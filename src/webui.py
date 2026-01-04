@@ -24,6 +24,8 @@ import my_lib.config
 import my_lib.logger
 import my_lib.proc_util
 
+import rsudp.config
+
 SCHEMA_CONFIG = "schema/config.schema"
 
 # 地震データクローラーのデフォルト設定
@@ -34,7 +36,7 @@ _quake_crawler_stop_event = threading.Event()
 _quake_crawler_thread = None
 
 
-def start_quake_crawler(config: dict, interval: int = QUAKE_CRAWL_INTERVAL):
+def start_quake_crawler(config: rsudp.config.Config, interval: int = QUAKE_CRAWL_INTERVAL):
     """地震データクローラーをバックグラウンドで開始する"""
     global _quake_crawler_thread
 
@@ -113,14 +115,16 @@ def sig_handler(num, frame):
         term()
 
 
-def create_app(config):
+def create_app(config: rsudp.config.Config):
     # NOTE: アクセスログは無効にする
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
     import my_lib.webapp.config
 
     my_lib.webapp.config.URL_PREFIX = "/rsudp"
-    my_lib.webapp.config.init(my_lib.webapp.config.WebappConfig.from_dict(config["webapp"]))
+    my_lib.webapp.config.init(
+        my_lib.webapp.config.WebappConfig(static_dir_path=config.webapp.static_dir_path)
+    )
 
     import my_lib.webapp.base
     import my_lib.webapp.util
@@ -157,9 +161,10 @@ if __name__ == "__main__":
     port = args["-p"]
     debug_mode = args["-D"]
 
-    my_lib.logger.init("modes-sensing", level=logging.DEBUG if debug_mode else logging.INFO)
+    my_lib.logger.init("rsudp", level=logging.DEBUG if debug_mode else logging.INFO)
 
-    config = my_lib.config.load(config_file, pathlib.Path(SCHEMA_CONFIG))
+    config_dict = my_lib.config.load(config_file, pathlib.Path(SCHEMA_CONFIG))
+    config = rsudp.config.load_from_dict(config_dict, pathlib.Path.cwd())
 
     app = create_app(config)
 

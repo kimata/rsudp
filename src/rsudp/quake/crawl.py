@@ -15,6 +15,7 @@ from datetime import datetime
 
 import requests
 
+import rsudp.config
 from rsudp.quake.database import QuakeDatabase
 
 # JMA API endpoints
@@ -91,7 +92,7 @@ def _parse_origin_time(origin_time_str: str) -> datetime:
 class QuakeCrawler:
     """Crawls earthquake information from JMA."""
 
-    def __init__(self, config: dict):
+    def __init__(self, config: rsudp.config.Config):
         """Initialize the crawler with configuration."""
         self.config = config
         self.db = QuakeDatabase(config)
@@ -213,7 +214,7 @@ class QuakeCrawler:
         return new_earthquakes
 
 
-def crawl_earthquakes(config: dict, min_intensity: int = 3) -> list[dict]:
+def crawl_earthquakes(config: rsudp.config.Config, min_intensity: int = 3) -> list[dict]:
     """
     Crawl and store earthquakes from JMA.
 
@@ -245,7 +246,8 @@ if __name__ == "__main__":
 
     my_lib.logger.init("test", level=logging.INFO)
 
-    config = my_lib.config.load(args["-c"], SCHEMA_CONFIG)
+    config_dict = my_lib.config.load(args["-c"], SCHEMA_CONFIG)
+    config = rsudp.config.load_from_dict(config_dict, pathlib.Path.cwd())
 
     try:
         logging.info("地震情報の収集を開始します")

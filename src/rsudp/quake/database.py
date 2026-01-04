@@ -11,6 +11,8 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import rsudp.config
+
 # スキーマファイルのパス（プロジェクトルートからの相対パス）
 SCHEMA_FILE = Path(__file__).parent.parent.parent.parent / "schema" / "sqlite.schema"
 
@@ -18,10 +20,10 @@ SCHEMA_FILE = Path(__file__).parent.parent.parent.parent / "schema" / "sqlite.sc
 class QuakeDatabase:
     """地震データの SQLite ストレージを管理するクラス."""
 
-    def __init__(self, config: dict):
+    def __init__(self, config: rsudp.config.Config):
         """設定を使用してデータベースを初期化する."""
         self.config = config
-        self.db_path = Path(config.get("data", {}).get("quake", "data/quake.db"))
+        self.db_path = config.data.quake
 
         # ディレクトリを作成
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

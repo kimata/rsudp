@@ -8,7 +8,6 @@ Flask アプリケーションの統合テストを実行します。
 import sqlite3
 import zoneinfo
 from datetime import datetime
-from pathlib import Path
 
 from rsudp.quake.database import QuakeDatabase
 from rsudp.screenshot_manager import ScreenshotManager
@@ -82,7 +81,7 @@ class TestScreenshotAndEarthquakeIntegration:
             )
 
         # 地震フィルタでスクリーンショットを取得
-        quake_db_path = Path(config["data"]["quake"])
+        quake_db_path = config.data.quake
         result = manager.get_screenshots_with_earthquake_filter(quake_db_path=quake_db_path)
 
         # マッチすることを確認
@@ -192,7 +191,7 @@ class TestTimezoneIntegration:
         # UTC で検索（同じ瞬間）
         # 2025-12-13 04:05:00 JST = 2025-12-12 19:05:00 UTC
         screenshot_ts = "2025-12-12T19:05:00+00:00"
-        quake_db_path = Path(config["data"]["quake"])
+        quake_db_path = config.data.quake
 
         result = manager.get_earthquake_for_screenshot(screenshot_ts, quake_db_path)
 
@@ -218,7 +217,7 @@ class TestTimezoneIntegration:
 
         # UTC で 19:05（JST では翌日 04:05、つまり 9 時間後）
         screenshot_ts = "2025-12-12T19:05:00+00:00"
-        quake_db_path = Path(config["data"]["quake"])
+        quake_db_path = config.data.quake
 
         result = manager.get_earthquake_for_screenshot(screenshot_ts, quake_db_path)
 
