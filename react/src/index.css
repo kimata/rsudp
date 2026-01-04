@@ -86,3 +86,8 @@ button:focus-visible {
 .skeleton-box {
     animation: pulse 1.5s ease-in-out infinite;
 }
+
+/* ヘッダタイトルのホバー効果を無効化 */
+.navbar-brand > a.navbar-item:hover {
+    background-color: transparent !important;
+}
