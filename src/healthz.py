@@ -21,8 +21,34 @@ import my_lib.notify.slack
 import rsudp.config
 
 LIVENESS_FILE = pathlib.Path("/dev/shm/rsudp.liveness")  # noqa: S108
+RSUDP_LOG_FILE = pathlib.Path("/tmp/rsudp/rsudp.log")  # noqa: S108
 LIVENESS_INTERVAL = 60
 CONTAINER_STARTUP_GRACE_PERIOD = 60  # コンテナ起動後の猶予期間（秒）
+LOG_TAIL_LINES = 50  # エラー通知に含めるログの行数
+
+
+def get_recent_logs(lines: int = LOG_TAIL_LINES) -> str:
+    """
+    rsudp のログファイルから最新の指定行数を取得する.
+
+    Args:
+        lines: 取得する行数
+
+    Returns:
+        ログの内容。ファイルが存在しない場合は空文字列。
+
+    """
+    if not RSUDP_LOG_FILE.exists():
+        return "(log file not found)"
+
+    try:
+        with RSUDP_LOG_FILE.open(encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+            recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            return "".join(recent_lines)
+    except Exception:
+        logging.exception("Failed to read log file")
+        return "(failed to read log file)"
 
 
 def check_liveness() -> bool:
@@ -50,10 +76,14 @@ def check_liveness() -> bool:
 
 def notify_error(config: rsudp.config.Config, message: str) -> None:
     """Slack でエラー通知を送信する."""
+    # ログの最新部分を取得してメッセージに追加
+    recent_logs = get_recent_logs()
+    full_message = f"{message}\n\n*Recent logs:*\n```\n{recent_logs}\n```"
+
     my_lib.notify.slack.error(
         config.slack,
         "rsudp Liveness Check Failed",
-        message,
+        full_message,
     )
 
 
