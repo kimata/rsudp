@@ -161,7 +161,7 @@ test-webui:
         # webui を起動（/opt/rsudp/webui から実行、ログをファイルに出力）
         - >
             docker exec --detach --workdir /opt/rsudp/webui ${CI_JOB_NAME}-${CI_JOB_ID}
-            sh -c "rsudp-webui > /tmp/flask.log 2>&1"
+            sh -c ".venv/bin/rsudp-webui > /tmp/flask.log 2>&1"
 
         - uv run playwright install --with-deps chromium
 
