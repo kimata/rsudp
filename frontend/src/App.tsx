@@ -108,11 +108,12 @@ const App: React.FC = () => {
     const userChangedSignal = useRef(initialUrlParams.current.signal !== null);
 
     // クライアント側で振幅フィルタを適用（APIリクエスト不要）
+    // max_count が null の場合はフィルタを通過させる（メタデータ未取得のため）
     const signalFilteredScreenshots = useMemo(() => {
         if (minMaxSignalThreshold === undefined) {
             return allScreenshots;
         }
-        return allScreenshots.filter((s) => s.max_count >= minMaxSignalThreshold);
+        return allScreenshots.filter((s) => s.max_count === null || s.max_count >= minMaxSignalThreshold);
     }, [allScreenshots, minMaxSignalThreshold]);
 
     // クライアント側で年リストを計算
