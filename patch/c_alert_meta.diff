@@ -1,0 +1,37 @@
+--- a/rsudp/c_alert.py	2026-01-06 00:38:39.158814500 +0900
++++ b/rsudp/c_alert.py	2026-01-06 00:35:24.293308791 +0900
+@@ -300,6 +300,34 @@
+ 																			 trigger_onset(self.stalta, self.thresh,
+ 																						   self.reset)[-1][0] *
+ 																			 self.stream[0].stats.delta))
++
++		# Get the actual trigger point index from trigger_onset
++		trigger_index = int(trigger_onset(self.stalta, self.thresh, self.reset)[-1][0])
++		data_len = len(self.stream[0].data)
++
++		# Get STA/LTA ratio directly from the pre-calculated array
++		if 0 <= trigger_index < len(self.stalta):
++			sta_lta_ratio = self.stalta[trigger_index]
++			# Use ratio and a reference value to reconstruct approximate values
++			lta_samples = int(self.lta * self.sps)
++			lta_start = max(0, trigger_index - lta_samples)
++			lta_data = self.stream[0].data[lta_start:trigger_index]
++			lta_val = np.sqrt(np.mean(lta_data**2)) if len(lta_data) > 0 else 1.0
++			sta_val = lta_val * sta_lta_ratio
++			self.trigger_sta_val = sta_val
++			self.trigger_lta_val = lta_val
++
++			# Calculate max count value for EHZ channel at trigger time
++			sta_window = int(self.sta * self.sps)
++			window_start = max(0, trigger_index - sta_window)
++			window_end = min(data_len, trigger_index + sta_window)
++			window_data = self.stream[0].data[window_start:window_end]
++			self.trigger_max_count = int(np.max(np.abs(window_data))) if len(window_data) > 0 else 0
++		else:
++			self.trigger_sta_val = None
++			self.trigger_lta_val = None
++			self.trigger_max_count = None
++
+ 		print()
+ 		printM('Trigger threshold of %s exceeded at %s'
+ 			   % (self.thresh, self.alarm.strftime('%Y-%m-%d %H:%M:%S.%f')[:22]), self.sender)

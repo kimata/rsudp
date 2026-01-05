@@ -1,0 +1,22 @@
+--- a/rsudp/p_producer.py	2026-01-06 00:38:39.187814581 +0900
++++ b/rsudp/p_producer.py	2026-01-06 00:36:25.466457423 +0900
+@@ -64,9 +64,18 @@
+ 			# for each thread here
+ 			if thread.alarm:
+ 				# if there is an alarm in a sub thread, send the ALARM message to the queues
+-				self.queue.put(helpers.msg_alarm(thread.alarm))
++				# Include STA/LTA values and max_count if available from the alert thread
++				sta_val = getattr(thread, 'trigger_sta_val', None)
++				lta_val = getattr(thread, 'trigger_lta_val', None)
++				max_count = getattr(thread, 'trigger_max_count', None)
++				self.queue.put(helpers.msg_alarm(thread.alarm, sta_val, lta_val, max_count))
+ 				printM('%s thread has indicated alarm state, sending ALARM message to queues'
+ 						% thread.sender, sender=self.sender)
++				if sta_val is not None and lta_val is not None:
++					printM('Including STA/LTA values: STA=%.6f, LTA=%.6f'
++							% (sta_val, lta_val), sender=self.sender)
++				if max_count is not None:
++					printM('Including EHZ max count: %d' % max_count, sender=self.sender)
+ 				# now re-arm the trigger
+ 				thread.alarm = False
+ 			if thread.alarm_reset:
