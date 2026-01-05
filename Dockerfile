@@ -43,17 +43,18 @@ RUN bash rsudp/unix-install-rsudp.sh
 
 COPY --chown=ubuntu:ubuntu patch/ patch/
 
-# rsudp のソースファイルを CRLF から LF に変換してからパッチを適用
+# rsudp のソースファイルを CRLF から LF に変換してからパッチを適用し、再インストール
+# NOTE: パッチ適用と再インストールを同じ RUN で行うことで、パッチ変更時に確実に再インストールされる
 RUN cd rsudp && \
     find . -name '*.py' -exec sed -i 's/\r$//' {} \; && \
     for patch_file in ../patch/*.diff; do \
+        echo "Applying patch: $patch_file"; \
         patch -p1 < "$patch_file"; \
     done && \
-    rm -rf ../patch
-
-# パッチ適用後に rsudp を再インストール（c_liveness.py 等のパッチで追加されたファイルを含める）
-# build/ ディレクトリを削除してキャッシュされた古いファイルを使わないようにする
-RUN rm -rf rsudp/build rsudp/*.egg-info && bash rsudp/unix-install-rsudp.sh
+    rm -rf ../patch && \
+    cd .. && \
+    rm -rf rsudp/build rsudp/*.egg-info && \
+    bash rsudp/unix-install-rsudp.sh
 
 # /opt/rsudp/__init__.py を削除（カレントディレクトリがパッケージとして認識されるのを防ぐ）
 RUN rm -f rsudp/__init__.py
