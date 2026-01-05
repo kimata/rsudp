@@ -17,7 +17,7 @@ class TestCreateApp:
         """_create_app が Flask アプリケーションを返す"""
         import flask
 
-        import webui
+        from rsudp.cli import webui
 
         app = webui._create_app(config)
 
@@ -25,7 +25,7 @@ class TestCreateApp:
 
     def test_create_app_has_config(self, config):
         """_create_app が config を設定する"""
-        import webui
+        from rsudp.cli import webui
 
         app = webui._create_app(config)
 
@@ -34,7 +34,7 @@ class TestCreateApp:
 
     def test_create_app_cors_enabled(self, config):
         """_create_app が CORS を有効にする"""
-        import webui
+        from rsudp.cli import webui
 
         app = webui._create_app(config)
 
@@ -46,7 +46,7 @@ class TestTerm:
 
     def test_term_kills_child_and_exits(self):
         """_term が子プロセスを終了してシステム終了する"""
-        import webui
+        from rsudp.cli import webui
 
         with (
             unittest.mock.patch("my_lib.proc_util.kill_child") as mock_kill,
@@ -64,7 +64,7 @@ class TestSigHandler:
 
     def test_sig_handler_sigterm(self):
         """SIGTERM で _term が呼ばれる"""
-        import webui
+        from rsudp.cli import webui
 
         with (
             unittest.mock.patch("my_lib.proc_util.kill_child"),
@@ -75,7 +75,7 @@ class TestSigHandler:
 
     def test_sig_handler_sigint(self):
         """SIGINT で _term が呼ばれる"""
-        import webui
+        from rsudp.cli import webui
 
         with (
             unittest.mock.patch("my_lib.proc_util.kill_child"),
@@ -86,7 +86,7 @@ class TestSigHandler:
 
     def test_sig_handler_other_signal(self):
         """他のシグナルでは _term が呼ばれない"""
-        import webui
+        from rsudp.cli import webui
 
         # SIGUSR1 などでは何も起きない
         webui._sig_handler(signal.SIGUSR1, None)
@@ -98,7 +98,7 @@ class TestQuakeCrawler:
 
     def test_start_quake_crawler(self, config):
         """地震クローラーの開始"""
-        import webui
+        from rsudp.cli import webui
 
         with unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]):
             webui._start_quake_crawler(config, interval=1)
@@ -112,7 +112,7 @@ class TestQuakeCrawler:
 
     def test_stop_quake_crawler_not_running(self):
         """実行していないクローラーの停止"""
-        import webui
+        from rsudp.cli import webui
 
         webui._quake_crawler_thread = None
         # エラーなく完了
@@ -120,7 +120,7 @@ class TestQuakeCrawler:
 
     def test_stop_quake_crawler_running(self, config):
         """実行中のクローラーの停止"""
-        import webui
+        from rsudp.cli import webui
 
         with unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]):
             webui._start_quake_crawler(config, interval=1)
@@ -134,7 +134,7 @@ class TestQuakeCrawler:
 
     def test_crawler_loop_with_new_earthquakes(self, config):
         """新しい地震データがある場合のクローラー"""
-        import webui
+        from rsudp.cli import webui
 
         new_earthquakes = [
             {
@@ -160,7 +160,7 @@ class TestQuakeCrawler:
 
     def test_crawler_loop_exception_handling(self, config):
         """クローラーループの例外処理"""
-        import webui
+        from rsudp.cli import webui
 
         with unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", side_effect=Exception("Test error")):
             webui._start_quake_crawler(config, interval=1)

@@ -299,7 +299,7 @@ class TestCleanEndpoint:
         """dry-run モードでのクリーン"""
         import unittest.mock
 
-        with unittest.mock.patch("cleaner.get_screenshots_to_clean", return_value=[]):
+        with unittest.mock.patch("rsudp.cli.cleaner.get_screenshots_to_clean", return_value=[]):
             response = flask_client.post(
                 "/rsudp/api/screenshot/clean/",
                 json={"dry_run": True},
@@ -315,8 +315,8 @@ class TestCleanEndpoint:
         import unittest.mock
 
         with (
-            unittest.mock.patch("cleaner.get_screenshots_to_clean", return_value=[]),
-            unittest.mock.patch("cleaner.delete_screenshots", return_value=0),
+            unittest.mock.patch("rsudp.cli.cleaner.get_screenshots_to_clean", return_value=[]),
+            unittest.mock.patch("rsudp.cli.cleaner.delete_screenshots", return_value=0),
         ):
             response = flask_client.post(
                 "/rsudp/api/screenshot/clean/",

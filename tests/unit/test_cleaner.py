@@ -7,7 +7,7 @@ cleaner.py のテスト
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
-import cleaner
+from rsudp.cli import cleaner
 
 
 class TestGetScreenshotsToClean:

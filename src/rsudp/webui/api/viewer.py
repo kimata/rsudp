@@ -560,7 +560,7 @@ def clean_screenshots():
     - dry_run: True の場合、実際には削除しない (default: False)
     """
     try:
-        import cleaner
+        from rsudp.cli import cleaner
 
         config = _get_config()
 

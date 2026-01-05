@@ -77,10 +77,13 @@ uv lock && uv sync
 
 ```bash
 # Web UI サーバー起動
-uv run python src/webui.py
+uv run rsudp-webui
 
-# 地震情報クローラー単体実行
-uv run python src/rsudp/quake/crawl.py
+# ヘルスチェック
+uv run rsudp-healthz
+
+# スクリーンショットクリーナー
+uv run rsudp-cleaner
 
 # rsudp 本体（Docker 内で実行）
 bash rsudp/unix-start-rsudp.sh
@@ -89,7 +92,7 @@ bash rsudp/unix-start-rsudp.sh
 ### React フロントエンド
 
 ```bash
-cd react
+cd frontend
 npm install          # 依存関係インストール
 npm run dev          # 開発サーバー起動
 npm run build        # プロダクションビルド
@@ -110,33 +113,36 @@ uv run pyright            # 型チェック
 
 ```
 src/
-├── webui.py                    # Flask Web サーバーのエントリーポイント
 └── rsudp/
-    ├── screenshot_manager.py   # スクリーンショット管理・メタデータキャッシュ
+    ├── cli/                        # CLI エントリーポイント群
+    │   ├── webui.py                # Web UI サーバー（rsudp-webui）
+    │   ├── healthz.py              # Liveness チェック（rsudp-healthz）
+    │   └── cleaner.py              # スクリーンショットクリーナー（rsudp-cleaner）
+    ├── screenshot_manager.py       # スクリーンショット管理・メタデータキャッシュ
     ├── quake/
-    │   ├── crawl.py            # 気象庁 API クローラー
-    │   └── database.py         # 地震データベース管理
+    │   ├── crawl.py                # 気象庁 API クローラー
+    │   └── database.py             # 地震データベース管理
     └── webui/
         └── api/
-            └── viewer.py       # REST API エンドポイント
+            └── viewer.py           # REST API エンドポイント
 
-react/                          # React フロントエンド
+frontend/                           # React フロントエンド
 ├── src/
-│   ├── App.tsx                 # メインコンポーネント
-│   ├── api.ts                  # API クライアント
-│   ├── types.ts                # TypeScript 型定義
-│   └── components/             # UI コンポーネント
-└── dist/                       # ビルド出力
+│   ├── App.tsx                     # メインコンポーネント
+│   ├── api.ts                      # API クライアント
+│   ├── types.ts                    # TypeScript 型定義
+│   └── components/                 # UI コンポーネント
+└── dist/                           # ビルド出力
 
 schema/
-├── config.schema               # 設定ファイルの JSON Schema
-└── sqlite.schema               # SQLite データベーススキーマ
+├── config.schema                   # 設定ファイルの JSON Schema
+└── sqlite.schema                   # SQLite データベーススキーマ
 
-patch/                          # rsudp へのパッチファイル
-data/                           # ランタイムデータ
-├── screenshots/                # スクリーンショット格納
-├── cache.db                    # メタデータキャッシュ
-└── quake.db                    # 地震データベース
+patch/                              # rsudp へのパッチファイル
+data/                               # ランタイムデータ
+├── screenshots/                    # スクリーンショット格納
+├── cache.db                        # メタデータキャッシュ
+└── quake.db                        # 地震データベース
 ```
 
 ### コアコンポーネント
@@ -205,7 +211,7 @@ data:
     selenium: ./data # その他データディレクトリ
 
 webapp:
-    static_dir_path: react/dist # React ビルド出力パス
+    static_dir_path: frontend/dist # React ビルド出力パス
 ```
 
 ### SQLite スキーマ (`schema/sqlite.schema`)

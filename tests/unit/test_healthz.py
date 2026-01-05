@@ -7,7 +7,7 @@ healthz.py のテスト
 import time
 import unittest.mock
 
-import healthz
+from rsudp.cli import healthz
 
 
 class TestGetRecentLogs:

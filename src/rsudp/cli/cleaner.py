@@ -6,7 +6,7 @@
 地震がないスクリーンショットを削除します。
 
 Usage:
-  cleaner.py [-c CONFIG] [-n] [-D] [--min-count=COUNT] [--time-window=MINUTES] [--min-mag=MAG]
+  rsudp-cleaner [-c CONFIG] [-n] [-D] [--min-count=COUNT] [--time-window=MINUTES] [--min-mag=MAG]
 
 Options:
   -c CONFIG               : 設定ファイルを指定します。[default: config.yaml]
@@ -271,8 +271,8 @@ def _run_cleaner(
     return deleted_count
 
 
-######################################################################
-if __name__ == "__main__":
+def main() -> None:
+    """Console script entry point."""
     import docopt
 
     assert __doc__ is not None  # noqa: S101 - type narrowing for pyright
@@ -297,3 +297,7 @@ if __name__ == "__main__":
         time_window_minutes=time_window_minutes,
         min_magnitude=min_magnitude,
     )
+
+
+if __name__ == "__main__":
+    main()

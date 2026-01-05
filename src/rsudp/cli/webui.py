@@ -3,7 +3,7 @@
 rsudp のプロットデータを表示する Web UI サーバです。
 
 Usage:
-  webui.py [-c CONFIG] [-p PORT] [-D]
+  rsudp-webui [-c CONFIG] [-p PORT] [-D]
 
 Options:
   -c CONFIG         : 通常モードで使う設定ファイルを指定します。[default: config.yaml]
@@ -165,7 +165,8 @@ def _create_app(config: rsudp.config.Config):
     return app
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console script entry point."""
     import atexit
     import contextlib
 
@@ -237,3 +238,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logging.info("Received KeyboardInterrupt, shutting down...")
         enhanced_sig_handler(signal.SIGINT, None)
+
+
+if __name__ == "__main__":
+    main()

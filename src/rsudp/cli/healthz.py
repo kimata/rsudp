@@ -3,7 +3,7 @@
 rsudp の Liveness チェックを行います
 
 Usage:
-  healthz.py [-c CONFIG] [-D]
+  rsudp-healthz [-c CONFIG] [-D]
 
 Options:
   -c CONFIG         : CONFIG を設定ファイルとして読み込んで実行します。[default: config.yaml]
@@ -92,7 +92,8 @@ def _notify_error(config: rsudp.config.Config, message: str) -> None:
     )
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console script entry point."""
     import docopt
     import my_lib.config
     import my_lib.logger
@@ -124,3 +125,7 @@ if __name__ == "__main__":
             logging.info("Within startup grace period (%.1f sec), skipping notification.", uptime)
 
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
