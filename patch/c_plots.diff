@@ -1,5 +1,5 @@
---- a/rsudp/c_plots.py	2026-01-06 00:38:39.210814646 +0900
-+++ b/rsudp/c_plots.py	2026-01-06 00:38:19.081758360 +0900
+--- a/rsudp/c_plots.py	2026-01-06 01:03:32.600049363 +0900
++++ b/rsudp/c_plots.py	2026-01-06 01:08:59.951667273 +0900
 @@ -3,7 +3,7 @@
  import time
  import math
@@ -9,7 +9,7 @@
  from obspy.signal.trigger import recursive_sta_lta, trigger_onset
  import rsudp.raspberryshake as rs
  from rsudp import printM, printW, printE, get_scap_dir, helpers
-@@ -16,27 +16,47 @@
+@@ -16,21 +16,29 @@
  PhotoImage = False
  try:
      from matplotlib import use
@@ -48,39 +48,11 @@
 +                )
 +                printE('Please make sure either PyQt5 or Tkinter is installed.', sender, spaces=True)
 +                printE('detail: %s' % e, sender, spaces=True)
-+                raise ImportError(
-+                    'Could not import either Qt or Tk, and the plot module requires at least one of them to run'
-+                )
-+
++                raise ImportError('Could not import either Qt or Tk, and the plot module requires at least one of them to run')
      import matplotlib.pyplot as plt
      import matplotlib.dates as mdates
      import matplotlib.image as mpimg
-     from matplotlib import rcParams
--    from matplotlib.ticker import EngFormatter
-+    from matplotlib.ticker import EngFormatter, FuncFormatter
-+    import matplotlib.font_manager as fm
-+
-+    # Configure matplotlib settings
-     rcParams['toolbar'] = 'None'
-+
-+    # Set default font to Frutiger Neue LT W1G Medium
-+    plt.rcParams['font.family'] = 'sans-serif'
-+    plt.rcParams['font.sans-serif'] = ['Frutiger Neue LT W1G', 'DejaVu Sans', 'Arial', 'sans-serif']
-+    plt.rcParams['font.size'] = 10
-+
-     plt.ion()
-     MPL = True
-
-@@ -170,7 +190,7 @@
-             h = evt.height
-         else:
-             h = self.fig.get_size_inches()[1] * self.fig.dpi
--        plt.tight_layout(pad=0, h_pad=0.1, w_pad=0, rect=[0.02, 0.01, 0.98, 0.90 + 0.045 * (h / 1080)])  # [left, bottom, right, top]
-+        plt.tight_layout(pad=0, h_pad=0.1, w_pad=0, rect=[0.02, 0.01, 0.98, 0.95 + 0.015 * (h / 1080)])  # [left, bottom, right, top]
-
-     def deconvolve(self):
-         '''
-@@ -178,13 +198,16 @@
+@@ -178,13 +186,16 @@
          '''
          helpers.deconvolve(self)
 
@@ -98,7 +70,7 @@
          '''
          with self.screenshot_lock:
              scap_dir = get_scap_dir()  # Get screenshot directory
-@@ -192,8 +215,22 @@
+@@ -192,8 +203,22 @@
              elapsed = rs.UTCDateTime.now() - event_time
              if int(elapsed) > 0:
                  printM(f'Saving png {int(elapsed)} seconds after alarm', sender=self.sender)
@@ -122,16 +94,7 @@
              except Exception as e:
                  printE(f'Error saving png image: {e}', sender=self.sender)
                  return
-@@ -215,7 +252,7 @@
-         '''
-         Sets the figure title back to something that makes sense for the live viewer.
-         '''
--        self.fig.suptitle(f'Raspberry Shake {self.stn} Live Data - Detected Events: {events}', fontsize=14, color=self.fgcolor, x=0.52)
-+        self.fig.suptitle(f'Raspberry Shake {self.stn} Live Data - Detected Events: {events}', fontsize=18, color=self.fgcolor, x=0.52, y=0.99)
-
-     def setup_fig_manager(self):
-         '''
-@@ -376,23 +413,31 @@
+@@ -376,23 +401,31 @@
          self.spectrogram = spectrogram
          printM('Starting.', self.sender)
 
@@ -169,89 +132,7 @@
 
          # reset the title
          self.set_fig_title(self.events)
-@@ -401,7 +446,7 @@
-         '''
-         Initialize plot elements and calculate parameters.
-         '''
--        self.fig = plt.figure(self.figure_num, figsize=(11, 3 * self.num_chans))
-+        self.fig = plt.figure(self.figure_num, figsize=(11, 6 * self.num_chans))
-         self.fig.canvas.mpl_connect('close_event', self.handle_close)
-         self.fig.canvas.mpl_connect('resize_event', self.handle_resize)
-
-@@ -411,7 +456,7 @@
-         self.fig.patch.set_facecolor(self.bgcolor)  # background color
-         self.fig.suptitle('Raspberry Shake %s Live Data%s'  # title
-                           % (self.stn, self.event_text),
--                          fontsize=14, color=self.fgcolor, x=0.52)
-+                          fontsize=18, color=self.fgcolor, x=0.52, y=0.99)
-         self.ax, self.lines = [], []  # list for subplot axes and lines artists
-         self.mult = 1  # spectrogram selection multiplier
-         if self.spectrogram:
-@@ -434,7 +479,12 @@
-                                                 1, 1, label=str(1)))
-             self.ax[0].set_facecolor(self.bgcolor)
-             self.ax[0].tick_params(colors=self.fgcolor, labelcolor=self.fgcolor)
--            self.ax[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
-+            # JST formatter
-+            def jst_formatter(x, pos=None):
-+                jst_tz = timezone(timedelta(hours=9))
-+                dt = mdates.num2date(x, tz=timezone.utc).astimezone(jst_tz)
-+                return dt.strftime('%H:%M:%S')
-+            self.ax[0].xaxis.set_major_formatter(FuncFormatter(jst_formatter))
-             self.ax[0].yaxis.set_major_formatter(EngFormatter(unit='%s' % self.unit.lower()))
-             if self.spectrogram:
-                 self.ax.append(self.fig.add_subplot(self.num_chans * self.mult,
-@@ -449,7 +499,12 @@
-                                                 1, s + 1, sharex=self.ax[0], label=str(s + 1)))
-             self.ax[s].set_facecolor(self.bgcolor)
-             self.ax[s].tick_params(colors=self.fgcolor, labelcolor=self.fgcolor)
--            self.ax[s].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
-+            # JST formatter
-+            def jst_formatter(x, pos=None):
-+                jst_tz = timezone(timedelta(hours=9))
-+                dt = mdates.num2date(x, tz=timezone.utc).astimezone(jst_tz)
-+                return dt.strftime('%H:%M:%S')
-+            self.ax[s].xaxis.set_major_formatter(FuncFormatter(jst_formatter))
-             self.ax[s].yaxis.set_major_formatter(EngFormatter(unit='%s' % self.unit.lower()))
-             if self.spectrogram:
-                 # add a spectrogram and set colors
-@@ -468,7 +523,7 @@
-         end = np.datetime64(self.stream[0].stats.endtime)  # numpy time
-
-         im = mpimg.imread(pr.resource_filename('rsudp', os.path.join('img', 'version1-01-small.png')))
--        self.imax = self.fig.add_axes([0.015, 0.944, 0.2, 0.056], anchor='NW')  # [left, bottom, right, top]
-+        self.imax = self.fig.add_axes([0.015, 0.938, 0.195, 0.0585], anchor='NW')  # [left, bottom, right, top]
-         self.imax.imshow(im, aspect='equal', interpolation='bilinear')
-         self.imax.axis('off')
-         # set up axes and artists
-@@ -553,6 +608,8 @@
-         '''
-         Set RS plot icons.
-         '''
-+        if os.environ.get('DISPLAY') is None:
-+            return
-         mgr = plt.get_current_fig_manager()
-         ico = pr.resource_filename('rsudp', os.path.join('img', ICON))
-         if QT:
-@@ -653,7 +710,7 @@
-         self.ax[i * self.mult + 1].tick_params(axis='x', which='both',
-                                                bottom=False, top=False, labelbottom=False)
-         self.ax[i * self.mult + 1].set_ylabel('Frequency (Hz)', color=self.fgcolor)
--        self.ax[i * self.mult + 1].set_xlabel('Time (UTC)', color=self.fgcolor)
-+        self.ax[i * self.mult + 1].set_xlabel('Time (JST)', color=self.fgcolor)
-         # logarithmic y axis
-         if self.logarithmic_y_axis:
-             custom_ticks = [0.5, 1, 2, 3, 5, 10, 20, 30, 50]
-@@ -734,7 +791,7 @@
-                 self._update_specgram(i, mean)
-             else:
-                 # also can't be in the setup function
--                self.ax[i * self.mult].set_xlabel('Time (UTC)', color=self.fgcolor)
-+                self.ax[i * self.mult].set_xlabel('Time (JST)', color=self.fgcolor)
-
-     def getq(self, d):
-         '''
-@@ -757,18 +814,34 @@
+@@ -757,18 +790,34 @@
              self.save_timer -= 1  # don't push the save time forward if there are a large number of alarm events
              event = [self.save_timer + int(self.save_pct * self.pkts_in_period),
                       helpers.fsec(helpers.get_msg_time(d))]  # event = [save after count, datetime]
@@ -290,7 +171,7 @@
              self.fig.canvas.manager.set_window_title('(%s) %s - Raspberry Shake Monitor' % (self.events, self.stn))
 
          if rs.getCHN(d) in self.chans:
-@@ -850,7 +923,11 @@
+@@ -850,7 +899,11 @@
              ready = [e for e in self.save if now >= e['save_at']]
              self.save = [e for e in self.save if now < e['save_at']]  # keep only future ones
              for e in ready:

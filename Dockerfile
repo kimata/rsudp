@@ -45,11 +45,16 @@ COPY --chown=ubuntu:ubuntu patch/ patch/
 
 # rsudp のソースファイルを CRLF から LF に変換してからパッチを適用し、再インストール
 # NOTE: パッチ適用と再インストールを同じ RUN で行うことで、パッチ変更時に確実に再インストールされる
+# NOTE: set -e でパッチ適用エラー時にビルドを停止する
 RUN cd rsudp && \
     find . -name '*.py' -exec sed -i 's/\r$//' {} \; && \
+    set -e && \
     for patch_file in ../patch/*.diff; do \
         echo "Applying patch: $patch_file"; \
-        patch -p1 < "$patch_file"; \
+        if ! patch -p1 < "$patch_file"; then \
+            echo "ERROR: Failed to apply $patch_file"; \
+            exit 1; \
+        fi; \
     done && \
     rm -rf ../patch && \
     cd .. && \
