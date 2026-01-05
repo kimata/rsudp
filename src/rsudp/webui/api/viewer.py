@@ -1,5 +1,6 @@
 """Screenshot viewer API endpoints for rsudp web interface."""
 
+import functools
 import html
 import re
 import threading
@@ -8,7 +9,7 @@ from pathlib import Path
 
 import my_lib.flask_util
 import my_lib.webapp.config
-from flask import Blueprint, Response, current_app, jsonify, request, send_file
+from flask import Blueprint, Response, current_app, jsonify, make_response, request, send_file
 
 import rsudp.config
 from rsudp.quake.crawl import crawl_earthquakes
@@ -16,6 +17,28 @@ from rsudp.screenshot_manager import ScreenshotManager
 
 viewer_api = Blueprint("viewer_api", __name__, url_prefix="/rsudp")
 blueprint = viewer_api  # Alias for compatibility with webui.py
+
+
+def no_cache(func):
+    """動的 API レスポンスにキャッシュ無効化ヘッダーを追加するデコレータ."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        response = func(*args, **kwargs)
+        # jsonify の結果は Response オブジェクトまたはタプル
+        if isinstance(response, tuple):
+            # エラーレスポンス (response, status_code) の場合
+            resp = make_response(response[0])
+            resp.status_code = response[1]
+        else:
+            resp = make_response(response)
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
+    return wrapper
+
 
 # Global instance of ScreenshotManager
 _screenshot_manager: ScreenshotManager | None = None
@@ -131,6 +154,7 @@ def _format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = Non
 
 @viewer_api.route("/api/screenshot/", methods=["GET"])
 @my_lib.flask_util.gzipped
+@no_cache
 def list_screenshots():
     """
     List all screenshot files with parsed metadata.
@@ -178,6 +202,7 @@ def list_screenshots():
 
 
 @viewer_api.route("/api/screenshot/years/", methods=["GET"])
+@no_cache
 def list_years():
     """
     Get list of available years.
@@ -202,6 +227,7 @@ def list_years():
 
 
 @viewer_api.route("/api/screenshot/<int:year>/months/", methods=["GET"])
+@no_cache
 def list_months(year: int):
     """
     Get list of available months for a specific year.
@@ -226,6 +252,7 @@ def list_months(year: int):
 
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/days/", methods=["GET"])
+@no_cache
 def list_days(year: int, month: int):
     """
     Get list of available days for a specific year and month.
@@ -251,6 +278,7 @@ def list_days(year: int, month: int):
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/<int:day>/", methods=["GET"])
 @my_lib.flask_util.gzipped
+@no_cache
 def list_by_date(year: int, month: int, day: int):
     """
     Get screenshots for a specific date.
@@ -400,6 +428,7 @@ def get_ogp_image(filename: str):
 
 
 @viewer_api.route("/api/screenshot/latest/", methods=["GET"])
+@no_cache
 def get_latest():
     """
     Get the most recent screenshot.
@@ -444,6 +473,7 @@ def get_latest():
 
 
 @viewer_api.route("/api/screenshot/statistics/", methods=["GET"])
+@no_cache
 def get_statistics():
     """
     Get signal value statistics for screenshots.
@@ -486,6 +516,7 @@ def get_statistics():
 
 
 @viewer_api.route("/api/screenshot/scan/", methods=["POST"])
+@no_cache
 def scan_screenshots():
     """
     Scan for new screenshot files and update cache.
@@ -521,6 +552,7 @@ def scan_screenshots():
 
 
 @viewer_api.route("/api/earthquake/crawl/", methods=["POST"])
+@no_cache
 def crawl_earthquake_data():
     """Trigger earthquake data crawl from JMA."""
     try:
@@ -535,6 +567,7 @@ def crawl_earthquake_data():
 
 @viewer_api.route("/api/earthquake/list/", methods=["GET"])
 @my_lib.flask_util.gzipped
+@no_cache
 def list_earthquakes():
     """List all stored earthquakes."""
     try:
@@ -549,6 +582,7 @@ def list_earthquakes():
 
 
 @viewer_api.route("/api/screenshot/clean/", methods=["POST"])
+@no_cache
 def clean_screenshots():
     """
     地震に関連しない高振幅スクリーンショットを削除する.
