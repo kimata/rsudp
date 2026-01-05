@@ -8,4 +8,4 @@ data:
     selenium: ./data
 
 webapp:
-    static_dir_path: react/dist
+    static_dir_path: frontend/dist
