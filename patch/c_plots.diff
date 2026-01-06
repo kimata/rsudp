@@ -1,5 +1,5 @@
---- a/rsudp/c_plots.py	2026-01-06 01:03:32.600049363 +0900
-+++ b/rsudp/c_plots.py	2026-01-06 01:08:59.951667273 +0900
+--- original/rsudp/c_plots.py	2026-01-06 09:07:54.976230675 +0900
++++ modified/rsudp/c_plots.py	2026-01-06 09:07:44.421165808 +0900
 @@ -3,7 +3,7 @@
  import time
  import math
@@ -55,13 +55,13 @@
 @@ -178,13 +186,16 @@
          '''
          helpers.deconvolve(self)
-
+ 
 -    def savefig(self, event_time=rs.UTCDateTime.now(), event_time_str=rs.UTCDateTime.now().strftime('%Y-%m-%d-%H%M%S')):
 +    def savefig(self, event_time=rs.UTCDateTime.now(), event_time_str=rs.UTCDateTime.now().strftime('%Y-%m-%d-%H%M%S'), sta_val=None, lta_val=None, max_count=None):
          '''
          Saves the figure and puts an IMGPATH message on the master queue.
          This message can be used to upload the image to various services.
-
+ 
          :param obspy.core.utcdatetime.UTCDateTime event_time: Event time as an obspy UTCDateTime object. Defaults to ``UTCDateTime.now()``.
          :param str event_time_str: Event time as a string, in the format ``'%Y-%m-%d-%H%M%S'``. This is used to set the filename.
 +        :param float sta_val: STA value at trigger time. If provided, will be embedded in PNG metadata.
@@ -89,7 +89,7 @@
 +                    printM(f'Embedding EHZ max count: {max_count}', sender=self.sender)
 +
              try:
--                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none')
+-                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none')          
 +                plt.savefig(figname, facecolor=self.fig.get_facecolor(), edgecolor='none', metadata=metadata)
              except Exception as e:
                  printE(f'Error saving png image: {e}', sender=self.sender)
@@ -97,7 +97,7 @@
 @@ -376,23 +401,31 @@
          self.spectrogram = spectrogram
          printM('Starting.', self.sender)
-
+ 
 -    def _eventsave(self, event_time):
 +    def _eventsave(self, event_time, sta_val=None, lta_val=None, max_count=None):
          '''
@@ -118,18 +118,18 @@
 +        jst_tz = timezone(timedelta(hours=9))
 +        event_time_jst = event_time.datetime.replace(tzinfo=timezone.utc).astimezone(jst_tz)
 +        title_time_str = event_time_jst.strftime('%Y-%m-%d %H:%M:%S.%f')[:22]  # for title
-
+ 
          # temporarily set title for this event
 -        self.fig.suptitle(f'{self.stn} Detected Event - {title_time_str} UTC',
 -                        fontsize=14, color=self.fgcolor, x=0.52)
 +        self.fig.suptitle(f'{self.stn} Detected Event - {title_time_str} JST',
 +                        fontsize=18, color=self.fgcolor, x=0.52, y=0.99)
-
+ 
 -        # save the figure
 -        self.savefig(event_time=event_time, event_time_str=event_time_str)
 +        # save the figure with STA/LTA metadata
 +        self.savefig(event_time=event_time, event_time_str=event_time_str, sta_val=sta_val, lta_val=lta_val, max_count=max_count)
-
+ 
          # reset the title
          self.set_fig_title(self.events)
 @@ -757,18 +790,34 @@
@@ -169,7 +169,7 @@
 -                              fontsize=14, color=self.fgcolor, x=0.52)
 +                              fontsize=18, color=self.fgcolor, x=0.52, y=0.99)
              self.fig.canvas.manager.set_window_title('(%s) %s - Raspberry Shake Monitor' % (self.events, self.stn))
-
+ 
          if rs.getCHN(d) in self.chans:
 @@ -850,7 +899,11 @@
              ready = [e for e in self.save if now >= e['save_at']]
@@ -181,6 +181,6 @@
 +                lta_val = e.get('lta_val')
 +                max_count = e.get('max_count')
 +                self._eventsave(event_time=e['event_time'], sta_val=sta_val, lta_val=lta_val, max_count=max_count)
-
+         
          u = 0
          time.sleep(0.005)  # wait a ms to see if another packet will arrive

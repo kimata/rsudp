@@ -1,9 +1,9 @@
---- a/rsudp/helpers.py	2026-01-06 00:38:39.269814812 +0900
-+++ b/rsudp/helpers.py	2026-01-06 00:36:08.553415310 +0900
+--- original/rsudp/helpers.py	2026-01-06 09:07:55.029230999 +0900
++++ modified/rsudp/helpers.py	2026-01-06 09:04:57.057078433 +0900
 @@ -133,7 +133,7 @@
  			   sender=s, announce=False)
-
-
+ 
+ 
 -def msg_alarm(event_time):
 +def msg_alarm(event_time, sta_val=None, lta_val=None, max_count=None):
  	'''
@@ -12,7 +12,7 @@
 @@ -148,11 +148,23 @@
  		>>> msg_alarm(ti)
  		b'ALARM 2020-01-01T00:00:00.599Z'
-
+ 
 +		>>> msg_alarm(ti, 0.5, 0.25, 1234)
 +		b'ALARM 2020-01-01T00:00:00.599Z STA=0.500000 LTA=0.250000 COUNT=1234'
 +
@@ -31,13 +31,13 @@
 +	if max_count is not None:
 +		extra_info += b' COUNT=%d' % max_count
 +	return base_msg + extra_info
-
-
+ 
+ 
  def msg_reset(reset_time):
 @@ -266,6 +278,72 @@
  	return msg.decode('utf-8').split(' ')[2]
-
-
+ 
+ 
 +def get_msg_sta_lta(msg):
 +	'''
 +	This function extracts STA and LTA values from ``ALARM`` messages.

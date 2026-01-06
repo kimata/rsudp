@@ -1,5 +1,5 @@
---- a/rsudp/c_alert.py	2026-01-06 00:38:39.158814500 +0900
-+++ b/rsudp/c_alert.py	2026-01-06 00:35:24.293308791 +0900
+--- original/rsudp/c_alert.py	2026-01-06 09:07:54.927230374 +0900
++++ modified/rsudp/c_alert.py	2026-01-06 09:04:23.710846595 +0900
 @@ -300,6 +300,34 @@
  																			 trigger_onset(self.stalta, self.thresh,
  																						   self.reset)[-1][0] *
