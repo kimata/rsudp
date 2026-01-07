@@ -11,6 +11,7 @@ interface UseAutoRefreshReturn {
     isConnected: boolean;
     lastRefreshed: Date | null;
     connectionError: string | null;
+    manualRefresh: () => Promise<void>;
 }
 
 /**
@@ -146,9 +147,22 @@ export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshRe
         };
     }, [connect, disconnect, pauseWhenHidden, isPageVisible]);
 
+    // 手動更新（クリック時に呼び出す）
+    // - 未接続の場合は再接続を試みる
+    // - 更新を実行する
+    const manualRefresh = useCallback(async () => {
+        // 未接続の場合は再接続
+        if (!eventSourceRef.current) {
+            connect();
+        }
+        // 更新を実行
+        await executeRefresh();
+    }, [connect, executeRefresh]);
+
     return {
         isConnected,
         lastRefreshed,
         connectionError,
+        manualRefresh,
     };
 }

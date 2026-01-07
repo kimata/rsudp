@@ -469,10 +469,20 @@ const App: React.FC = () => {
     }, [loadInitialData]);
 
     // SSE による自動更新フック
-    const { isConnected, lastRefreshed, connectionError } = useAutoRefresh({
+    const { isConnected, lastRefreshed, connectionError, manualRefresh } = useAutoRefresh({
         onRefresh: handleRefresh,
         pauseWhenHidden: true,
     });
+
+    // ステータスタグクリック時のハンドラ
+    const handleStatusClick = useCallback(async () => {
+        setIsRefreshing(true);
+        try {
+            await manualRefresh();
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [manualRefresh]);
 
     // 最終更新時刻のフォーマット
     const formatLastRefreshed = (date: Date | null): string => {
@@ -611,30 +621,28 @@ const App: React.FC = () => {
                 {/* デスクトップ表示時 */}
                 <div className="navbar-end is-hidden-touch">
                     <div className="navbar-item">
-                        <button
-                            className="button is-light"
-                            onClick={handleRefresh}
-                            disabled={loading || isRefreshing}
-                        >
-                            <span className="icon">
-                                <i className={isRefreshing ? "fas fa-sync fa-spin" : "fas fa-sync"}></i>
-                            </span>
-                            <span>{isRefreshing ? "更新中..." : "更新"}</span>
-                        </button>
-                    </div>
-                    <div className="navbar-item">
                         <span
-                            className={`tag ${isConnected ? "is-success" : "is-warning"}`}
+                            className={`tag is-medium ${isConnected ? "is-success" : "is-warning"}`}
+                            style={{ cursor: "pointer" }}
+                            onClick={handleStatusClick}
                             title={
                                 isConnected
-                                    ? "サーバーと接続中（新しいデータがあれば自動更新）"
-                                    : connectionError || "サーバーに接続中..."
+                                    ? "クリックで更新（サーバーと接続中・新しいデータがあれば自動更新）"
+                                    : "クリックで再接続・更新"
                             }
                         >
                             <span className="icon is-small">
-                                <i className={isConnected ? "fas fa-wifi" : "fas fa-exclamation-triangle"}></i>
+                                <i
+                                    className={
+                                        isRefreshing
+                                            ? "fas fa-sync fa-spin"
+                                            : isConnected
+                                              ? "fas fa-wifi"
+                                              : "fas fa-exclamation-triangle"
+                                    }
+                                ></i>
                             </span>
-                            <span>{isConnected ? "自動更新" : "未接続"}</span>
+                            <span>{isRefreshing ? "更新中" : isConnected ? "自動更新" : "未接続"}</span>
                         </span>
                     </div>
                     {lastRefreshed && (
@@ -648,25 +656,25 @@ const App: React.FC = () => {
 
                 {/* モバイル/タブレット表示時 */}
                 <div className="navbar-end is-hidden-desktop">
-                    <div className="navbar-item" style={{ paddingRight: "0.25rem" }}>
-                        <button
-                            className="button is-light is-small"
-                            onClick={handleRefresh}
-                            disabled={loading || isRefreshing}
-                        >
-                            <span className="icon">
-                                <i className={isRefreshing ? "fas fa-sync fa-spin" : "fas fa-sync"}></i>
-                            </span>
-                        </button>
-                    </div>
-                    <div className="navbar-item" style={{ paddingLeft: "0.25rem" }}>
+                    <div className="navbar-item">
                         <span
-                            className={`tag is-small ${isConnected ? "is-success" : "is-warning"}`}
-                            title={isConnected ? "自動更新中" : connectionError || "接続中..."}
+                            className={`tag ${isConnected ? "is-success" : "is-warning"}`}
+                            style={{ cursor: "pointer" }}
+                            onClick={handleStatusClick}
+                            title={isConnected ? "タップで更新" : connectionError || "タップで再接続・更新"}
                         >
                             <span className="icon is-small">
-                                <i className={isConnected ? "fas fa-wifi" : "fas fa-exclamation-triangle"}></i>
+                                <i
+                                    className={
+                                        isRefreshing
+                                            ? "fas fa-sync fa-spin"
+                                            : isConnected
+                                              ? "fas fa-wifi"
+                                              : "fas fa-exclamation-triangle"
+                                    }
+                                ></i>
                             </span>
+                            <span>{isRefreshing ? "更新中" : isConnected ? "自動更新" : "未接続"}</span>
                         </span>
                     </div>
                 </div>
