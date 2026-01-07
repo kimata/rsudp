@@ -1,92 +1,36 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const STORAGE_KEY = "rsudp_auto_refresh_settings";
-const DEFAULT_INTERVAL_MS = 10 * 60 * 1000; // 10分
-
-interface AutoRefreshSettings {
-    enabled: boolean;
-    intervalMs: number;
-}
+const SSE_ENDPOINT = "/rsudp/api/event";
 
 interface UseAutoRefreshOptions {
-    intervalMs?: number;
     onRefresh: () => Promise<void>;
     pauseWhenHidden?: boolean;
 }
 
 interface UseAutoRefreshReturn {
-    isEnabled: boolean;
-    setIsEnabled: (enabled: boolean) => void;
+    isConnected: boolean;
     lastRefreshed: Date | null;
-    nextRefreshIn: number; // 残り秒数
-    resetTimer: () => void; // 手動更新時にタイマーをリセット
+    connectionError: string | null;
 }
 
 /**
- * 自動更新機能を提供するカスタムフック
+ * SSE (Server-Sent Events) を使った自動更新機能を提供するカスタムフック
  *
- * - 指定間隔で自動的に onRefresh を呼び出す
- * - Page Visibility API でタブ非表示時に一時停止
- * - localStorage に設定を永続化
+ * - サーバーからの DATA イベントを受信したら onRefresh を呼び出す
+ * - Page Visibility API でタブ非表示時に接続を一時停止
+ * - 接続エラー時は自動で再接続
  */
 export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshReturn {
-    const { intervalMs = DEFAULT_INTERVAL_MS, onRefresh, pauseWhenHidden = true } = options;
+    const { onRefresh, pauseWhenHidden = true } = options;
 
-    // localStorage から設定を読み込み
-    const loadSettings = (): AutoRefreshSettings => {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                const parsed = JSON.parse(saved) as AutoRefreshSettings;
-                return {
-                    enabled: parsed.enabled ?? false,
-                    intervalMs: parsed.intervalMs ?? intervalMs,
-                };
-            }
-        } catch (e) {
-            console.error("Failed to load auto-refresh settings:", e);
-        }
-        return { enabled: false, intervalMs };
-    };
-
-    const [isEnabled, setIsEnabledState] = useState(() => loadSettings().enabled);
+    const [isConnected, setIsConnected] = useState(false);
     const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-    const [nextRefreshIn, setNextRefreshIn] = useState(Math.floor(intervalMs / 1000));
+    const [connectionError, setConnectionError] = useState<string | null>(null);
     const [isPageVisible, setIsPageVisible] = useState(!document.hidden);
 
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const eventSourceRef = useRef<EventSource | null>(null);
     const isRefreshingRef = useRef(false);
-    const remainingTimeRef = useRef(intervalMs);
-
-    // 設定を localStorage に保存
-    const saveSettings = useCallback(
-        (enabled: boolean) => {
-            try {
-                const settings: AutoRefreshSettings = { enabled, intervalMs };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-            } catch (e) {
-                console.error("Failed to save auto-refresh settings:", e);
-            }
-        },
-        [intervalMs]
-    );
-
-    // isEnabled を変更し、localStorage にも保存
-    const setIsEnabled = useCallback(
-        (enabled: boolean) => {
-            setIsEnabledState(enabled);
-            saveSettings(enabled);
-        },
-        [saveSettings]
-    );
-
-    // タイマーをリセット（手動更新時に呼び出す）
-    const resetTimer = useCallback(() => {
-        remainingTimeRef.current = intervalMs;
-        setNextRefreshIn(Math.floor(intervalMs / 1000));
-        setLastRefreshed(new Date());
-    }, [intervalMs]);
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // 更新を実行
     const executeRefresh = useCallback(async () => {
@@ -96,14 +40,75 @@ export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshRe
         try {
             await onRefresh();
             setLastRefreshed(new Date());
-            remainingTimeRef.current = intervalMs;
-            setNextRefreshIn(Math.floor(intervalMs / 1000));
         } catch (e) {
             console.error("Auto-refresh failed:", e);
         } finally {
             isRefreshingRef.current = false;
         }
-    }, [onRefresh, intervalMs]);
+    }, [onRefresh]);
+
+    // SSE 接続を開始
+    const connect = useCallback(() => {
+        // 既に接続中の場合はスキップ
+        if (eventSourceRef.current) {
+            return;
+        }
+
+        console.log("SSE: Connecting to", SSE_ENDPOINT);
+        const eventSource = new EventSource(SSE_ENDPOINT);
+        eventSourceRef.current = eventSource;
+
+        eventSource.onopen = () => {
+            console.log("SSE: Connected");
+            setIsConnected(true);
+            setConnectionError(null);
+        };
+
+        eventSource.onmessage = (event) => {
+            const eventType = event.data;
+            console.log("SSE: Received event:", eventType);
+
+            // DATA イベントを受信したら更新を実行
+            if (eventType === "data") {
+                executeRefresh();
+            }
+            // dummy イベントは無視（キープアライブ用）
+        };
+
+        eventSource.onerror = () => {
+            console.error("SSE: Connection error");
+            setIsConnected(false);
+            setConnectionError("サーバーとの接続が切断されました");
+
+            // 接続を閉じてリセット
+            eventSource.close();
+            eventSourceRef.current = null;
+
+            // 5秒後に再接続を試みる
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            reconnectTimeoutRef.current = setTimeout(() => {
+                if (!document.hidden) {
+                    connect();
+                }
+            }, 5000);
+        };
+    }, [executeRefresh]);
+
+    // SSE 接続を切断
+    const disconnect = useCallback(() => {
+        if (eventSourceRef.current) {
+            console.log("SSE: Disconnecting");
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+            setIsConnected(false);
+        }
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+    }, []);
 
     // Page Visibility API のハンドラ
     useEffect(() => {
@@ -113,12 +118,13 @@ export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshRe
             const visible = !document.hidden;
             setIsPageVisible(visible);
 
-            // タブが再表示されたら即座に更新を実行
-            if (visible && isEnabled) {
-                // 長時間非表示だった場合（残り時間が0以下になっている可能性）
-                if (remainingTimeRef.current <= 0) {
-                    executeRefresh();
-                }
+            if (visible) {
+                // タブが再表示されたら接続を再開し、即座に更新
+                connect();
+                executeRefresh();
+            } else {
+                // タブが非表示になったら接続を切断
+                disconnect();
             }
         };
 
@@ -126,52 +132,23 @@ export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshRe
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
-    }, [pauseWhenHidden, isEnabled, executeRefresh]);
+    }, [pauseWhenHidden, connect, disconnect, executeRefresh]);
 
-    // メインのインターバル処理
+    // コンポーネントマウント時に接続開始
     useEffect(() => {
-        // 有効でない、またはページが非表示の場合はタイマーを停止
-        if (!isEnabled || (pauseWhenHidden && !isPageVisible)) {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-                intervalRef.current = null;
-            }
-            if (countdownRef.current) {
-                clearInterval(countdownRef.current);
-                countdownRef.current = null;
-            }
-            return;
+        // ページが表示されている場合のみ接続
+        if (!pauseWhenHidden || isPageVisible) {
+            connect();
         }
 
-        // カウントダウン用のインターバル（1秒ごと）
-        countdownRef.current = setInterval(() => {
-            remainingTimeRef.current -= 1000;
-            const seconds = Math.max(0, Math.floor(remainingTimeRef.current / 1000));
-            setNextRefreshIn(seconds);
-
-            // 残り時間が0になったら更新を実行
-            if (remainingTimeRef.current <= 0) {
-                executeRefresh();
-            }
-        }, 1000);
-
         return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-                intervalRef.current = null;
-            }
-            if (countdownRef.current) {
-                clearInterval(countdownRef.current);
-                countdownRef.current = null;
-            }
+            disconnect();
         };
-    }, [isEnabled, isPageVisible, pauseWhenHidden, executeRefresh]);
+    }, [connect, disconnect, pauseWhenHidden, isPageVisible]);
 
     return {
-        isEnabled,
-        setIsEnabled,
+        isConnected,
         lastRefreshed,
-        nextRefreshIn,
-        resetTimer,
+        connectionError,
     };
 }

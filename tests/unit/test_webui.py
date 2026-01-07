@@ -50,7 +50,7 @@ class TestTerm:
 
         with (
             unittest.mock.patch("my_lib.proc_util.kill_child") as mock_kill,
-            unittest.mock.patch.object(webui, "_stop_quake_crawler"),
+            unittest.mock.patch.object(webui, "_stop_background_monitor"),
             pytest.raises(SystemExit) as exc_info,
         ):
             webui._term()
@@ -68,7 +68,7 @@ class TestSigHandler:
 
         with (
             unittest.mock.patch("my_lib.proc_util.kill_child"),
-            unittest.mock.patch.object(webui, "_stop_quake_crawler"),
+            unittest.mock.patch.object(webui, "_stop_background_monitor"),
             pytest.raises(SystemExit),
         ):
             webui._sig_handler(signal.SIGTERM, None)
@@ -79,7 +79,7 @@ class TestSigHandler:
 
         with (
             unittest.mock.patch("my_lib.proc_util.kill_child"),
-            unittest.mock.patch.object(webui, "_stop_quake_crawler"),
+            unittest.mock.patch.object(webui, "_stop_background_monitor"),
             pytest.raises(SystemExit),
         ):
             webui._sig_handler(signal.SIGINT, None)
@@ -93,47 +93,55 @@ class TestSigHandler:
         # 例外なく終了
 
 
-class TestQuakeCrawler:
-    """地震クローラーのテスト"""
+class TestBackgroundMonitor:
+    """バックグラウンド監視のテスト"""
 
-    def test_start_quake_crawler(self, config):
-        """地震クローラーの開始"""
+    def test_start_background_monitor(self, config):
+        """バックグラウンド監視の開始"""
         from rsudp.cli import webui
 
-        with unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]):
-            webui._start_quake_crawler(config, interval=1)
+        with (
+            unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]),
+            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager"),
+            unittest.mock.patch("my_lib.webapp.event.notify_event"),
+        ):
+            webui._start_background_monitor(config)
 
-            # クローラースレッドが開始されていることを確認
-            assert webui._quake_crawler_thread is not None
-            assert webui._quake_crawler_thread.is_alive()
+            # 監視スレッドが開始されていることを確認
+            assert webui._monitor_thread is not None
+            assert webui._monitor_thread.is_alive()
 
             # 停止
-            webui._stop_quake_crawler()
+            webui._stop_background_monitor()
 
-    def test_stop_quake_crawler_not_running(self):
-        """実行していないクローラーの停止"""
+    def test_stop_background_monitor_not_running(self):
+        """実行していない監視の停止"""
         from rsudp.cli import webui
 
-        webui._quake_crawler_thread = None
+        webui._monitor_thread = None
         # エラーなく完了
-        webui._stop_quake_crawler()
+        webui._stop_background_monitor()
 
-    def test_stop_quake_crawler_running(self, config):
-        """実行中のクローラーの停止"""
+    def test_stop_background_monitor_running(self, config):
+        """実行中の監視の停止"""
         from rsudp.cli import webui
 
-        with unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]):
-            webui._start_quake_crawler(config, interval=1)
+        with (
+            unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]),
+            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager"),
+            unittest.mock.patch("my_lib.webapp.event.notify_event"),
+        ):
+            webui._start_background_monitor(config)
 
-            assert webui._quake_crawler_thread is not None
+            assert webui._monitor_thread is not None
 
-            webui._stop_quake_crawler()
+            webui._stop_background_monitor()
 
             # スレッドが停止していることを確認
-            assert webui._quake_crawler_thread is None
+            assert webui._monitor_thread is None
 
-    def test_crawler_loop_with_new_earthquakes(self, config):
-        """新しい地震データがある場合のクローラー"""
+    def test_monitor_loop_with_new_earthquakes(self, config):
+        """新しい地震データがある場合の監視"""
         from rsudp.cli import webui
 
         new_earthquakes = [
@@ -149,27 +157,35 @@ class TestQuakeCrawler:
         with (
             unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=new_earthquakes),
             unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager"),
+            unittest.mock.patch("my_lib.webapp.event.notify_event") as mock_notify,
         ):
-            webui._start_quake_crawler(config, interval=1)
+            webui._start_background_monitor(config)
 
             import time
 
             time.sleep(0.5)
 
-            webui._stop_quake_crawler()
+            webui._stop_background_monitor()
 
-    def test_crawler_loop_exception_handling(self, config):
-        """クローラーループの例外処理"""
+            # DATA イベントが通知されたことを確認
+            mock_notify.assert_called()
+
+    def test_monitor_loop_exception_handling(self, config):
+        """監視ループの例外処理"""
         from rsudp.cli import webui
 
-        with unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", side_effect=Exception("Test error")):
-            webui._start_quake_crawler(config, interval=1)
+        with (
+            unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", side_effect=Exception("Test error")),
+            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager"),
+            unittest.mock.patch("my_lib.webapp.event.notify_event"),
+        ):
+            webui._start_background_monitor(config)
 
             import time
 
             time.sleep(0.5)
 
-            # 例外が発生してもクローラーは動作し続ける
-            assert webui._quake_crawler_thread is not None
+            # 例外が発生しても監視は動作し続ける
+            assert webui._monitor_thread is not None
 
-            webui._stop_quake_crawler()
+            webui._stop_background_monitor()

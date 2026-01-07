@@ -23,22 +23,24 @@ import flask_cors
 import my_lib.config
 import my_lib.logger
 import my_lib.proc_util
+import my_lib.webapp.event
 
 import rsudp.config
 
 _SCHEMA_CONFIG = "schema/config.schema"
 
-# 地震データクローラーのデフォルト設定
-_QUAKE_CRAWL_INTERVAL = 3600  # 1時間間隔
+# バックグラウンド監視の設定
+_SCREENSHOT_SCAN_INTERVAL = 60  # 1分間隔でスクリーンショットをスキャン
+_QUAKE_CRAWL_INTERVAL = 3600  # 1時間間隔で地震データを取得
 
-# グローバル変数でクローラースレッドを管理
-_quake_crawler_stop_event = threading.Event()
-_quake_crawler_thread = None
+# グローバル変数で監視スレッドを管理
+_monitor_stop_event = threading.Event()
+_monitor_thread: threading.Thread | None = None
 
 
-def _start_quake_crawler(config: rsudp.config.Config, interval: int = _QUAKE_CRAWL_INTERVAL):
-    """地震データクローラーをバックグラウンドで開始する"""
-    global _quake_crawler_thread
+def _start_background_monitor(config: rsudp.config.Config):
+    """バックグラウンド監視スレッドを開始する（スクリーンショット監視 + 地震クローラー）"""
+    global _monitor_thread
 
     def _log_crawl_results(new_earthquakes: list[dict]):
         """クロール結果をログ出力する"""
@@ -67,53 +69,92 @@ def _start_quake_crawler(config: rsudp.config.Config, interval: int = _QUAKE_CRA
         except Exception:
             logging.exception("地震関連付け更新エラー")
 
-    def crawler_loop():
+    def _crawl_earthquakes():
+        """地震データを取得する"""
         from rsudp.quake.crawl import crawl_earthquakes
 
-        logging.info("地震クローラー開始 (収集間隔: %d秒)", interval)
-
-        # 起動時に即座に1回実行
         try:
             logging.info("地震クローラー: 地震データの収集を開始")
             new_earthquakes = crawl_earthquakes(config, min_intensity=3)
             _log_crawl_results(new_earthquakes)
-            # 地震データ取得後に関連付けを更新
             _update_earthquake_associations()
+            return len(new_earthquakes) > 0
         except Exception:
             logging.exception("地震クローラーエラー")
+            return False
+
+    def _scan_screenshots():
+        """スクリーンショットをスキャンし、新規ファイルがあれば True を返す"""
+        from rsudp.screenshot_manager import ScreenshotManager
+
+        try:
+            manager = ScreenshotManager(config)
+            manager.organize_files()
+            new_count = manager.scan_and_cache_all()
+            if new_count > 0:
+                logging.info("スクリーンショット監視: %d件の新規ファイルを検出", new_count)
+                return True
+            return False
+        except Exception:
+            logging.exception("スクリーンショットスキャンエラー")
+            return False
+
+    def monitor_loop():
+        quake_interval_count = _QUAKE_CRAWL_INTERVAL // _SCREENSHOT_SCAN_INTERVAL
+        loop_count = 0
+
+        logging.info(
+            "バックグラウンド監視開始 (スクリーンショット: %d秒間隔, 地震: %d秒間隔)",
+            _SCREENSHOT_SCAN_INTERVAL,
+            _QUAKE_CRAWL_INTERVAL,
+        )
+
+        # 起動時に即座に1回実行
+        has_update = _scan_screenshots()
+        quake_updated = _crawl_earthquakes()
+        if has_update or quake_updated:
+            my_lib.webapp.event.notify_event(my_lib.webapp.event.EVENT_TYPE.DATA)
 
         # 定期実行ループ
-        while not _quake_crawler_stop_event.wait(interval):
-            try:
-                logging.info("地震クローラー: 地震データの収集を開始")
-                new_earthquakes = crawl_earthquakes(config, min_intensity=3)
-                _log_crawl_results(new_earthquakes)
-                # 地震データ取得後に関連付けを更新
-                _update_earthquake_associations()
-            except Exception:
-                logging.exception("地震クローラーエラー")
+        while not _monitor_stop_event.wait(_SCREENSHOT_SCAN_INTERVAL):
+            loop_count += 1
+            has_update = False
 
-        logging.info("地震クローラー停止")
+            # スクリーンショットスキャン（毎回）
+            if _scan_screenshots():
+                has_update = True
 
-    _quake_crawler_stop_event.clear()
-    _quake_crawler_thread = threading.Thread(target=crawler_loop, daemon=True)
-    _quake_crawler_thread.start()
+            # 地震クロール（1時間ごと）
+            if loop_count >= quake_interval_count:
+                loop_count = 0
+                if _crawl_earthquakes():
+                    has_update = True
+
+            # 更新があればクライアントに通知
+            if has_update:
+                my_lib.webapp.event.notify_event(my_lib.webapp.event.EVENT_TYPE.DATA)
+
+        logging.info("バックグラウンド監視停止")
+
+    _monitor_stop_event.clear()
+    _monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
+    _monitor_thread.start()
 
 
-def _stop_quake_crawler():
-    """地震データクローラーを停止する"""
-    global _quake_crawler_thread
+def _stop_background_monitor():
+    """バックグラウンド監視スレッドを停止する"""
+    global _monitor_thread
 
-    if _quake_crawler_thread and _quake_crawler_thread.is_alive():
-        logging.info("Stopping earthquake crawler...")
-        _quake_crawler_stop_event.set()
-        _quake_crawler_thread.join(timeout=5)
-        _quake_crawler_thread = None
+    if _monitor_thread and _monitor_thread.is_alive():
+        logging.info("Stopping background monitor...")
+        _monitor_stop_event.set()
+        _monitor_thread.join(timeout=5)
+        _monitor_thread = None
 
 
 def _term():
-    # 地震データクローラーを停止
-    _stop_quake_crawler()
+    # バックグラウンド監視を停止
+    _stop_background_monitor()
 
     # 子プロセスを終了
     my_lib.proc_util.kill_child()
@@ -159,6 +200,8 @@ def _create_app(config: rsudp.config.Config):
     app.register_blueprint(my_lib.webapp.base.blueprint, url_prefix=my_lib.webapp.config.URL_PREFIX)
     app.register_blueprint(my_lib.webapp.base.blueprint_default)
     app.register_blueprint(my_lib.webapp.util.blueprint, url_prefix=my_lib.webapp.config.URL_PREFIX)
+    # SSE イベント通知用エンドポイント
+    app.register_blueprint(my_lib.webapp.event.blueprint, url_prefix=my_lib.webapp.config.URL_PREFIX)
 
     my_lib.webapp.config.show_handler_list(app)
 
@@ -225,12 +268,12 @@ def main() -> None:
     signal.signal(signal.SIGTERM, enhanced_sig_handler)
     signal.signal(signal.SIGINT, enhanced_sig_handler)
 
-    # 地震データクローラーをバックグラウンドで開始
+    # バックグラウンド監視をバックグラウンドで開始
     # use_reloader=True の場合、親プロセスと子プロセスの2つが起動する
     # 親プロセスでは WERKZEUG_RUN_MAIN が未設定、子プロセスでは "true"
-    # クローラーは子プロセスでのみ開始する
+    # 監視は子プロセスでのみ開始する
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        _start_quake_crawler(config)
+        _start_background_monitor(config)
 
     # Flaskアプリケーションを実行
     try:
