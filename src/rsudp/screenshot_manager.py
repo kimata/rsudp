@@ -181,10 +181,18 @@ class ScreenshotManager:
                 ),
             )
 
-    def scan_and_cache_all(self):
-        """すべてのスクリーンショットファイルをスキャンしてキャッシュを更新する."""
+    def scan_and_cache_all(self) -> int:
+        """
+        すべてのスクリーンショットファイルをスキャンしてキャッシュを更新する.
+
+        Returns:
+            新規または更新されたファイル数
+
+        """
         if not self.screenshot_path.exists():
-            return
+            return 0
+
+        new_count = 0
 
         # すべての PNG ファイルを再帰的に取得
         for file_path in self.screenshot_path.rglob("*.png"):
@@ -203,6 +211,9 @@ class ScreenshotManager:
                     continue
 
             self._cache_file_metadata(file_path)
+            new_count += 1
+
+        return new_count
 
     def get_screenshots_with_signal_filter(self, min_max_signal: float | None = None):
         """最小信号値（max_count）でフィルタリングしたスクリーンショットを取得する."""
