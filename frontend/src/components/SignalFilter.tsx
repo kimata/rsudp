@@ -13,24 +13,26 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   const [inputValue, setInputValue] = useState('');
   const [isDragging, setIsDragging] = useState(false);
 
-  // Calculate reasonable step (use 1 for integer steps)
-  const step = 1;
-  const minValue = Math.floor(statistics?.min_signal || 0);
-  const maxValue = Math.ceil(statistics?.max_signal || 100000);
+  // 1000 単位でステップ
+  const step = 1000;
+  // min/max も 1000 単位に丸める（min は切り捨て、max は切り上げ）
+  const minValue = Math.floor((statistics?.min_signal || 0) / 1000) * 1000;
+  const maxValue = Math.ceil((statistics?.max_signal || 100000) / 1000) * 1000;
 
-  // 統計情報が読み込まれた時に閾値を初期化
+  // 統計情報が読み込まれた時に閾値を初期化（1000 単位に丸める）
   useEffect(() => {
     if (statistics?.min_signal !== undefined && minMaxSignalThreshold === undefined) {
-      const initialValue = Math.floor(statistics.min_signal);
+      const initialValue = Math.floor(statistics.min_signal / 1000) * 1000;
       setInputValue(initialValue.toString());
       onThresholdChange(initialValue);
     }
   }, [statistics?.min_signal, minMaxSignalThreshold, onThresholdChange]);
 
-  // 閾値が外部から変更された時にinputValueを同期
+  // 閾値が外部から変更された時にinputValueを同期（1000 単位に丸める）
   useEffect(() => {
     if (minMaxSignalThreshold !== undefined && !isDragging) {
-      setInputValue(Math.floor(minMaxSignalThreshold).toString());
+      const roundedValue = Math.floor(minMaxSignalThreshold / 1000) * 1000;
+      setInputValue(roundedValue.toString());
     }
   }, [minMaxSignalThreshold, isDragging]);
 
