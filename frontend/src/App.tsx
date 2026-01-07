@@ -6,6 +6,7 @@ import ImageViewer from "./components/ImageViewer";
 import FileList from "./components/FileList";
 import Footer from "./components/Footer";
 import SignalFilter from "./components/SignalFilter";
+import { useAutoRefresh } from "./hooks/useAutoRefresh";
 import "bulma/css/bulma.min.css";
 
 // URLパラメータの型定義
@@ -461,6 +462,42 @@ const App: React.FC = () => {
         }
     }, [loadInitialData]);
 
+    // 自動更新フック
+    const {
+        isEnabled: autoRefreshEnabled,
+        setIsEnabled: setAutoRefreshEnabled,
+        lastRefreshed,
+        nextRefreshIn,
+        resetTimer,
+    } = useAutoRefresh({
+        intervalMs: 10 * 60 * 1000, // 10分
+        onRefresh: handleRefresh,
+        pauseWhenHidden: true,
+    });
+
+    // 手動更新時にタイマーをリセット
+    const handleManualRefresh = useCallback(async () => {
+        await handleRefresh();
+        resetTimer();
+    }, [handleRefresh, resetTimer]);
+
+    // 残り時間のフォーマット（mm:ss）
+    const formatRemainingTime = (seconds: number): string => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
+    };
+
+    // 最終更新時刻のフォーマット
+    const formatLastRefreshed = (date: Date | null): string => {
+        if (!date) return "-";
+        return date.toLocaleTimeString("ja-JP", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+        });
+    };
+
     // 表示用の画像リスト（日付フィルタが適用されている場合はfilteredScreenshots、そうでなければ振幅フィルタ適用後のリスト）
     const displayImages = useMemo(() => {
         return filteredScreenshots.length > 0 ? filteredScreenshots : signalFilteredScreenshots;
@@ -588,32 +625,80 @@ const App: React.FC = () => {
                 {/* デスクトップ表示時 */}
                 <div className="navbar-end is-hidden-touch">
                     <div className="navbar-item">
-                        <button
-                            className="button is-light"
-                            onClick={handleRefresh}
-                            disabled={loading || isRefreshing}
-                        >
-                            <span className="icon">
-                                <i className={isRefreshing ? "fas fa-sync fa-spin" : "fas fa-sync"}></i>
-                            </span>
-                            <span>{isRefreshing ? "更新中..." : "更新"}</span>
-                        </button>
+                        <div className="field has-addons" style={{ marginBottom: 0 }}>
+                            <p className="control">
+                                <button
+                                    className="button is-light"
+                                    onClick={handleManualRefresh}
+                                    disabled={loading || isRefreshing}
+                                >
+                                    <span className="icon">
+                                        <i
+                                            className={isRefreshing ? "fas fa-sync fa-spin" : "fas fa-sync"}
+                                        ></i>
+                                    </span>
+                                    <span>{isRefreshing ? "更新中..." : "更新"}</span>
+                                </button>
+                            </p>
+                            <p className="control">
+                                <button
+                                    className={`button ${autoRefreshEnabled ? "is-success" : "is-light"}`}
+                                    onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                                    title={autoRefreshEnabled ? "自動更新を停止" : "自動更新を開始"}
+                                >
+                                    <span className="icon">
+                                        <i className={autoRefreshEnabled ? "fas fa-clock" : "fas fa-clock"}></i>
+                                    </span>
+                                    <span>
+                                        {autoRefreshEnabled ? formatRemainingTime(nextRefreshIn) : "自動"}
+                                    </span>
+                                </button>
+                            </p>
+                        </div>
                     </div>
+                    {lastRefreshed && (
+                        <div className="navbar-item">
+                            <span className="is-size-7 has-text-grey-light">
+                                最終: {formatLastRefreshed(lastRefreshed)}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* モバイル/タブレット表示時 */}
                 <div className="navbar-end is-hidden-desktop">
-                    <div className="navbar-item">
-                        <button
-                            className="button is-light is-small"
-                            onClick={handleRefresh}
-                            disabled={loading || isRefreshing}
-                        >
-                            <span className="icon">
-                                <i className={isRefreshing ? "fas fa-sync fa-spin" : "fas fa-sync"}></i>
-                            </span>
-                            <span>{isRefreshing ? "更新中..." : "更新"}</span>
-                        </button>
+                    <div className="navbar-item" style={{ paddingRight: "0.5rem" }}>
+                        <div className="field has-addons" style={{ marginBottom: 0 }}>
+                            <p className="control">
+                                <button
+                                    className="button is-light is-small"
+                                    onClick={handleManualRefresh}
+                                    disabled={loading || isRefreshing}
+                                >
+                                    <span className="icon">
+                                        <i
+                                            className={isRefreshing ? "fas fa-sync fa-spin" : "fas fa-sync"}
+                                        ></i>
+                                    </span>
+                                </button>
+                            </p>
+                            <p className="control">
+                                <button
+                                    className={`button is-small ${autoRefreshEnabled ? "is-success" : "is-light"}`}
+                                    onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                                    title={autoRefreshEnabled ? "自動更新を停止" : "自動更新を開始"}
+                                >
+                                    <span className="icon">
+                                        <i className="fas fa-clock"></i>
+                                    </span>
+                                    {autoRefreshEnabled && (
+                                        <span style={{ fontSize: "0.75rem" }}>
+                                            {formatRemainingTime(nextRefreshIn)}
+                                        </span>
+                                    )}
+                                </button>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </nav>
