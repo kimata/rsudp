@@ -9,7 +9,7 @@ import logging
 import pathlib
 
 import pytest
-from playwright.sync_api import expect
+from playwright.sync_api import Page, expect
 
 # プロジェクトルートの reports/evidence/ に保存
 EVIDENCE_DIR = pathlib.Path(__file__).parent.parent.parent / "reports" / "evidence"
@@ -23,6 +23,17 @@ def rsudp_url(host, port, path=""):
     if path:
         return f"{base}/{path}"
     return base
+
+
+def wait_for_app_ready(page: Page):
+    """
+    アプリが読み込み完了するまで待機する.
+
+    SSE 接続があるため networkidle は使用できない。
+    代わりに地震フィルタのチェックボックスが表示されるのを待つ。
+    """
+    # 地震フィルタのチェックボックスが表示されるまで待機
+    page.locator('input[type="checkbox"]').first.wait_for(state="visible", timeout=10000)
 
 
 @pytest.mark.e2e
@@ -163,7 +174,7 @@ class TestUrlParametersE2E:
 
         # file パラメータ付きでページにアクセス
         page.goto(rsudp_url(host, port, f"?file={target_file}"), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # URL に file パラメータが含まれていることを確認
         assert f"file={target_file}" in page.url
@@ -183,7 +194,7 @@ class TestUrlParametersE2E:
 
         # earthquake=false でアクセス
         page.goto(rsudp_url(host, port, "?earthquake=false"), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # チェックボックスを探す
         checkbox = page.locator('input[type="checkbox"]').first
@@ -202,7 +213,7 @@ class TestUrlParametersE2E:
 
         # earthquake=true でアクセス
         page.goto(rsudp_url(host, port, "?earthquake=true"), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # チェックボックスを探す
         checkbox = page.locator('input[type="checkbox"]').first
@@ -221,7 +232,7 @@ class TestUrlParametersE2E:
 
         # signal=5000 でアクセス
         page.goto(rsudp_url(host, port, "?signal=5000"), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # URL に signal パラメータが含まれていることを確認
         assert "signal=5000" in page.url
@@ -241,7 +252,7 @@ class TestUrlParametersE2E:
 
         # 複数パラメータでアクセス
         page.goto(rsudp_url(host, port, "?earthquake=false&signal=3000"), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # チェックボックスが未チェックであることを確認
         checkbox = page.locator('input[type="checkbox"]').first
@@ -262,7 +273,7 @@ class TestUrlParametersE2E:
 
         # 初期状態（earthquake=true がデフォルト）でアクセス
         page.goto(rsudp_url(host, port), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # チェックボックスをクリック（チェックを外す）
         checkbox = page.locator('input[type="checkbox"]').first
@@ -291,7 +302,7 @@ class TestUrlParametersE2E:
 
         # earthquake=true でアクセス
         page.goto(rsudp_url(host, port, "?earthquake=true"), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # チェックボックスがチェックされていることを確認
         checkbox = page.locator('input[type="checkbox"]').first
@@ -337,7 +348,7 @@ class TestUrlParametersE2E:
 
         # ページにアクセス
         page.goto(rsudp_url(host, port), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # ファイルリストの2番目の項目をクリック
         file_list_items = page.locator(".file-list-item, [data-testid='file-list-item']")
@@ -367,7 +378,7 @@ class TestUrlParametersE2E:
 
         # 存在しないファイル名でアクセス
         page.goto(rsudp_url(host, port, "?file=NONEXISTENT-FILE.png"), wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        wait_for_app_ready(page)
 
         # JavaScript エラーがないこと
         assert len(js_errors) == 0, f"JavaScript エラーが発生しました: {js_errors}"
