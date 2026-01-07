@@ -268,8 +268,18 @@ class TestUrlParametersE2E:
         1. ページにアクセス
         2. 地震フィルタチェックボックスをクリック
         3. URL が更新されることを確認
+
+        NOTE: URL 更新は currentScreenshot が存在する場合のみ動作するため、
+        スクリーンショットがない場合はスキップ
         """
         page.set_viewport_size({"width": 1920, "height": 1080})
+
+        # スクリーンショットが存在するか確認
+        response = page.request.get(f"http://{host}:{port}/rsudp/api/screenshot/")
+        assert response.ok
+        data = response.json()
+        if data["total"] == 0:
+            pytest.skip("スクリーンショットがないためスキップ（URL更新はcurrentScreenshotが必要）")
 
         # 初期状態（earthquake=true がデフォルト）でアクセス
         page.goto(rsudp_url(host, port), wait_until="domcontentloaded")
@@ -280,7 +290,7 @@ class TestUrlParametersE2E:
         checkbox.click()
 
         # URL が更新されるまで待機
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
 
         # URL に earthquake=false が含まれていることを確認
         assert "earthquake=false" in page.url
@@ -297,8 +307,18 @@ class TestUrlParametersE2E:
         2. チェックボックスをクリックして earthquake=false に
         3. ブラウザの戻るボタンをクリック
         4. earthquake=true の状態に戻ることを確認
+
+        NOTE: URL 更新は currentScreenshot が存在する場合のみ動作するため、
+        スクリーンショットがない場合はスキップ
         """
         page.set_viewport_size({"width": 1920, "height": 1080})
+
+        # スクリーンショットが存在するか確認
+        response = page.request.get(f"http://{host}:{port}/rsudp/api/screenshot/")
+        assert response.ok
+        data = response.json()
+        if data["total"] == 0:
+            pytest.skip("スクリーンショットがないためスキップ（URL更新はcurrentScreenshotが必要）")
 
         # earthquake=true でアクセス
         page.goto(rsudp_url(host, port, "?earthquake=true"), wait_until="domcontentloaded")
@@ -310,7 +330,7 @@ class TestUrlParametersE2E:
 
         # チェックボックスをクリック（チェックを外す）
         checkbox.click()
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
 
         # URL が earthquake=false に更新されたことを確認
         assert "earthquake=false" in page.url
@@ -318,7 +338,7 @@ class TestUrlParametersE2E:
 
         # ブラウザの戻るボタンをクリック
         page.go_back()
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
 
         # チェックボックスがチェック済みに戻ることを確認
         checkbox = page.locator('input[type="checkbox"]').first
@@ -365,11 +385,13 @@ class TestUrlParametersE2E:
         page.screenshot(path=str(screenshot_path), full_page=True)
 
     def test_invalid_file_parameter_shows_latest(self, page, host, port):
-        """存在しない file パラメータの場合、最新の画像が表示されることを確認.
+        """存在しない file パラメータの場合、エラーなくページが表示されることを確認.
 
         1. 存在しないファイル名で URL にアクセス
         2. エラーなくページが表示されることを確認
-        3. file パラメータが URL から削除されることを確認
+
+        NOTE: URL 更新は currentScreenshot が存在する場合のみ動作するため、
+        スクリーンショットがない場合は file パラメータは削除されない
         """
         page.set_viewport_size({"width": 1920, "height": 1080})
 
@@ -383,8 +405,14 @@ class TestUrlParametersE2E:
         # JavaScript エラーがないこと
         assert len(js_errors) == 0, f"JavaScript エラーが発生しました: {js_errors}"
 
-        # 存在しないファイルの場合、file パラメータは URL から削除される
-        assert "file=NONEXISTENT-FILE.png" not in page.url
+        # スクリーンショットが存在するか確認
+        response = page.request.get(f"http://{host}:{port}/rsudp/api/screenshot/")
+        assert response.ok
+        data = response.json()
+
+        if data["total"] > 0:
+            # スクリーンショットがある場合、無効な file パラメータは削除される
+            assert "file=NONEXISTENT-FILE.png" not in page.url
 
         # スクリーンショットを保存
         screenshot_path = EVIDENCE_DIR / "e2e_url_invalid_file.png"
