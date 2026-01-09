@@ -2,6 +2,7 @@ import React, { useEffect, useRef, memo, useCallback } from 'react';
 import type { Screenshot } from '../types';
 import { formatScreenshotDateTime } from '../utils/dateTime';
 import { TIMEOUTS } from '../utils/constants';
+import { Icon } from './Icon';
 
 interface FileListProps {
   allImages: Screenshot[];
@@ -85,55 +86,39 @@ const FileList: React.FC<FileListProps> = memo(({
     };
   };
 
-  const getEventTypeIcon = (prefix: string) => {
+  const getEventTypeIconName = (prefix: string): "globe" | "exclamation-triangle" | "camera" => {
     switch (prefix.toUpperCase()) {
       case 'SHAKE':
-        return 'fas fa-globe';
+        return 'globe';
       case 'ALERT':
-        return 'fas fa-exclamation-triangle';
       case 'WARNING':
-        return 'fas fa-exclamation-triangle';
+        return 'exclamation-triangle';
       default:
-        return 'fas fa-camera';
+        return 'camera';
     }
   };
 
   // ローディング中の表示
   if (loading && allImages.length === 0) {
     return (
-      <div className="box">
-        <h2 className="title is-5">
-          <span className="icon">
-            <i className="fas fa-list"></i>
-          </span>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Icon name="list-bullet" className="size-5" />
           ファイル一覧
         </h2>
         <div
-          style={{
-            height: '400px',
-            border: '1px solid #dbdbdb',
-            borderRadius: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          className="h-[400px] border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center mt-4"
         >
-          <div className="has-text-centered">
-            <span className="icon is-large">
-              <i className="fas fa-spinner fa-pulse fa-2x"></i>
-            </span>
-            <p className="subtitle mt-3">
-              <span className="icon" style={{ marginRight: '0.5rem' }}>
-                <i className="fas fa-list"></i>
-              </span>
+          <div className="text-center">
+            <Icon name="arrow-path" className="size-8 text-blue-500" spin />
+            <p className="text-gray-600 dark:text-gray-400 mt-3 flex items-center justify-center gap-2">
+              <Icon name="list-bullet" className="size-5" />
               ファイル一覧を読み込み中...
             </p>
           </div>
         </div>
-        <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
-          <span className="icon" style={{ marginRight: '0.25rem' }}>
-            <i className="fas fa-chart-bar"></i>
-          </span>
+        <div className="text-center text-gray-500 mt-2 text-xs flex items-center justify-center gap-1">
+          <Icon name="chart-bar" className="size-4" />
           読み込み中...
         </div>
       </div>
@@ -142,31 +127,20 @@ const FileList: React.FC<FileListProps> = memo(({
 
   if (allImages.length === 0) {
     return (
-      <div className="box">
-        <h2 className="title is-5">
-          <span className="icon">
-            <i className="fas fa-list"></i>
-          </span>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Icon name="list-bullet" className="size-5" />
           ファイル一覧
         </h2>
         <div
-          style={{
-            height: '400px',
-            border: '1px solid #dbdbdb',
-            borderRadius: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          className="h-[400px] border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center mt-4"
         >
-          <div className="has-text-centered has-text-grey">
+          <div className="text-center text-gray-500">
             <p>ファイルがありません</p>
           </div>
         </div>
-        <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
-          <span className="icon" style={{ marginRight: '0.25rem' }}>
-            <i className="fas fa-chart-bar"></i>
-          </span>
+        <div className="text-center text-gray-500 mt-2 text-xs flex items-center justify-center gap-1">
+          <Icon name="chart-bar" className="size-4" />
           0 件のファイル
         </div>
       </div>
@@ -174,55 +148,29 @@ const FileList: React.FC<FileListProps> = memo(({
   }
 
   return (
-    <div className="box">
-      <h2 className="title is-5">
-        <span className="icon" style={{ marginRight: '0.5rem' }}>
-          <i className="fas fa-list"></i>
-        </span>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+      <h2 className="text-lg font-semibold flex items-center gap-2">
+        <Icon name="list-bullet" className="size-5" />
         ファイル一覧
         {isFiltering && (
-          <span className="icon is-small has-text-info" style={{ marginLeft: '0.5rem' }}>
-            <i className="fas fa-spinner fa-pulse"></i>
-          </span>
+          <Icon name="arrow-path" className="size-4 text-blue-500" spin />
         )}
       </h2>
-      <div style={{ position: 'relative' }}>
+      <div className="relative mt-4">
         {/* フィルタ適用中のオーバーレイ */}
         {isFiltering && (
           <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(255, 255, 255, 0.7)',
-              zIndex: 10,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '4px',
-            }}
+            className="absolute inset-0 bg-white/70 dark:bg-gray-800/70 z-10 flex items-center justify-center rounded"
           >
-            <div className="has-text-centered">
-              <span className="icon is-medium has-text-info">
-                <i className="fas fa-spinner fa-pulse fa-lg"></i>
-              </span>
-              <p className="is-size-7 has-text-grey mt-2">フィルタ適用中...</p>
+            <div className="text-center">
+              <Icon name="arrow-path" className="size-6 text-blue-500" spin />
+              <p className="text-sm text-gray-500 mt-2">フィルタ適用中...</p>
             </div>
           </div>
         )}
         <div
           ref={containerRef}
-          className="file-list-container"
-          style={{
-            height: '400px',
-            overflowY: 'auto',
-            border: '1px solid #dbdbdb',
-            borderRadius: '4px',
-            opacity: isFiltering ? 0.5 : 1,
-            transition: 'opacity 0.2s ease',
-          }}
+          className={`file-list-container h-[400px] overflow-y-auto border border-gray-300 dark:border-gray-600 rounded custom-scrollbar transition-opacity duration-200 ${isFiltering ? 'opacity-50' : 'opacity-100'}`}
         >
         {allImages.map((image, index) => {
           const isCurrentImage = currentImage?.filename === image.filename;
@@ -236,59 +184,42 @@ const FileList: React.FC<FileListProps> = memo(({
                   currentItemRef.current = el;
                 }
               }}
-              className={`file-list-item ${isCurrentImage ? 'is-active' : ''}`}
+              className={`file-list-item p-2 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-all duration-200 ${
+                isCurrentImage
+                  ? 'bg-blue-500 text-white'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
               onClick={() => onImageSelect(image)}
-              style={{
-                padding: '0.5rem',
-                borderBottom: '1px solid #f5f5f5',
-                cursor: 'pointer',
-                backgroundColor: isCurrentImage ? '#3273dc' : 'transparent',
-                color: isCurrentImage ? 'white' : 'inherit',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (!isCurrentImage) {
-                  e.currentTarget.style.backgroundColor = '#f5f5f5';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isCurrentImage) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }
-              }}
             >
-              <div className="is-flex is-align-items-center">
-                <span className="icon is-small" style={{ marginRight: '0.5rem' }}>
-                  <i className={getEventTypeIcon(image.prefix)}></i>
+              <div className="flex items-center">
+                <span className="mr-2">
+                  <Icon name={getEventTypeIconName(image.prefix)} className="size-4" />
                 </span>
-                <div className="is-flex-grow-1">
-                  <div className="is-flex is-justify-content-space-between is-align-items-center">
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
                     <div>
-                      <span className="has-text-weight-semibold" style={{ fontSize: '0.85rem' }}>
+                      <span className="font-semibold text-sm">
                         {dateTime.formatted}
                       </span>
                       <span
-                        style={{
-                          fontSize: '0.7rem',
-                          opacity: 0.7,
-                          marginLeft: '0.25rem',
-                          color: isCurrentImage ? 'rgba(255,255,255,0.8)' : '#666'
-                        }}
+                        className={`text-xs ml-1 ${
+                          isCurrentImage ? 'text-white/80' : 'text-gray-500'
+                        }`}
                       >
                         ({dateTime.relative})
                       </span>
                     </div>
                     <span
-                      className="tag is-small"
-                      style={{
-                        backgroundColor: isCurrentImage ? 'rgba(255,255,255,0.2)' : '#e8e8e8',
-                        color: isCurrentImage ? 'white' : 'inherit'
-                      }}
+                      className={`inline-flex items-center px-1.5 py-0.5 text-xs rounded ${
+                        isCurrentImage
+                          ? 'bg-white/20 text-white'
+                          : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                      }`}
                     >
                       #{index + 1}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
+                  <div className={`text-xs mt-1 ${isCurrentImage ? 'text-white/80' : 'text-gray-500'}`}>
                     {image.filename}
                   </div>
                 </div>
@@ -298,10 +229,8 @@ const FileList: React.FC<FileListProps> = memo(({
         })}
         </div>
       </div>
-      <div className="has-text-centered has-text-grey" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
-        <span className="icon" style={{ marginRight: '0.25rem' }}>
-          <i className="fas fa-chart-bar"></i>
-        </span>
+      <div className="text-center text-gray-500 mt-2 text-xs flex items-center justify-center gap-1">
+        <Icon name="chart-bar" className="size-4" />
         {allImages.length.toLocaleString()} 件のファイル
       </div>
     </div>

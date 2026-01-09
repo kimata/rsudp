@@ -4,6 +4,7 @@ import { useApi } from '../hooks/useApi';
 import type { SysInfo } from '../types';
 import { dayjs } from '../utils/dateTime';
 import { TIMEOUTS } from '../utils/constants';
+import { GitHubIcon } from './Icon';
 
 function Footer() {
     const [updateTime, setUpdateTime] = useState(dayjs().format('YYYY年MM月DD日 HH:mm:ss'));
@@ -26,26 +27,26 @@ function Footer() {
     };
 
     return (
-        <div className="is-pulled-right has-text-right p-2 mt-4" data-testid="footer">
-            <div className="is-size-6">
-                <p className="has-text-grey mb-0 is-size-7">
+        <div className="ml-auto text-right p-2 mt-4" data-testid="footer">
+            <div className="text-base">
+                <p className="text-gray-500 mb-0 text-sm">
                     更新日時: {updateTime}
                 </p>
-                <p className="has-text-grey mb-0 is-size-7">
+                <p className="text-gray-500 mb-0 text-sm">
                     イメージビルド: {getImageBuildDate()}
                 </p>
-                <p className="has-text-grey mb-0 is-size-7">
+                <p className="text-gray-500 mb-0 text-sm">
                     React ビルド: {buildDate.format('YYYY年MM月DD日 HH:mm:ss')} [{buildDate.fromNow()}]
                 </p>
-                <p className="has-text-grey mb-0 is-size-7">
+                <p className="text-gray-500 mb-0 text-sm">
                     React バージョン: {reactVersion}
                 </p>
-                <p className="is-size-2">
+                <p className="text-3xl">
                     <a
                         href="https://github.com/kimata/rsudp"
-                        className="has-text-grey-light"
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                        <i className="fab fa-github"></i>
+                        <GitHubIcon className="size-8 inline-block" />
                     </a>
                 </p>
             </div>

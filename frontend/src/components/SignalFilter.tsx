@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import type { StatisticsResponse } from '../types';
+import { Icon } from './Icon';
 
 interface SignalFilterProps {
   statistics: StatisticsResponse | null;
@@ -60,40 +61,26 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   // スケルトン表示（ローディング中または統計データがない場合）
   if (loading || !statistics) {
     return (
-      <div className="box" style={{ minHeight: '150px' }}>
-        <h2 className="title is-5">
-          <span className="icon" style={{ marginRight: '0.5rem' }}>
-            <i className="fas fa-filter"></i>
-          </span>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[150px]">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Icon name="funnel" className="size-5" />
           最大振幅フィルタ
         </h2>
-        <div className="field">
-          <label className="label is-small">最大振幅最小値</label>
-          <div className="control">
+        <div className="mb-4 mt-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">最大振幅最小値</label>
+          <div className="relative">
             <div
-              className="skeleton-box"
-              style={{
-                height: '32px',
-                backgroundColor: '#f5f5f5',
-                borderRadius: '4px',
-                animation: 'pulse 1.5s ease-in-out infinite'
-              }}
+              className="animate-pulse-skeleton h-8 bg-gray-200 dark:bg-gray-700 rounded"
             />
           </div>
         </div>
-        <div className="field">
-          <div className="control">
+        <div className="mb-4">
+          <div className="relative">
             <div
-              className="skeleton-box"
-              style={{
-                height: '20px',
-                backgroundColor: '#f5f5f5',
-                borderRadius: '4px',
-                animation: 'pulse 1.5s ease-in-out infinite'
-              }}
+              className="animate-pulse-skeleton h-5 bg-gray-200 dark:bg-gray-700 rounded"
             />
           </div>
-          <p className="help" style={{ color: '#dbdbdb' }}>読み込み中...</p>
+          <p className="mt-1 text-sm text-gray-400">読み込み中...</p>
         </div>
       </div>
     );
@@ -101,53 +88,45 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
 
   if (statistics.with_signal === 0) {
     return (
-      <div className="box" style={{ minHeight: '150px' }}>
-        <h2 className="title is-5">
-          <span className="icon">
-            <i className="fas fa-filter"></i>
-          </span>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[150px]">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Icon name="funnel" className="size-5" />
           最大振幅フィルタ
         </h2>
-        <div className="content">
-          <p className="has-text-grey">信号値を持つ画像がありません</p>
+        <div className="mt-4">
+          <p className="text-gray-500">信号値を持つ画像がありません</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="box" style={{ minHeight: '150px' }}>
-      <h2 className="title is-5">
-        <span className="icon" style={{ marginRight: '0.5rem' }}>
-          <i className="fas fa-filter"></i>
-        </span>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[150px]">
+      <h2 className="text-lg font-semibold flex items-center gap-2">
+        <Icon name="funnel" className="size-5" />
         最大振幅フィルタ
         {isFiltering && (
-          <span className="icon is-small has-text-info" style={{ marginLeft: '0.5rem' }}>
-            <i className="fas fa-spinner fa-pulse"></i>
-          </span>
+          <Icon name="arrow-path" className="size-4 text-blue-500" spin />
         )}
       </h2>
 
-      <div className="field">
-        <label className="label is-small">最大振幅最小値</label>
-        <div className="control">
+      <div className="mb-4 mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">最大振幅最小値</label>
+        <div className="relative">
           <input
-            className="input is-small has-text-right"
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
             type="text"
             value={inputValue ? parseInt(inputValue, 10).toLocaleString() : ''}
             readOnly
             placeholder="例: 10,000"
-            style={{ textAlign: 'right' }}
           />
         </div>
       </div>
 
-      <div className="field">
-        <div className="control">
+      <div className="mb-4">
+        <div className="relative">
           <input
-            className="slider is-fullwidth is-small is-info"
-            style={{ width: '100%' }}
+            className="w-full"
             type="range"
             value={inputValue || minValue}
             onChange={handleSliderChange}
@@ -161,7 +140,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
             disabled={isFiltering}
           />
         </div>
-        <p className="help">
+        <p className="mt-1 text-sm text-gray-500">
           範囲: {minValue.toLocaleString()} - {maxValue.toLocaleString()}
         </p>
       </div>

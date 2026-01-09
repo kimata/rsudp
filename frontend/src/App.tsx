@@ -7,7 +7,7 @@ import FileList from "./components/FileList";
 import Footer from "./components/Footer";
 import SignalFilter from "./components/SignalFilter";
 import { useAutoRefresh } from "./hooks/useAutoRefresh";
-import "bulma/css/bulma.min.css";
+import { Icon } from "./components/Icon";
 
 // URLパラメータの型定義
 interface UrlParams {
@@ -600,30 +600,27 @@ const App: React.FC = () => {
     }, [allScreenshots]);
 
     return (
-        <div className="container is-fluid" style={{ padding: "0.5rem", width: "100%", maxWidth: "100%" }}>
-            <nav className="navbar is-dark" role="navigation" style={{ width: "100%" }}>
-                <div className="navbar-brand">
-                    <a className="navbar-item" href="/rsudp/">
-                        <h1 className="title is-4 has-text-white">
-                            <span className="icon" style={{ marginLeft: "0.5rem", marginRight: "0.5rem" }}>
-                                <i className="fas fa-camera"></i>
-                            </span>
-                            <span className="is-hidden-touch">RSUDP スクリーンショットビューア</span>
-                            <span className="is-hidden-desktop">
+        <div className="w-full max-w-full p-2">
+            <nav className="flex items-center justify-between bg-gray-800 px-4 py-2 rounded w-full" role="navigation">
+                <div className="flex items-center">
+                    <a className="flex items-center px-3 py-2 text-white hover:bg-gray-700 rounded transition-colors" href="/rsudp/">
+                        <h1 className="text-xl font-semibold text-white flex items-center">
+                            <Icon name="camera" className="size-6 mx-2" />
+                            <span className="hidden lg:inline">RSUDP スクリーンショットビューア</span>
+                            <span className="lg:hidden">
                                 RSUDP
                                 <br />
-                                <span style={{ fontSize: "0.9em" }}>スクリーンショットビューア</span>
+                                <span className="text-sm">スクリーンショットビューア</span>
                             </span>
                         </h1>
                     </a>
                 </div>
 
                 {/* デスクトップ表示時 */}
-                <div className="navbar-end is-hidden-touch">
-                    <div className="navbar-item">
+                <div className="hidden lg:flex items-center">
+                    <div className="px-3 py-2">
                         <span
-                            className={`tag is-medium ${isConnected ? "is-success" : "is-warning"}`}
-                            style={{ cursor: "pointer" }}
+                            className={`inline-flex items-center px-3 py-1.5 text-base rounded cursor-pointer ${isConnected ? "bg-green-500 text-white" : "bg-yellow-500 text-white"}`}
                             onClick={handleStatusClick}
                             title={
                                 isConnected
@@ -631,23 +628,19 @@ const App: React.FC = () => {
                                     : "クリックで再接続・更新"
                             }
                         >
-                            <span className="icon is-small">
-                                <i
-                                    className={
-                                        isRefreshing
-                                            ? "fas fa-sync fa-spin"
-                                            : isConnected
-                                              ? "fas fa-wifi"
-                                              : "fas fa-exclamation-triangle"
-                                    }
-                                ></i>
-                            </span>
+                            {isRefreshing ? (
+                                <Icon name="arrow-path" className="size-4 mr-1" spin />
+                            ) : isConnected ? (
+                                <Icon name="wifi" className="size-4 mr-1" />
+                            ) : (
+                                <Icon name="exclamation-triangle" className="size-4 mr-1" />
+                            )}
                             <span>{isRefreshing ? "更新中" : isConnected ? "自動更新" : "未接続"}</span>
                         </span>
                     </div>
                     {lastRefreshed && (
-                        <div className="navbar-item">
-                            <span className="is-size-7 has-text-grey-light">
+                        <div className="px-3 py-2">
+                            <span className="text-sm text-gray-400">
                                 最終: {formatLastRefreshed(lastRefreshed)}
                             </span>
                         </div>
@@ -655,25 +648,20 @@ const App: React.FC = () => {
                 </div>
 
                 {/* モバイル/タブレット表示時 */}
-                <div className="navbar-end is-hidden-desktop">
-                    <div className="navbar-item">
+                <div className="lg:hidden flex items-center">
+                    <div className="px-3 py-2">
                         <span
-                            className={`tag ${isConnected ? "is-success" : "is-warning"}`}
-                            style={{ cursor: "pointer" }}
+                            className={`inline-flex items-center px-2 py-1 text-sm rounded cursor-pointer ${isConnected ? "bg-green-500 text-white" : "bg-yellow-500 text-white"}`}
                             onClick={handleStatusClick}
                             title={isConnected ? "タップで更新" : connectionError || "タップで再接続・更新"}
                         >
-                            <span className="icon is-small">
-                                <i
-                                    className={
-                                        isRefreshing
-                                            ? "fas fa-sync fa-spin"
-                                            : isConnected
-                                              ? "fas fa-wifi"
-                                              : "fas fa-exclamation-triangle"
-                                    }
-                                ></i>
-                            </span>
+                            {isRefreshing ? (
+                                <Icon name="arrow-path" className="size-4 mr-1" spin />
+                            ) : isConnected ? (
+                                <Icon name="wifi" className="size-4 mr-1" />
+                            ) : (
+                                <Icon name="exclamation-triangle" className="size-4 mr-1" />
+                            )}
                             <span>{isRefreshing ? "更新中" : isConnected ? "自動更新" : "未接続"}</span>
                         </span>
                     </div>
@@ -681,74 +669,55 @@ const App: React.FC = () => {
             </nav>
 
             {error && (
-                <div className="notification is-danger" style={{ marginTop: "1rem" }}>
-                    <button className="delete" onClick={() => setError(null)}></button>
-                    <span className="icon" style={{ marginRight: "0.5rem" }}>
-                        <i className="fas fa-exclamation-circle"></i>
-                    </span>
+                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mt-4 flex items-center">
+                    <Icon name="exclamation-circle" className="size-5 mr-2" />
                     {error}
+                    <button
+                        className="ml-auto size-5 rounded-full hover:bg-red-200 flex items-center justify-center"
+                        onClick={() => setError(null)}
+                    >
+                        <Icon name="x-mark" className="size-4" />
+                    </button>
                 </div>
             )}
 
             {/* モバイル/タブレット表示時: 画像を先に表示 */}
-            <div className="is-hidden-desktop">
-                <div style={{ marginTop: "0.5rem" }}>
+            <div className="lg:hidden">
+                <div className="mt-2">
                     {loading && !currentScreenshot ? (
-                        <div className="box" style={{ minHeight: "600px" }}>
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]">
                             {/* ヘッダー部分のスケルトン */}
-                            <div style={{ minHeight: "80px", marginBottom: "1rem" }}>
-                                <span className="heading">
-                                    <span className="icon" style={{ marginRight: "0.5rem" }}>
-                                        <i className="fas fa-clock"></i>
-                                    </span>
+                            <div className="min-h-[80px] mb-4">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                                    <Icon name="clock" className="size-4" />
                                     発生日時
                                 </span>
                                 <br />
                                 <span
-                                    style={{
-                                        display: "inline-block",
-                                        width: "200px",
-                                        height: "1.2em",
-                                        backgroundColor: "#f5f5f5",
-                                        borderRadius: "4px",
-                                        animation: "pulse 1.5s ease-in-out infinite",
-                                    }}
+                                    className="inline-block w-[200px] h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
                                 />
                             </div>
                             {/* 画像部分のスケルトン */}
                             <div
-                                style={{
-                                    minHeight: "400px",
-                                    backgroundColor: "#f5f5f5",
-                                    borderRadius: "4px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    animation: "pulse 1.5s ease-in-out infinite",
-                                }}
+                                className="min-h-[400px] bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center animate-pulse-skeleton"
                             >
-                                <div className="has-text-centered">
-                                    <span className="icon is-large">
-                                        <i className="fas fa-spinner fa-pulse fa-3x"></i>
-                                    </span>
-                                    <p className="subtitle" style={{ marginTop: "1rem" }}>
+                                <div className="text-center">
+                                    <Icon name="arrow-path" className="size-12 text-blue-500" spin />
+                                    <p className="text-gray-600 dark:text-gray-400 mt-4">
                                         スクリーンショットを読み込み中...
                                     </p>
                                 </div>
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="box" style={{ minHeight: "600px" }}>
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]">
                             <div
-                                className="is-flex is-justify-content-center is-align-items-center"
-                                style={{ minHeight: "500px" }}
+                                className="flex justify-center items-center min-h-[500px]"
                             >
-                                <div className="has-text-centered">
-                                    <span className="icon is-large has-text-grey">
-                                        <i className="fas fa-camera fa-3x"></i>
-                                    </span>
-                                    <p className="subtitle mt-3">スクリーンショットがありません</p>
-                                    <p className="is-size-7 has-text-grey">
+                                <div className="text-center">
+                                    <Icon name="camera" className="size-12 text-gray-400" />
+                                    <p className="text-gray-600 dark:text-gray-400 mt-3">スクリーンショットがありません</p>
+                                    <p className="text-sm text-gray-500">
                                         地震データが記録されるとここに表示されます
                                     </p>
                                 </div>
@@ -765,10 +734,9 @@ const App: React.FC = () => {
             </div>
 
             {/* デスクトップ表示時: 従来のレイアウト */}
-            <div className="columns is-desktop is-hidden-touch" style={{ marginTop: "1rem" }}>
+            <div className="hidden lg:flex lg:flex-wrap mt-4 gap-4">
                 <div
-                    className="column is-4-desktop is-12-tablet"
-                    style={{ minWidth: "350px", maxWidth: "400px" }}
+                    className="w-full lg:w-1/3 min-w-[350px] max-w-[400px] space-y-4"
                 >
                     <DateSelector
                         years={years}
@@ -792,33 +760,26 @@ const App: React.FC = () => {
                         isFiltering={isFiltering}
                     />
 
-                    <div className="box">
-                        <h2 className="title is-5">
-                            <span className="icon" style={{ marginRight: "0.5rem" }}>
-                                <i className="fas fa-globe"></i>
-                            </span>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+                        <h2 className="text-lg font-semibold flex items-center gap-2">
+                            <Icon name="globe" className="size-5" />
                             地震フィルタ
                             {isFiltering && (
-                                <span
-                                    className="icon is-small has-text-info"
-                                    style={{ marginLeft: "0.5rem" }}
-                                >
-                                    <i className="fas fa-spinner fa-pulse"></i>
-                                </span>
+                                <Icon name="arrow-path" className="size-4 text-blue-500" spin />
                             )}
                         </h2>
-                        <div className="field">
-                            <label className="checkbox">
+                        <div className="mb-4 mt-4">
+                            <label className="flex items-center cursor-pointer">
                                 <input
                                     type="checkbox"
                                     checked={earthquakeOnly}
                                     onChange={(e) => handleEarthquakeFilterChange(e.target.checked)}
-                                    style={{ marginRight: "0.5rem" }}
+                                    className="mr-2 w-4 h-4"
                                     disabled={isFiltering}
                                 />
                                 震度あり地震のみ表示
                             </label>
-                            <p className="help">
+                            <p className="mt-1 text-sm text-gray-500">
                                 気象庁発表の震度3以上の地震時刻前後のデータのみ表示
                                 {statistics?.earthquake_count !== undefined && (
                                     <>
@@ -838,40 +799,24 @@ const App: React.FC = () => {
                         isFiltering={isFiltering}
                     />
 
-                    <div className="box" style={{ minHeight: "120px" }}>
-                        <h2 className="title is-5">
-                            <span className="icon" style={{ marginRight: "0.5rem" }}>
-                                <i className="fas fa-chart-bar"></i>
-                            </span>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[120px]">
+                        <h2 className="text-lg font-semibold flex items-center gap-2">
+                            <Icon name="chart-bar" className="size-5" />
                             統計情報
                         </h2>
-                        <div className="content">
+                        <div className="mt-4">
                             {loading && !statistics ? (
                                 <>
                                     <p>
                                         全スクリーンショット数:{" "}
                                         <span
-                                            style={{
-                                                display: "inline-block",
-                                                width: "60px",
-                                                height: "1em",
-                                                backgroundColor: "#f5f5f5",
-                                                borderRadius: "4px",
-                                                animation: "pulse 1.5s ease-in-out infinite",
-                                            }}
+                                            className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
                                         />
                                     </p>
                                     <p>
                                         フィルタ後:{" "}
                                         <span
-                                            style={{
-                                                display: "inline-block",
-                                                width: "60px",
-                                                height: "1em",
-                                                backgroundColor: "#f5f5f5",
-                                                borderRadius: "4px",
-                                                animation: "pulse 1.5s ease-in-out infinite",
-                                            }}
+                                            className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
                                         />
                                     </p>
                                 </>
@@ -892,115 +837,67 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="column is-8-desktop is-12-tablet">
+                <div className="flex-1">
                     {loading && !currentScreenshot ? (
-                        <div className="box" style={{ minHeight: "600px" }}>
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]">
                             {/* ヘッダー部分のスケルトン */}
-                            <div className="level is-mobile" style={{ minHeight: "50px" }}>
-                                <div className="level-left">
-                                    <div className="level-item">
-                                        <div>
-                                            <span className="heading">
-                                                <span className="icon" style={{ marginRight: "0.5rem" }}>
-                                                    <i className="fas fa-clock"></i>
-                                                </span>
-                                                発生日時
-                                            </span>
-                                            <span
-                                                style={{
-                                                    display: "inline-block",
-                                                    width: "200px",
-                                                    height: "1.2em",
-                                                    backgroundColor: "#f5f5f5",
-                                                    borderRadius: "4px",
-                                                    animation: "pulse 1.5s ease-in-out infinite",
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="level-right">
-                                    <div className="level-item">
+                            <div className="flex items-center justify-between min-h-[50px]">
+                                <div className="flex items-center">
+                                    <div>
+                                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                                            <Icon name="clock" className="size-4" />
+                                            発生日時
+                                        </span>
                                         <span
-                                            style={{
-                                                display: "inline-block",
-                                                width: "250px",
-                                                height: "28px",
-                                                backgroundColor: "#f5f5f5",
-                                                borderRadius: "4px",
-                                                animation: "pulse 1.5s ease-in-out infinite",
-                                            }}
+                                            className="inline-block w-[200px] h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
                                         />
                                     </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <span
+                                        className="inline-block w-[250px] h-7 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
+                                    />
                                 </div>
                             </div>
                             {/* 画像部分のスケルトン */}
                             <div
-                                style={{
-                                    minHeight: "400px",
-                                    backgroundColor: "#f5f5f5",
-                                    borderRadius: "4px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    animation: "pulse 1.5s ease-in-out infinite",
-                                }}
+                                className="min-h-[400px] bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center animate-pulse-skeleton mt-4"
                             >
-                                <div className="has-text-centered">
-                                    <span className="icon is-large">
-                                        <i className="fas fa-spinner fa-pulse fa-3x"></i>
-                                    </span>
-                                    <p className="subtitle" style={{ marginTop: "1rem" }}>
+                                <div className="text-center">
+                                    <Icon name="arrow-path" className="size-12 text-blue-500" spin />
+                                    <p className="text-gray-600 dark:text-gray-400 mt-4">
                                         スクリーンショットを読み込み中...
                                     </p>
                                 </div>
                             </div>
                             {/* ナビゲーション部分のスケルトン */}
                             <div
-                                className="field is-grouped is-grouped-centered"
-                                style={{ marginTop: "1rem" }}
+                                className="flex justify-center items-center gap-4 mt-4"
                             >
-                                <p className="control">
-                                    <span
-                                        className="button is-info"
-                                        style={{ opacity: 0.5 }}
-                                        aria-disabled="true"
-                                    >
-                                        <span className="icon">
-                                            <i className="fas fa-chevron-left"></i>
-                                        </span>
-                                        <span>前へ</span>
-                                    </span>
-                                </p>
-                                <p className="control">
-                                    <span className="tag is-light">- / -</span>
-                                </p>
-                                <p className="control">
-                                    <span
-                                        className="button is-info"
-                                        style={{ opacity: 0.5 }}
-                                        aria-disabled="true"
-                                    >
-                                        <span>次へ</span>
-                                        <span className="icon">
-                                            <i className="fas fa-chevron-right"></i>
-                                        </span>
-                                    </span>
-                                </p>
+                                <span
+                                    className="px-4 py-2 rounded bg-blue-500 text-white opacity-50 flex items-center gap-2"
+                                >
+                                    <Icon name="chevron-left" className="size-5" />
+                                    <span>前へ</span>
+                                </span>
+                                <span className="inline-flex items-center px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-700">- / -</span>
+                                <span
+                                    className="px-4 py-2 rounded bg-blue-500 text-white opacity-50 flex items-center gap-2"
+                                >
+                                    <span>次へ</span>
+                                    <Icon name="chevron-right" className="size-5" />
+                                </span>
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="box" style={{ minHeight: "600px" }}>
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]">
                             <div
-                                className="is-flex is-justify-content-center is-align-items-center"
-                                style={{ minHeight: "500px" }}
+                                className="flex justify-center items-center min-h-[500px]"
                             >
-                                <div className="has-text-centered">
-                                    <span className="icon is-large has-text-grey">
-                                        <i className="fas fa-camera fa-3x"></i>
-                                    </span>
-                                    <p className="subtitle mt-3">スクリーンショットがありません</p>
-                                    <p className="is-size-7 has-text-grey">
+                                <div className="text-center">
+                                    <Icon name="camera" className="size-12 text-gray-400" />
+                                    <p className="text-gray-600 dark:text-gray-400 mt-3">スクリーンショットがありません</p>
+                                    <p className="text-sm text-gray-500">
                                         地震データが記録されるとここに表示されます
                                     </p>
                                 </div>
@@ -1017,7 +914,7 @@ const App: React.FC = () => {
             </div>
 
             {/* モバイル/タブレット表示時: DateSelectorとFileListを画像の下に配置 */}
-            <div className="is-hidden-desktop" style={{ marginTop: "1rem" }}>
+            <div className="lg:hidden mt-4 space-y-4">
                 <DateSelector
                     years={years}
                     months={months}
@@ -1040,30 +937,26 @@ const App: React.FC = () => {
                     isFiltering={isFiltering}
                 />
 
-                <div className="box">
-                    <h2 className="title is-5">
-                        <span className="icon" style={{ marginRight: "0.5rem" }}>
-                            <i className="fas fa-globe"></i>
-                        </span>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                        <Icon name="globe" className="size-5" />
                         地震フィルタ
                         {isFiltering && (
-                            <span className="icon is-small has-text-info" style={{ marginLeft: "0.5rem" }}>
-                                <i className="fas fa-spinner fa-pulse"></i>
-                            </span>
+                            <Icon name="arrow-path" className="size-4 text-blue-500" spin />
                         )}
                     </h2>
-                    <div className="field">
-                        <label className="checkbox">
+                    <div className="mb-4 mt-4">
+                        <label className="flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={earthquakeOnly}
                                 onChange={(e) => handleEarthquakeFilterChange(e.target.checked)}
-                                style={{ marginRight: "0.5rem" }}
+                                className="mr-2 w-4 h-4"
                                 disabled={isFiltering}
                             />
                             震度あり地震のみ表示
                         </label>
-                        <p className="help">
+                        <p className="mt-1 text-sm text-gray-500">
                             気象庁発表の震度3以上の地震時刻前後のデータのみ表示
                             {statistics?.earthquake_count !== undefined && (
                                 <>
@@ -1083,40 +976,24 @@ const App: React.FC = () => {
                     isFiltering={isFiltering}
                 />
 
-                <div className="box" style={{ minHeight: "120px" }}>
-                    <h2 className="title is-5">
-                        <span className="icon" style={{ marginRight: "0.5rem" }}>
-                            <i className="fas fa-chart-bar"></i>
-                        </span>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[120px]">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                        <Icon name="chart-bar" className="size-5" />
                         統計情報
                     </h2>
-                    <div className="content">
+                    <div className="mt-4">
                         {loading && !statistics ? (
                             <>
                                 <p>
                                     全スクリーンショット数:{" "}
                                     <span
-                                        style={{
-                                            display: "inline-block",
-                                            width: "60px",
-                                            height: "1em",
-                                            backgroundColor: "#f5f5f5",
-                                            borderRadius: "4px",
-                                            animation: "pulse 1.5s ease-in-out infinite",
-                                        }}
+                                        className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
                                     />
                                 </p>
                                 <p>
                                     フィルタ後:{" "}
                                     <span
-                                        style={{
-                                            display: "inline-block",
-                                            width: "60px",
-                                            height: "1em",
-                                            backgroundColor: "#f5f5f5",
-                                            borderRadius: "4px",
-                                            animation: "pulse 1.5s ease-in-out infinite",
-                                        }}
+                                        className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
                                     />
                                 </p>
                             </>

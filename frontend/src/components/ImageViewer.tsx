@@ -4,6 +4,7 @@ import { screenshotApi } from '../api';
 import { formatScreenshotDateTime } from '../utils/dateTime';
 import { useScreenshotNavigation } from '../hooks/useScreenshotNavigation';
 import { UI_CONSTANTS } from '../utils/constants';
+import { Icon } from './Icon';
 
 interface ImageViewerProps {
   currentImage: Screenshot | null;
@@ -225,11 +226,9 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   if (!currentImage) {
     return (
-      <div className="box has-text-centered">
-        <p className="subtitle">
-          <span className="icon" style={{ marginRight: '0.5rem' }}>
-            <i className="fas fa-image"></i>
-          </span>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 text-center">
+        <p className="text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
+          <Icon name="photo" className="size-5" />
           画像が選択されていません
         </p>
       </div>
@@ -242,21 +241,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   if (isFullscreen) {
     return (
       <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: '#000',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer'
-        }}
+        className="fixed inset-0 w-screen h-screen bg-black z-[9999] flex items-center justify-center cursor-pointer"
         onKeyDown={handleKeyDown}
         onClick={(e) => {
           // 背景クリックで全画面解除
@@ -269,14 +254,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         <img
           src={screenshotApi.getImageUrl(currentImage.filename)}
           alt={currentImage.filename.replace(/\.[^.]*$/, '')}
-          style={{
-            maxWidth: '95%',
-            maxHeight: '95vh',
-            width: 'auto',
-            height: 'auto',
-            objectFit: 'contain',
-            cursor: 'zoom-out'
-          }}
+          className="max-w-[95%] max-h-[95vh] w-auto h-auto object-contain cursor-zoom-out"
           onClick={(e) => {
             e.stopPropagation();
             setIsFullscreen(false);
@@ -297,179 +275,128 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   };
 
   return (
-    <div className="box" onKeyDown={handleKeyDown} tabIndex={0} style={{ minHeight: '600px' }}>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
       {/* デスクトップ表示 */}
-      <div className="level is-mobile is-hidden-touch" style={{ minHeight: '50px', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <div className="level-left">
-          <div className="level-item">
+      <div className="hidden lg:flex items-center justify-between min-h-[50px] flex-wrap gap-2">
+        <div className="flex items-center">
+          <div>
             <div>
-              <div>
-                <span className="heading">
-                  <span className="icon" style={{ marginRight: '0.5rem' }}>
-                    <i className="fas fa-clock"></i>
-                  </span>
-                  発生日時
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                <Icon name="clock" className="size-4" />
+                発生日時
+              </span>
+              <span className="text-base font-semibold ml-1">
+                {dateTime.formatted}
+              </span>
+              <span className="text-xs text-gray-500 ml-2">
+                ({dateTime.relative})
+              </span>
+              {currentImage.earthquake && (
+                <span
+                  className="inline-flex items-center px-2 py-1 text-sm rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 ml-3 whitespace-nowrap"
+                >
+                  <Icon name="globe" className="size-4 mr-1" />
+                  近傍で発生した地震: {formatEarthquakeDateTime(currentImage.earthquake.detected_at)} {currentImage.earthquake.epicenter_name} M{currentImage.earthquake.magnitude}
                 </span>
-                <span className="title is-6" style={{ marginLeft: '0.25rem' }}>
-                  {dateTime.formatted}
-                </span>
-                <span className="subtitle is-7 has-text-grey" style={{ marginLeft: '0.5rem' }}>
-                  ({dateTime.relative})
-                </span>
-                {currentImage.earthquake && (
-                  <span
-                    className="tag is-link is-light"
-                    style={{ marginLeft: '0.75rem', whiteSpace: 'nowrap' }}
-                  >
-                    <span className="icon is-small" style={{ marginRight: '0.25rem' }}>
-                      <i className="fas fa-globe"></i>
-                    </span>
-                    近傍で発生した地震: {formatEarthquakeDateTime(currentImage.earthquake.detected_at)} {currentImage.earthquake.epicenter_name} M{currentImage.earthquake.magnitude}
-                  </span>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>
-        <div className="level-right" style={{ flexShrink: 1, minWidth: 0 }}>
-          <div className="level-item" style={{ flexShrink: 1, minWidth: 0 }}>
-            <div
-              className="has-text-right"
-              style={{
-                minHeight: '28px'
-              }}
-            >
-              {currentImage.sta ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    justifyContent: 'flex-end',
-                    alignItems: 'center',
-                    gap: '0.25rem'
-                  }}
-                >
-                  <span className="icon" style={{ verticalAlign: 'baseline' }}>
-                    <i className="fas fa-chart-bar"></i>
+        <div className="flex items-center flex-shrink min-w-0">
+          <div
+            className="text-right min-h-[28px]"
+          >
+            {currentImage.sta ? (
+              <div
+                className="flex flex-wrap justify-end items-center gap-1"
+              >
+                <Icon name="chart-bar" className="size-5" />
+                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                  最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
+                </span>
+                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                  STA: {Math.round(currentImage.sta).toLocaleString()}
+                </span>
+                {currentImage.sta_lta_ratio && (
+                  <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                    比率: {currentImage.sta_lta_ratio.toFixed(3)}
                   </span>
-                  <span className="tag is-info">
-                    最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
-                  </span>
-                  <span className="tag is-success">
-                    STA: {Math.round(currentImage.sta).toLocaleString()}
-                  </span>
-                  {currentImage.sta_lta_ratio && (
-                    <span className="tag is-warning">
-                      比率: {currentImage.sta_lta_ratio.toFixed(3)}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <span className="has-text-grey-light is-size-7">信号データなし</span>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <span className="text-gray-400 text-sm">信号データなし</span>
+            )}
           </div>
         </div>
       </div>
 
       {/* モバイル表示 */}
-      <div className="is-hidden-desktop" style={{ minHeight: '80px' }}>
-        <div style={{ marginBottom: '1rem' }}>
-          <span className="heading">
-            <span className="icon" style={{ marginRight: '0.5rem' }}>
-              <i className="fas fa-clock"></i>
-            </span>
+      <div className="lg:hidden min-h-[80px]">
+        <div className="mb-4">
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+            <Icon name="clock" className="size-4" />
             発生日時
           </span>
           <br />
-          <span className="title is-6" style={{ marginTop: '0.25rem' }}>
+          <span className="text-base font-semibold mt-1">
             {dateTime.formatted}
           </span>
-          <span className="subtitle is-7 has-text-grey" style={{ marginLeft: '0.5rem' }}>
+          <span className="text-xs text-gray-500 ml-2">
             ({dateTime.relative})
           </span>
           {currentImage.earthquake && (
-            <div style={{ marginTop: '0.5rem' }}>
+            <div className="mt-2">
               <span
-                className="tag is-link is-light"
-                style={{ whiteSpace: 'nowrap' }}
+                className="inline-flex items-center px-2 py-1 text-sm rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 whitespace-nowrap"
               >
-                <span className="icon is-small" style={{ marginRight: '0.25rem' }}>
-                  <i className="fas fa-globe"></i>
-                </span>
+                <Icon name="globe" className="size-4 mr-1" />
                 近傍で発生した地震: {formatEarthquakeDateTime(currentImage.earthquake.detected_at)} {currentImage.earthquake.epicenter_name} M{currentImage.earthquake.magnitude}
               </span>
             </div>
           )}
         </div>
 
-        <div style={{ marginBottom: '1rem', minHeight: '28px' }}>
+        <div className="mb-4 min-h-[28px]">
           <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
+            className="flex flex-wrap items-center gap-2"
           >
             {currentImage.sta ? (
               <>
-                <span className="icon" style={{ verticalAlign: 'baseline' }}>
-                  <i className="fas fa-chart-bar"></i>
-                </span>
-                <span className="tag is-info">
+                <Icon name="chart-bar" className="size-5" />
+                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                   最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
                 </span>
-                <span className="tag is-success">
+                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                   STA: {Math.round(currentImage.sta).toLocaleString()}
                 </span>
                 {currentImage.sta_lta_ratio && (
-                  <span className="tag is-warning">
+                  <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
                     比率: {currentImage.sta_lta_ratio.toFixed(3)}
                   </span>
                 )}
               </>
             ) : (
-              <span className="has-text-grey-light is-size-7">信号データなし</span>
+              <span className="text-gray-400 text-sm">信号データなし</span>
             )}
           </div>
         </div>
       </div>
 
       <div
-        className="image-container"
-        style={{
-          position: 'relative',
-          marginBottom: '1rem',
-          minHeight: UI_CONSTANTS.CONTAINER_HEIGHT,
-          width: '100%'
-        }}
+        className="image-container relative mb-4 w-full"
+        style={{ minHeight: UI_CONSTANTS.CONTAINER_HEIGHT }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
         {(imageLoading || isTransitioning) && (
           <div
-            className="has-text-centered"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 2,
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              padding: '2rem'
-            }}
+            className="absolute inset-0 z-10 bg-white/90 dark:bg-gray-800/90 p-8 text-center"
           >
-            <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
+            <div className="flex justify-center items-center min-h-[300px]">
               <div>
-                <span className="icon is-large">
-                  <i className="fas fa-spinner fa-pulse fa-3x"></i>
-                </span>
-                <p className="subtitle mt-3">
-                  <span className="icon">
-                    <i className="fas fa-hourglass-half"></i>
-                  </span>
+                <Icon name="arrow-path" className="size-12 text-blue-500" spin />
+                <p className="text-gray-600 dark:text-gray-400 mt-3 flex items-center justify-center gap-2">
+                  <Icon name="clock" className="size-5" />
                   画像を読み込み中...
                 </p>
               </div>
@@ -478,30 +405,24 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         )}
 
         {imageError && !imageLoading && !isTransitioning && (
-          <div className="has-text-centered" style={{ padding: '2rem' }}>
-            <div className="is-flex is-justify-content-center is-align-items-center" style={{ minHeight: '300px' }}>
+          <div className="text-center p-8">
+            <div className="flex justify-center items-center min-h-[300px]">
               <div>
-                <span className="icon is-large has-text-danger">
-                  <i className="fas fa-exclamation-triangle fa-3x"></i>
-                </span>
-                <p className="subtitle mt-3">
-                  <span className="icon" style={{ marginRight: '0.5rem' }}>
-                    <i className="fas fa-exclamation-triangle"></i>
-                  </span>
+                <Icon name="exclamation-triangle" className="size-12 text-red-500" />
+                <p className="text-gray-600 dark:text-gray-400 mt-3 flex items-center justify-center gap-2">
+                  <Icon name="exclamation-triangle" className="size-5" />
                   画像の読み込みに失敗しました
                 </p>
-                <p className="is-size-7 has-text-grey">ファイル: {currentImage.filename}</p>
+                <p className="text-sm text-gray-500 mt-1">ファイル: {currentImage.filename}</p>
                 <button
-                  className="button is-small is-primary mt-2"
+                  className="mt-2 px-4 py-2 text-sm rounded bg-teal-500 text-white hover:bg-teal-600 transition-colors flex items-center gap-2 mx-auto"
                   onClick={() => {
                     setImageLoading(true);
                     setImageError(false);
                     setIsTransitioning(true);
                   }}
                 >
-                  <span className="icon">
-                    <i className="fas fa-redo"></i>
-                  </span>
+                  <Icon name="arrow-path" className="size-4" />
                   <span>再試行</span>
                 </button>
               </div>
@@ -510,33 +431,17 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         )}
 
         <figure
-          className="image"
-          style={{
-            opacity: (imageLoading || isTransitioning) ? 0.3 : 1,
-            transition: 'opacity 0.2s ease-in-out',
-            minHeight: '300px',
-            cursor: 'zoom-in',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: 'auto',
-            overflow: 'visible',
-            width: '100%'
-          }}
+          className={`min-h-[300px] cursor-zoom-in flex items-center justify-center h-auto overflow-visible w-full transition-opacity duration-200 ${
+            (imageLoading || isTransitioning) ? 'opacity-30' : 'opacity-100'
+          }`}
           onClick={(e) => toggleFullscreen(e)}
         >
           <img
             ref={currentImageRef}
             src={screenshotApi.getImageUrl(currentImage.filename)}
             alt={currentImage.filename.replace(/\.[^.]*$/, '')}
-            style={{
-              maxWidth: '100%',
-              height: 'auto',
-              display: 'block',
-              margin: '0 auto',
-              objectFit: 'contain',
-              touchAction: 'manipulation'
-            }}
+            className="max-w-full h-auto block mx-auto object-contain"
+            style={{ touchAction: 'manipulation' }}
             onLoad={handleImageLoad}
             onError={handleImageError}
           />
@@ -544,51 +449,37 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       </div>
 
       {/* デスクトップ用ナビゲーションボタン */}
-      <div className="is-hidden-touch" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-        <div className="field is-grouped is-grouped-centered" style={{ alignItems: 'center' }}>
-          <p className="control">
-            <button
-              className="button is-info"
-              onClick={navigatePrevious}
-              disabled={!canNavigatePrevious}
-            >
-              <span className="icon">
-                <i className="fas fa-chevron-left"></i>
-              </span>
-              <span>前へ</span>
-            </button>
-          </p>
-          <p className="control" style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="tag is-light" style={{ display: 'inline-flex', alignItems: 'center', height: '2.25em' }}>
-              {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
-            </span>
-          </p>
-          <p className="control">
-            <button
-              className="button is-info"
-              onClick={navigateNext}
-              disabled={!canNavigateNext}
-            >
-              <span>次へ</span>
-              <span className="icon">
-                <i className="fas fa-chevron-right"></i>
-              </span>
-            </button>
-          </p>
+      <div className="hidden lg:block mt-4 mb-4">
+        <div className="flex justify-center items-center gap-4">
+          <button
+            className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            onClick={navigatePrevious}
+            disabled={!canNavigatePrevious}
+          >
+            <Icon name="chevron-left" className="size-5" />
+            <span>前へ</span>
+          </button>
+          <span className="inline-flex items-center px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 h-9">
+            {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
+          </span>
+          <button
+            className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            onClick={navigateNext}
+            disabled={!canNavigateNext}
+          >
+            <span>次へ</span>
+            <Icon name="chevron-right" className="size-5" />
+          </button>
         </div>
       </div>
 
-      <div className="content is-small has-text-centered" style={{ marginTop: '1rem' }}>
-        <p className="is-hidden-touch">
-          <span className="icon" style={{ marginRight: '0.5rem' }}>
-            <i className="fas fa-keyboard"></i>
-          </span>
+      <div className="text-sm text-center text-gray-500 mt-4">
+        <p className="hidden lg:flex items-center justify-center gap-2">
+          <Icon name="command-line" className="size-4" />
           矢印キー←→でナビゲーション / Fキーで全画面表示
         </p>
-        <p className="is-hidden-desktop">
-          <span className="icon" style={{ marginRight: '0.5rem' }}>
-            <i className="fas fa-mobile-alt"></i>
-          </span>
+        <p className="lg:hidden flex items-center justify-center gap-2">
+          <Icon name="device-phone-mobile" className="size-4" />
           左右スワイプでナビゲーション / タップで全画面表示
         </p>
       </div>

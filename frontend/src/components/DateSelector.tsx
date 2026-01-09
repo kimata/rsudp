@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from './Icon';
 
 interface DateSelectorProps {
   years: number[];
@@ -30,50 +31,50 @@ const DateSelector: React.FC<DateSelectorProps> = ({
     '7月', '8月', '9月', '10月', '11月', '12月'
   ];
 
+  const buttonBaseClass = "px-2 py-1 text-sm rounded font-medium transition-colors disabled:opacity-50";
+  const buttonActiveClass = "bg-teal-500 text-white hover:bg-teal-600";
+  const buttonInactiveClass = "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600";
+
   return (
     <>
       {/* 日付フィルタ */}
-      <div className="box" style={{ minHeight: '180px' }}>
-        <h2 className="title is-5">
-          <span className="icon" style={{ marginRight: '0.5rem' }}>
-            <i className="fas fa-calendar-alt"></i>
-          </span>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[180px]">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Icon name="calendar" className="size-5" />
           日付フィルタ
         </h2>
 
       {/* Year Selector */}
-      <div className="field">
-        <label className="label">年</label>
+      <div className="mb-4 mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年</label>
         {loading && years.length === 0 ? (
-          <div className="buttons">
+          <div className="flex flex-wrap gap-2">
             <span
-              className="button is-small is-loading"
-              style={{ minWidth: '60px' }}
+              className={`${buttonBaseClass} ${buttonInactiveClass} min-w-[60px] animate-pulse`}
             >
               読込中
             </span>
           </div>
         ) : years.length > 5 ? (
-          <div className="control">
-            <div className="select is-fullwidth">
-              <select
-                value={selectedYear || ''}
-                onChange={(e) => onYearChange(e.target.value ? Number(e.target.value) : null)}
-                disabled={loading}
-              >
-                <option value="">全ての年</option>
-                {years.map(year => (
-                  <option key={year} value={year}>
-                    {year}年
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="relative">
+            <select
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              value={selectedYear || ''}
+              onChange={(e) => onYearChange(e.target.value ? Number(e.target.value) : null)}
+              disabled={loading}
+            >
+              <option value="">全ての年</option>
+              {years.map(year => (
+                <option key={year} value={year}>
+                  {year}年
+                </option>
+              ))}
+            </select>
           </div>
         ) : (
-          <div className="buttons">
+          <div className="flex flex-wrap gap-2">
             <button
-              className={`button is-small ${!selectedYear ? 'is-primary' : ''}`}
+              className={`${buttonBaseClass} ${!selectedYear ? buttonActiveClass : buttonInactiveClass}`}
               onClick={() => onYearChange(null)}
               disabled={loading}
             >
@@ -82,7 +83,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
             {years.map(year => (
               <button
                 key={year}
-                className={`button is-small ${selectedYear === year ? 'is-primary' : ''}`}
+                className={`${buttonBaseClass} ${selectedYear === year ? buttonActiveClass : buttonInactiveClass}`}
                 onClick={() => onYearChange(year)}
                 disabled={loading}
               >
@@ -95,29 +96,28 @@ const DateSelector: React.FC<DateSelectorProps> = ({
 
       {/* Month Selector */}
       {selectedYear && months.length > 0 && (
-        <div className="field">
-          <label className="label">月</label>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">月</label>
           {months.length > 6 ? (
-            <div className="control">
-              <div className="select is-fullwidth">
-                <select
-                  value={selectedMonth || ''}
-                  onChange={(e) => onMonthChange(e.target.value ? Number(e.target.value) : null)}
-                  disabled={loading}
-                >
-                  <option value="">全ての月</option>
-                  {months.map(month => (
-                    <option key={month} value={month}>
-                      {monthNames[month]}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="relative">
+              <select
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={selectedMonth || ''}
+                onChange={(e) => onMonthChange(e.target.value ? Number(e.target.value) : null)}
+                disabled={loading}
+              >
+                <option value="">全ての月</option>
+                {months.map(month => (
+                  <option key={month} value={month}>
+                    {monthNames[month]}
+                  </option>
+                ))}
+              </select>
             </div>
           ) : (
-            <div className="buttons">
+            <div className="flex flex-wrap gap-2">
               <button
-                className={`button is-small ${!selectedMonth ? 'is-primary' : ''}`}
+                className={`${buttonBaseClass} ${!selectedMonth ? buttonActiveClass : buttonInactiveClass}`}
                 onClick={() => onMonthChange(null)}
                 disabled={loading}
               >
@@ -126,7 +126,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
               {months.map(month => (
                 <button
                   key={month}
-                  className={`button is-small ${selectedMonth === month ? 'is-primary' : ''}`}
+                  className={`${buttonBaseClass} ${selectedMonth === month ? buttonActiveClass : buttonInactiveClass}`}
                   onClick={() => onMonthChange(month)}
                   disabled={loading}
                 >
@@ -140,29 +140,28 @@ const DateSelector: React.FC<DateSelectorProps> = ({
 
       {/* Day Selector */}
       {selectedYear && selectedMonth && days.length > 0 && (
-        <div className="field">
-          <label className="label">日</label>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">日</label>
           {days.length > 10 ? (
-            <div className="control">
-              <div className="select is-fullwidth">
-                <select
-                  value={selectedDay || ''}
-                  onChange={(e) => onDayChange(e.target.value ? Number(e.target.value) : null)}
-                  disabled={loading}
-                >
-                  <option value="">全ての日</option>
-                  {days.map(day => (
-                    <option key={day} value={day}>
-                      {day}日
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="relative">
+              <select
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={selectedDay || ''}
+                onChange={(e) => onDayChange(e.target.value ? Number(e.target.value) : null)}
+                disabled={loading}
+              >
+                <option value="">全ての日</option>
+                {days.map(day => (
+                  <option key={day} value={day}>
+                    {day}日
+                  </option>
+                ))}
+              </select>
             </div>
           ) : (
-            <div className="buttons are-small">
+            <div className="flex flex-wrap gap-2">
               <button
-                className={`button is-small ${!selectedDay ? 'is-primary' : ''}`}
+                className={`${buttonBaseClass} ${!selectedDay ? buttonActiveClass : buttonInactiveClass}`}
                 onClick={() => onDayChange(null)}
                 disabled={loading}
               >
@@ -171,7 +170,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
               {days.map(day => (
                 <button
                   key={day}
-                  className={`button is-small ${selectedDay === day ? 'is-primary' : ''}`}
+                  className={`${buttonBaseClass} ${selectedDay === day ? buttonActiveClass : buttonInactiveClass}`}
                   onClick={() => onDayChange(day)}
                   disabled={loading}
                 >
