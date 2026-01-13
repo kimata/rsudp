@@ -111,3 +111,31 @@ input[type="range"]::-moz-range-thumb:hover {
         background: #9ca3af;
     }
 }
+
+/* ファイルリストのパフォーマンス最適化 */
+
+/* 仮想スクロールリストのコンテナ */
+.file-list-container {
+    /* コンテナのレイアウトを独立させる */
+    contain: strict;
+    /* スクロール時のGPUアクセラレーション */
+    will-change: scroll-position;
+}
+
+/* 各リストアイテム */
+.file-list-item {
+    /* レイアウト・スタイル・描画を独立させる（他要素への影響を遮断） */
+    contain: layout style paint;
+    /* transform の準備（スクロール時のスムーズな描画） */
+    will-change: transform;
+    /* GPUレイヤーに昇格してスクロールパフォーマンス向上 */
+    transform: translateZ(0);
+    /* バックフェイス非表示でメモリ節約 */
+    backface-visibility: hidden;
+}
+
+/* スクロール中はアニメーション効果を軽減 */
+.file-list-container:active .file-list-item,
+.file-list-container:focus-within .file-list-item {
+    transition: none;
+}
