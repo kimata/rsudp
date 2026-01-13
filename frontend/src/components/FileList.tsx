@@ -1,12 +1,12 @@
-import React, { useEffect, memo, useCallback, useMemo } from 'react';
-import { List, useListRef } from 'react-window';
-import type { RowComponentProps, ListImperativeAPI } from 'react-window';
+import React, { useEffect, memo, useCallback, useMemo, useRef } from 'react';
+import { List, useListRef, useDynamicRowHeight } from 'react-window';
+import type { RowComponentProps, ListImperativeAPI, DynamicRowHeight } from 'react-window';
 import type { Screenshot } from '../types';
 import { formatScreenshotDateTime } from '../utils/dateTime';
 import { Icon } from './Icon';
 
-// アイテムの高さ（ピクセル）
-const ITEM_HEIGHT = 60;
+// デフォルトの行高さ（ピクセル）- 動的計測前の初期値
+const DEFAULT_ROW_HEIGHT = 60;
 // リストの高さ（ピクセル）
 const LIST_HEIGHT = 400;
 
@@ -27,6 +27,7 @@ interface RowData {
   currentFilename: string | null;
   onSelect: (screenshot: Screenshot) => void;
   formattedDates: Map<string, { formatted: string; relative: string }>;
+  dynamicRowHeight: DynamicRowHeight;
 }
 
 // アイコン名を取得する関数
@@ -50,18 +51,28 @@ interface FileListItemContentProps {
   isCurrentImage: boolean;
   dateTime: { formatted: string; relative: string };
   onSelect: (screenshot: Screenshot) => void;
+  onMeasure: (index: number, element: HTMLDivElement | null) => void;
 }
 
 // メモ化された内部コンポーネント（選択状態が変わらなければ再レンダリングしない）
 const FileListItemContent = memo(
-  ({ image, index, style, isCurrentImage, dateTime, onSelect }: FileListItemContentProps) => {
+  ({ image, index, style, isCurrentImage, dateTime, onSelect, onMeasure }: FileListItemContentProps) => {
+    const elementRef = useRef<HTMLDivElement>(null);
+
     const handleClick = useCallback(() => {
       onSelect(image);
     }, [onSelect, image]);
 
+    // マウント時に高さを計測
+    useEffect(() => {
+      onMeasure(index, elementRef.current);
+    }, [index, onMeasure]);
+
     return (
       <div
+        ref={elementRef}
         style={style}
+        data-index={index}
         className={`file-list-item p-2 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors duration-200 ${
           isCurrentImage
             ? 'bg-blue-500 text-white'
@@ -120,10 +131,20 @@ const FileListItemContent = memo(
 FileListItemContent.displayName = 'FileListItemContent';
 
 // react-window 用のラッパーコンポーネント
-const FileListItem = ({ index, style, items, currentFilename, onSelect, formattedDates }: RowComponentProps<RowData>) => {
+const FileListItem = ({ index, style, items, currentFilename, onSelect, formattedDates, dynamicRowHeight }: RowComponentProps<RowData>) => {
   const image = items[index];
   const isCurrentImage = currentFilename === image.filename;
   const dateTime = formattedDates.get(image.filename) || { formatted: '', relative: '' };
+
+  // 高さ計測コールバック
+  const handleMeasure = useCallback((idx: number, element: HTMLDivElement | null) => {
+    if (element) {
+      const height = element.getBoundingClientRect().height;
+      if (height > 0) {
+        dynamicRowHeight.setRowHeight(idx, height);
+      }
+    }
+  }, [dynamicRowHeight]);
 
   return (
     <FileListItemContent
@@ -133,6 +154,7 @@ const FileListItem = ({ index, style, items, currentFilename, onSelect, formatte
       isCurrentImage={isCurrentImage}
       dateTime={dateTime}
       onSelect={onSelect}
+      onMeasure={handleMeasure}
     />
   );
 };
@@ -146,7 +168,13 @@ const FileList: React.FC<FileListProps> = memo(({
   isFiltering = false,
 }) => {
   const listRef = useListRef(null);
-  const hasInitialScrolledRef = React.useRef(false);
+  const hasInitialScrolledRef = useRef(false);
+
+  // 動的行高さキャッシュ（allImages.length をキーにしてリセット）
+  const dynamicRowHeight = useDynamicRowHeight({
+    defaultRowHeight: DEFAULT_ROW_HEIGHT,
+    key: allImages.length,
+  });
 
   // 日時フォーマットを事前計算してキャッシュ
   const formattedDates = useMemo(() => {
@@ -198,7 +226,8 @@ const FileList: React.FC<FileListProps> = memo(({
     currentFilename: currentImage?.filename || null,
     onSelect: onImageSelect,
     formattedDates,
-  }), [allImages, currentImage?.filename, onImageSelect, formattedDates]);
+    dynamicRowHeight,
+  }), [allImages, currentImage?.filename, onImageSelect, formattedDates, dynamicRowHeight]);
 
   // ローディング中の表示
   if (loading && allImages.length === 0) {
@@ -277,7 +306,7 @@ const FileList: React.FC<FileListProps> = memo(({
             listRef={listRef}
             rowComponent={FileListItem}
             rowCount={allImages.length}
-            rowHeight={ITEM_HEIGHT}
+            rowHeight={dynamicRowHeight}
             rowProps={rowProps}
             className="file-list-container custom-scrollbar"
             overscanCount={5}
