@@ -781,12 +781,6 @@ const App: React.FC = () => {
                             </label>
                             <p className="mt-1 text-sm text-gray-500">
                                 気象庁発表の震度3以上の地震時刻前後のデータのみ表示
-                                {statistics?.earthquake_count !== undefined && (
-                                    <>
-                                        <br />
-                                        （記録済み: {statistics.earthquake_count}件）
-                                    </>
-                                )}
                             </p>
                         </div>
                     </div>
