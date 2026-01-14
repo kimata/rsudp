@@ -91,6 +91,9 @@ test-typecheck:
 
     needs: []
 
+    before_script:
+        - uv sync --locked --no-editable
+
     script:
         - uv run python -m pyright
         - uv run ty check src/
@@ -106,6 +109,9 @@ test-walk-through:
     stage: test
 
     needs: []
+
+    before_script:
+        - uv sync --locked --no-editable
 
     script:
         - uv run pytest
@@ -129,6 +135,9 @@ test-webui:
     needs:
         - generate-tag
         - build-image
+
+    before_script:
+        - uv sync --locked --no-editable
 
     script:
         # NOTE: テストに失敗するとテスト用のコンテナが残るので削除する
