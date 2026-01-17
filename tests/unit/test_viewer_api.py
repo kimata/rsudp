@@ -6,40 +6,9 @@ REST API エンドポイントの基本機能をテストします。
 """
 
 import sqlite3
-import zoneinfo
 
 from rsudp.webui.api import viewer
-
-JST = zoneinfo.ZoneInfo("Asia/Tokyo")
-
-
-class TestParseFilename:
-    """ファイル名解析のテスト."""
-
-    def test_parse_valid_filename(self):
-        """有効なファイル名が正しくパースされることを確認."""
-        result = viewer._parse_filename("SHAKE-2025-08-12-104039.png")
-
-        assert result is not None
-        assert result["prefix"] == "SHAKE"
-        assert result["year"] == 2025
-        assert result["month"] == 8
-        assert result["day"] == 12
-        assert result["hour"] == 10
-        assert result["minute"] == 40
-        assert result["second"] == 39
-
-    def test_parse_invalid_filename(self):
-        """無効なファイル名で None が返されることを確認."""
-        assert viewer._parse_filename("invalid.png") is None
-        assert viewer._parse_filename("no-date.png") is None
-
-    def test_parse_timestamp_is_utc(self):
-        """タイムスタンプが UTC であることを確認."""
-        result = viewer._parse_filename("SHAKE-2025-08-12-104039.png")
-
-        assert result is not None
-        assert "+00:00" in result["timestamp"]
+from tests.helpers import insert_screenshot_metadata
 
 
 class TestApiEndpoints:
@@ -53,33 +22,7 @@ class TestApiEndpoints:
         manager = ScreenshotManager(screenshot_config)
 
         with sqlite3.connect(manager.cache_path) as conn:
-            conn.execute(
-                """
-                INSERT INTO screenshot_metadata
-                (filename, filepath, year, month, day, hour, minute, second,
-                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
-                 created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    "SHAKE-2025-12-12-190500.png",
-                    "2025/12/12/SHAKE-2025-12-12-190500.png",
-                    2025,
-                    12,
-                    12,
-                    19,
-                    5,
-                    0,
-                    "2025-12-12T19:05:00+00:00",
-                    100.0,
-                    50.0,
-                    2.0,
-                    1000.0,
-                    1234567890.0,
-                    12345,
-                    None,
-                ),
-            )
+            insert_screenshot_metadata(conn)
 
         response = flask_client.get("/rsudp/api/screenshot/years/")
 
@@ -242,33 +185,7 @@ class TestLatestEndpoint:
         manager = ScreenshotManager(config)
 
         with sqlite3.connect(manager.cache_path) as conn:
-            conn.execute(
-                """
-                INSERT INTO screenshot_metadata
-                (filename, filepath, year, month, day, hour, minute, second,
-                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
-                 created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    "SHAKE-2025-12-12-190500.png",
-                    "2025/12/12/SHAKE-2025-12-12-190500.png",
-                    2025,
-                    12,
-                    12,
-                    19,
-                    5,
-                    0,
-                    "2025-12-12T19:05:00+00:00",
-                    100.0,
-                    50.0,
-                    2.0,
-                    1000.0,
-                    1234567890.0,
-                    12345,
-                    None,
-                ),
-            )
+            insert_screenshot_metadata(conn)
 
         response = flask_client.get("/rsudp/api/screenshot/latest/")
 
@@ -339,33 +256,7 @@ class TestDateEndpoints:
         manager = ScreenshotManager(config)
 
         with sqlite3.connect(manager.cache_path) as conn:
-            conn.execute(
-                """
-                INSERT INTO screenshot_metadata
-                (filename, filepath, year, month, day, hour, minute, second,
-                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
-                 created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    "SHAKE-2025-12-12-190500.png",
-                    "2025/12/12/SHAKE-2025-12-12-190500.png",
-                    2025,
-                    12,
-                    12,
-                    19,
-                    5,
-                    0,
-                    "2025-12-12T19:05:00+00:00",
-                    100.0,
-                    50.0,
-                    2.0,
-                    1000.0,
-                    1234567890.0,
-                    12345,
-                    None,
-                ),
-            )
+            insert_screenshot_metadata(conn)
 
         response = flask_client.get("/rsudp/api/screenshot/2025/months/")
 
@@ -380,33 +271,7 @@ class TestDateEndpoints:
         manager = ScreenshotManager(config)
 
         with sqlite3.connect(manager.cache_path) as conn:
-            conn.execute(
-                """
-                INSERT INTO screenshot_metadata
-                (filename, filepath, year, month, day, hour, minute, second,
-                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
-                 created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    "SHAKE-2025-12-12-190500.png",
-                    "2025/12/12/SHAKE-2025-12-12-190500.png",
-                    2025,
-                    12,
-                    12,
-                    19,
-                    5,
-                    0,
-                    "2025-12-12T19:05:00+00:00",
-                    100.0,
-                    50.0,
-                    2.0,
-                    1000.0,
-                    1234567890.0,
-                    12345,
-                    None,
-                ),
-            )
+            insert_screenshot_metadata(conn)
 
         response = flask_client.get("/rsudp/api/screenshot/2025/12/days/")
 
@@ -421,33 +286,7 @@ class TestDateEndpoints:
         manager = ScreenshotManager(config)
 
         with sqlite3.connect(manager.cache_path) as conn:
-            conn.execute(
-                """
-                INSERT INTO screenshot_metadata
-                (filename, filepath, year, month, day, hour, minute, second,
-                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
-                 created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    "SHAKE-2025-12-12-190500.png",
-                    "2025/12/12/SHAKE-2025-12-12-190500.png",
-                    2025,
-                    12,
-                    12,
-                    19,
-                    5,
-                    0,
-                    "2025-12-12T19:05:00+00:00",
-                    100.0,
-                    50.0,
-                    2.0,
-                    1000.0,
-                    1234567890.0,
-                    12345,
-                    None,
-                ),
-            )
+            insert_screenshot_metadata(conn)
 
         response = flask_client.get("/rsudp/api/screenshot/2025/12/12/")
 

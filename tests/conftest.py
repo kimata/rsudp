@@ -8,17 +8,16 @@ import logging
 import sqlite3
 import tempfile
 import unittest.mock
-import zoneinfo
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 import rsudp.config
+import rsudp.types
 
 # === 定数 ===
 CONFIG_FILE = "config.yaml"
-JST = zoneinfo.ZoneInfo("Asia/Tokyo")
 
 
 # === 環境モック ===
@@ -141,7 +140,7 @@ def sample_earthquake_jst():
     # 2025-12-13 04:05:00 JST = 2025-12-12 19:05:00 UTC
     return {
         "event_id": "test-quake-001",
-        "detected_at": datetime(2025, 12, 13, 4, 5, 0, tzinfo=JST),
+        "detected_at": datetime(2025, 12, 13, 4, 5, 0, tzinfo=rsudp.types.JST),
         "latitude": 35.6,
         "longitude": 139.7,
         "magnitude": 4.5,

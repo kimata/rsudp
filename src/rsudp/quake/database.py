@@ -7,11 +7,12 @@
     - 検索時は Python の datetime オブジェクト（タイムゾーン情報付き）で比較
 """
 
+import datetime
 import sqlite3
-from datetime import UTC, datetime, timedelta
 
 import rsudp.config
 import rsudp.schema_util
+import rsudp.types
 
 
 class QuakeDatabase:
@@ -36,7 +37,7 @@ class QuakeDatabase:
     def insert_earthquake(
         self,
         event_id: str,
-        detected_at: datetime,
+        detected_at: datetime.datetime,
         latitude: float,
         longitude: float,
         magnitude: float,
@@ -61,7 +62,7 @@ class QuakeDatabase:
             新規レコードが挿入された場合は True、更新された場合は False
 
         """
-        now = datetime.now(tz=UTC).isoformat()
+        now = datetime.datetime.now(tz=datetime.UTC).isoformat()
 
         with sqlite3.connect(self.db_path) as conn:
             # レコードが存在するか確認
@@ -122,10 +123,10 @@ class QuakeDatabase:
 
     def get_earthquake_for_timestamp(
         self,
-        timestamp: datetime,
+        timestamp: datetime.datetime,
         before_seconds: int = 30,
         after_seconds: int = 240,
-    ) -> dict | None:
+    ) -> rsudp.types.EarthquakeData | None:
         """
         指定されたタイムスタンプに該当する地震を取得する.
 
@@ -138,23 +139,23 @@ class QuakeDatabase:
             after_seconds: 地震発生後の許容秒数（デフォルト: 240 = 4分）
 
         Returns:
-            地震データの辞書、または見つからない場合は None
+            EarthquakeData、または見つからない場合は None
 
         """
         # 地震データを取得
         earthquakes = self.get_all_earthquakes(limit=1000)
 
         # Python で時間範囲の比較を行う（タイムゾーン情報付き datetime で正しく比較）
-        best_match = None
-        best_diff = None
+        best_match: rsudp.types.EarthquakeData | None = None
+        best_diff: float | None = None
 
         for eq in earthquakes:
-            detected_at = datetime.fromisoformat(eq["detected_at"])
-            start_time = detected_at - timedelta(seconds=before_seconds)
-            end_time = detected_at + timedelta(seconds=after_seconds)
-
+            start_time, end_time = rsudp.types.calculate_earthquake_time_range(
+                eq.detected_at, before_seconds, after_seconds
+            )
             if start_time <= timestamp <= end_time:
                 # 時間差の絶対値を計算
+                detected_at = datetime.datetime.fromisoformat(eq.detected_at)
                 diff = abs((timestamp - detected_at).total_seconds())
                 if best_diff is None or diff < best_diff:
                     best_diff = diff
@@ -162,7 +163,7 @@ class QuakeDatabase:
 
         return best_match
 
-    def get_all_earthquakes(self, limit: int = 100) -> list[dict]:
+    def get_all_earthquakes(self, limit: int = 100) -> list[rsudp.types.EarthquakeData]:
         """すべての地震データを発生時刻の降順で取得する."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -175,27 +176,27 @@ class QuakeDatabase:
                 (limit,),
             )
 
-            return [dict(row) for row in cursor.fetchall()]
+            return [rsudp.types.EarthquakeData(**dict(row)) for row in cursor.fetchall()]
 
     def get_earthquake_time_ranges(
         self,
         before_seconds: int = 30,
         after_seconds: int = 240,
-    ) -> list[tuple[datetime, datetime, dict]]:
+    ) -> list[tuple[datetime.datetime, datetime.datetime, rsudp.types.EarthquakeData]]:
         """
         すべての地震の時間範囲を取得する.
 
         Returns:
-            (開始時刻, 終了時刻, 地震データ) のタプルのリスト
+            (開始時刻, 終了時刻, EarthquakeData) のタプルのリスト
 
         """
         earthquakes = self.get_all_earthquakes(limit=1000)
-        ranges = []
+        ranges: list[tuple[datetime.datetime, datetime.datetime, rsudp.types.EarthquakeData]] = []
 
         for eq in earthquakes:
-            detected_at = datetime.fromisoformat(eq["detected_at"])
-            start_time = detected_at - timedelta(seconds=before_seconds)
-            end_time = detected_at + timedelta(seconds=after_seconds)
+            start_time, end_time = rsudp.types.calculate_earthquake_time_range(
+                eq.detected_at, before_seconds, after_seconds
+            )
             ranges.append((start_time, end_time, eq))
 
         return ranges

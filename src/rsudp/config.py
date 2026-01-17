@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import my_lib.notify.slack
+import my_lib.safe_access
 
 
 @dataclass(frozen=True)
@@ -58,20 +59,29 @@ def _parse_slack_config(
     """
     Slack 設定をパースして SlackErrorOnlyConfig または SlackEmptyConfig を返す.
     """
-    parsed = my_lib.notify.slack.parse_config(slack_dict)
+    parsed = my_lib.notify.slack.SlackConfig.parse(slack_dict)
 
     # SlackErrorOnlyConfig または SlackEmptyConfig のみを許可
     if isinstance(parsed, my_lib.notify.slack.SlackErrorOnlyConfig | my_lib.notify.slack.SlackEmptyConfig):
         return parsed
 
     # その他の設定タイプの場合、SlackErrorOnlyConfig に変換を試みる
-    # NOTE: hasattr チェック後でも型が絞り込まれないため getattr を使用 (B009 を無視)
-    if hasattr(parsed, "error") and hasattr(parsed, "bot_token") and hasattr(parsed, "from_name"):
-        return my_lib.notify.slack.SlackErrorOnlyConfig(
-            bot_token=getattr(parsed, "bot_token"),  # noqa: B009
-            from_name=getattr(parsed, "from_name"),  # noqa: B009
-            error=getattr(parsed, "error"),  # noqa: B009
-        )
+    # NOTE: SafeAccess を使用して属性の存在確認と値取得を簡略化
+    sa = my_lib.safe_access.safe(parsed)
+    if sa.error and sa.bot_token and sa.from_name:
+        bot_token = sa.bot_token.value()
+        from_name = sa.from_name.value()
+        error = sa.error.value()
+        if (
+            isinstance(bot_token, str)
+            and isinstance(from_name, str)
+            and isinstance(error, my_lib.notify.slack.SlackErrorConfig)
+        ):
+            return my_lib.notify.slack.SlackErrorOnlyConfig(
+                bot_token=bot_token,
+                from_name=from_name,
+                error=error,
+            )
 
     # 変換できない場合は空設定を返す
     return my_lib.notify.slack.SlackEmptyConfig()

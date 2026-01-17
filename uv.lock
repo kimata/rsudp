@@ -1167,7 +1167,7 @@ wheels = [
 [[package]]
 name = "my-lib"
 version = "0.2.0"
-source = { git = "https://github.com/kimata/my-py-lib?rev=02f45329179fd6354204f61ba0d9720e8b5be72a#02f45329179fd6354204f61ba0d9720e8b5be72a" }
+source = { git = "https://github.com/kimata/my-py-lib?rev=8eaa1cf59124caa8ea517538f198ba5afa93734d#8eaa1cf59124caa8ea517538f198ba5afa93734d" }
 dependencies = [
     { name = "coloredlogs" },
     { name = "docopt-ng" },
@@ -2167,7 +2167,7 @@ dev = [
 requires-dist = [
     { name = "flask", specifier = ">=3.1.1" },
     { name = "flask-cors", specifier = ">=6.0.1" },
-    { name = "my-lib", git = "https://github.com/kimata/my-py-lib?rev=02f45329179fd6354204f61ba0d9720e8b5be72a" },
+    { name = "my-lib", git = "https://github.com/kimata/my-py-lib?rev=8eaa1cf59124caa8ea517538f198ba5afa93734d" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pymodes", git = "https://github.com/junzis/pyModeS?rev=v2.21.1" },
 ]

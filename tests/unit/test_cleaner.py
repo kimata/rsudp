@@ -5,8 +5,9 @@ cleaner.py のテスト
 """
 
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
+import rsudp.types
 from rsudp.cli import cleaner
 
 
@@ -43,7 +44,7 @@ class TestGetScreenshotsToClean:
 
     def test_screenshot_with_nearby_earthquake(self, config, temp_dir):
         """近くに地震がある場合は削除対象にならない"""
-        jst = timezone(timedelta(hours=9))
+        jst = rsudp.types.JST
         now = datetime.now(jst)
 
         # キャッシュDBを作成
@@ -82,7 +83,7 @@ class TestGetScreenshotsToClean:
 
     def test_screenshot_without_nearby_earthquake(self, config, temp_dir):
         """近くに地震がない場合は削除対象になる"""
-        jst = timezone(timedelta(hours=9))
+        jst = rsudp.types.JST
         now = datetime.now(jst)
         # 1時間前の地震（時間窓外）
         quake_time = now - timedelta(hours=1)
@@ -163,7 +164,7 @@ class TestDeleteScreenshots:
 
     def test_delete_screenshot_dry_run(self, config, temp_dir):
         """dry-run モードではファイルが削除されない"""
-        jst = timezone(timedelta(hours=9))
+        jst = rsudp.types.JST
         now = datetime.now(jst)
 
         # テストファイルを作成
@@ -198,7 +199,7 @@ class TestDeleteScreenshots:
 
     def test_delete_screenshot(self, config, temp_dir):
         """ファイルが削除される"""
-        jst = timezone(timedelta(hours=9))
+        jst = rsudp.types.JST
         now = datetime.now(jst)
 
         # テストファイルを作成
@@ -233,7 +234,7 @@ class TestDeleteScreenshots:
 
     def test_delete_nonexistent_file(self, config, temp_dir):
         """存在しないファイルの削除"""
-        jst = timezone(timedelta(hours=9))
+        jst = rsudp.types.JST
         now = datetime.now(jst)
 
         # キャッシュDBを作成
@@ -293,7 +294,7 @@ class TestRunCleaner:
 
     def test_run_cleaner_dry_run(self, config, temp_dir):
         """dry-run モード"""
-        jst = timezone(timedelta(hours=9))
+        jst = rsudp.types.JST
         now = datetime.now(jst)
 
         # テストファイルを作成

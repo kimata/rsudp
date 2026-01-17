@@ -7,17 +7,18 @@
     - 比較時は datetime オブジェクト同士で比較し、タイムゾーンを正しく考慮する
 """
 
+import datetime
 import logging
 import re
 import shutil
 import sqlite3
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from PIL import Image
+import PIL.Image
 
 import rsudp.config
 import rsudp.schema_util
+import rsudp.types
 
 
 class ScreenshotManager:
@@ -51,61 +52,28 @@ class ScreenshotManager:
                 continue
 
             # ファイル名から日付を解析
-            parsed = self._parse_filename(file_path.name)
+            parsed = rsudp.types.parse_filename(file_path.name)
             if not parsed:
                 continue
 
             # 日付ベースのサブディレクトリを作成 (YYYY/MM/DD)
-            date_dir = (
-                self.screenshot_path / str(parsed["year"]) / f"{parsed['month']:02d}" / f"{parsed['day']:02d}"
-            )
+            date_dir = self.screenshot_path / str(parsed.year) / f"{parsed.month:02d}" / f"{parsed.day:02d}"
             date_dir.mkdir(parents=True, exist_ok=True)
 
             # ファイルをサブディレクトリに移動
             new_path = date_dir / file_path.name
             if not new_path.exists():
-                shutil.move(str(file_path), str(new_path))
+                shutil.move(file_path, new_path)
 
                 # キャッシュを新しいファイル位置で更新
                 self._cache_file_metadata(new_path)
-
-    def _parse_filename(self, filename: str) -> dict | None:
-        """
-        スクリーンショットのファイル名からタイムスタンプ情報を抽出する.
-
-        ファイル名のタイムスタンプは UTC として解釈される.
-        """
-        pattern = r"^(.+?)-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})\.png$"
-        match = re.match(pattern, filename)
-
-        if not match:
-            return None
-
-        prefix, year, month, day, hour, minute, second = match.groups()
-
-        # ファイル名のタイムスタンプは UTC
-        timestamp_utc = datetime(
-            int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=UTC
-        )
-
-        return {
-            "filename": filename,
-            "prefix": prefix,
-            "year": int(year),
-            "month": int(month),
-            "day": int(day),
-            "hour": int(hour),
-            "minute": int(minute),
-            "second": int(second),
-            "timestamp": timestamp_utc.isoformat(),
-        }
 
     def _extract_metadata(self, file_path: Path) -> dict:
         """PNG ファイルから STA 値などのメタデータを抽出する."""
         metadata = {}
 
         try:
-            with Image.open(file_path) as img:
+            with PIL.Image.open(file_path) as img:
                 info = img.info
 
                 # PNG メタデータの Description フィールドを確認
@@ -145,7 +113,7 @@ class ScreenshotManager:
         if not file_path.exists():
             return
 
-        parsed = self._parse_filename(file_path.name)
+        parsed = rsudp.types.parse_filename(file_path.name)
         if not parsed:
             return
 
@@ -164,13 +132,13 @@ class ScreenshotManager:
                 (
                     file_path.name,
                     str(file_path.relative_to(self.screenshot_path)),
-                    parsed["year"],
-                    parsed["month"],
-                    parsed["day"],
-                    parsed["hour"],
-                    parsed["minute"],
-                    parsed["second"],
-                    parsed["timestamp"],
+                    parsed.year,
+                    parsed.month,
+                    parsed.day,
+                    parsed.hour,
+                    parsed.minute,
+                    parsed.second,
+                    parsed.timestamp,
                     metadata.get("sta"),
                     metadata.get("lta"),
                     metadata.get("sta_lta_ratio"),
@@ -233,27 +201,9 @@ class ScreenshotManager:
 
             cursor = conn.execute(query, params)
 
-            return [
-                {
-                    "filename": row[0],
-                    "filepath": row[1],
-                    "year": row[2],
-                    "month": row[3],
-                    "day": row[4],
-                    "hour": row[5],
-                    "minute": row[6],
-                    "second": row[7],
-                    "timestamp": row[8],
-                    "sta": row[9],
-                    "lta": row[10],
-                    "sta_lta_ratio": row[11],
-                    "max_count": row[12],
-                    "metadata": row[13],
-                }
-                for row in cursor
-            ]
+            return [rsudp.types.row_to_screenshot_dict(row) for row in cursor]
 
-    def get_available_dates(self, min_max_signal: float | None = None):
+    def get_available_dates(self, min_max_signal: float | None = None) -> list[rsudp.types.DateInfo]:
         """最小信号値を満たすスクリーンショットが存在する日付のリストを取得する."""
         with sqlite3.connect(self.cache_path) as conn:
             query = """
@@ -270,7 +220,7 @@ class ScreenshotManager:
 
             cursor = conn.execute(query, params)
 
-            return [{"year": row[0], "month": row[1], "day": row[2]} for row in cursor]
+            return [rsudp.types.DateInfo(year=row[0], month=row[1], day=row[2]) for row in cursor]
 
     def get_signal_statistics(
         self,
@@ -279,7 +229,7 @@ class ScreenshotManager:
         earthquake_only: bool = False,
         before_seconds: int = 30,
         after_seconds: int = 240,
-    ):
+    ) -> rsudp.types.SignalStatistics:
         """
         信号値（max_count）の統計情報を取得する.
 
@@ -299,22 +249,16 @@ class ScreenshotManager:
             )
 
             if not screenshots:
-                return {
-                    "total": 0,
-                    "min_signal": None,
-                    "max_signal": None,
-                    "avg_signal": None,
-                    "with_signal": 0,
-                }
+                return rsudp.types.SignalStatistics(total=0)
 
             max_counts = [s["max_count"] for s in screenshots if s["max_count"] is not None]
-            return {
-                "total": len(screenshots),
-                "min_signal": min(max_counts) if max_counts else None,
-                "max_signal": max(max_counts) if max_counts else None,
-                "avg_signal": sum(max_counts) / len(max_counts) if max_counts else None,
-                "with_signal": len(max_counts),
-            }
+            return rsudp.types.SignalStatistics(
+                total=len(screenshots),
+                min_signal=min(max_counts) if max_counts else None,
+                max_signal=max(max_counts) if max_counts else None,
+                avg_signal=sum(max_counts) / len(max_counts) if max_counts else None,
+                with_signal=len(max_counts),
+            )
 
         # 通常の統計
         with sqlite3.connect(self.cache_path) as conn:
@@ -329,13 +273,13 @@ class ScreenshotManager:
             """)
 
             row = cursor.fetchone()
-            return {
-                "total": row[0],
-                "min_signal": row[1],
-                "max_signal": row[2],
-                "avg_signal": row[3],
-                "with_signal": row[4],
-            }
+            return rsudp.types.SignalStatistics(
+                total=row[0],
+                min_signal=row[1],
+                max_signal=row[2],
+                avg_signal=row[3],
+                with_signal=row[4],
+            )
 
     def get_screenshots_with_earthquake_filter(
         self,
@@ -364,18 +308,18 @@ class ScreenshotManager:
         with sqlite3.connect(quake_db_path) as quake_conn:
             quake_conn.row_factory = sqlite3.Row
             quake_cursor = quake_conn.execute("SELECT * FROM earthquakes ORDER BY detected_at DESC")
-            earthquakes = [dict(row) for row in quake_cursor.fetchall()]
+            earthquakes = [rsudp.types.EarthquakeData(**dict(row)) for row in quake_cursor.fetchall()]
 
         if not earthquakes:
             return []
 
         # 地震ごとの時間範囲を作成（datetime オブジェクトとして保持）
         # detected_at は JST のタイムゾーン情報を含む ISO 形式文字列
-        time_conditions = []
+        time_conditions: list[tuple[datetime.datetime, datetime.datetime, rsudp.types.EarthquakeData]] = []
         for eq in earthquakes:
-            detected_at = datetime.fromisoformat(eq["detected_at"])
-            start_time = detected_at - timedelta(seconds=before_seconds)
-            end_time = detected_at + timedelta(seconds=after_seconds)
+            start_time, end_time = rsudp.types.calculate_earthquake_time_range(
+                eq.detected_at, before_seconds, after_seconds
+            )
             time_conditions.append((start_time, end_time, eq))
 
         # スクリーンショットを取得
@@ -385,7 +329,7 @@ class ScreenshotManager:
                        timestamp, sta_value, lta_value, sta_lta_ratio, max_count, metadata_raw
                 FROM screenshot_metadata
             """
-            params = []
+            params: list = []
 
             if min_max_signal is not None:
                 query += " WHERE max_count >= ?"
@@ -399,36 +343,18 @@ class ScreenshotManager:
             for row in cursor:
                 # スクリーンショットのタイムスタンプ（UTC、タイムゾーン情報付き）を解析
                 screenshot_ts_str = row[8]
-                screenshot_ts = datetime.fromisoformat(screenshot_ts_str)
+                screenshot_ts = datetime.datetime.fromisoformat(screenshot_ts_str)
 
                 # 地震の時間範囲と照合
                 # 両方ともタイムゾーン情報を持つ datetime なので正しく比較される
-                matched_earthquake = None
+                matched_earthquake: rsudp.types.EarthquakeData | None = None
                 for start_time, end_time, eq in time_conditions:
                     if start_time <= screenshot_ts <= end_time:
                         matched_earthquake = eq
                         break
 
                 if matched_earthquake:
-                    screenshots.append(
-                        {
-                            "filename": row[0],
-                            "filepath": row[1],
-                            "year": row[2],
-                            "month": row[3],
-                            "day": row[4],
-                            "hour": row[5],
-                            "minute": row[6],
-                            "second": row[7],
-                            "timestamp": row[8],
-                            "sta": row[9],
-                            "lta": row[10],
-                            "sta_lta_ratio": row[11],
-                            "max_count": row[12],
-                            "metadata": row[13],
-                            "earthquake": matched_earthquake,
-                        }
-                    )
+                    screenshots.append(rsudp.types.row_to_screenshot_dict(row, matched_earthquake))
 
             return screenshots
 
@@ -438,7 +364,7 @@ class ScreenshotManager:
         quake_db_path: Path | None = None,
         before_seconds: int = 30,
         after_seconds: int = 240,
-    ) -> dict | None:
+    ) -> rsudp.types.EarthquakeData | None:
         """
         指定されたスクリーンショットのタイムスタンプに対応する地震情報を取得する.
 
@@ -449,32 +375,32 @@ class ScreenshotManager:
             after_seconds: 地震発生後の許容秒数
 
         Returns:
-            地震情報の辞書、または None
+            EarthquakeData、または None
 
         """
         if not quake_db_path or not quake_db_path.exists():
             return None
 
         # スクリーンショットのタイムスタンプを datetime オブジェクトに変換
-        screenshot_dt = datetime.fromisoformat(screenshot_timestamp)
+        screenshot_dt = datetime.datetime.fromisoformat(screenshot_timestamp)
 
         # 地震データを取得
         with sqlite3.connect(quake_db_path) as quake_conn:
             quake_conn.row_factory = sqlite3.Row
             cursor = quake_conn.execute("SELECT * FROM earthquakes")
-            earthquakes = [dict(row) for row in cursor.fetchall()]
+            earthquakes = [rsudp.types.EarthquakeData(**dict(row)) for row in cursor.fetchall()]
 
         # Python で時間範囲の比較を行う（タイムゾーン情報付き datetime で正しく比較）
-        best_match = None
-        best_diff = None
+        best_match: rsudp.types.EarthquakeData | None = None
+        best_diff: float | None = None
 
         for eq in earthquakes:
-            detected_at = datetime.fromisoformat(eq["detected_at"])
-            start_time = detected_at - timedelta(seconds=before_seconds)
-            end_time = detected_at + timedelta(seconds=after_seconds)
-
+            start_time, end_time = rsudp.types.calculate_earthquake_time_range(
+                eq.detected_at, before_seconds, after_seconds
+            )
             if start_time <= screenshot_dt <= end_time:
                 # 時間差の絶対値を計算
+                detected_at = datetime.datetime.fromisoformat(eq.detected_at)
                 diff = abs((screenshot_dt - detected_at).total_seconds())
                 if best_diff is None or diff < best_diff:
                     best_diff = diff
@@ -506,26 +432,22 @@ class ScreenshotManager:
         if not quake_db_path.exists():
             return 0
 
-        # 地震データを取得
+        # 地震データを取得（detected_at は文字列のまま保持）
         with sqlite3.connect(quake_db_path) as quake_conn:
             quake_conn.row_factory = sqlite3.Row
             quake_cursor = quake_conn.execute("SELECT event_id, detected_at FROM earthquakes")
-            earthquakes = [
-                (row["event_id"], datetime.fromisoformat(row["detected_at"])) for row in quake_cursor
-            ]
+            earthquakes = [(row["event_id"], row["detected_at"]) for row in quake_cursor]
 
         if not earthquakes:
             return 0
 
         # 地震ごとの時間範囲を作成
-        time_ranges = [
-            (
-                event_id,
-                detected_at - timedelta(seconds=before_seconds),
-                detected_at + timedelta(seconds=after_seconds),
+        time_ranges = []
+        for event_id, detected_at_str in earthquakes:
+            start_time, end_time = rsudp.types.calculate_earthquake_time_range(
+                detected_at_str, before_seconds, after_seconds
             )
-            for event_id, detected_at in earthquakes
-        ]
+            time_ranges.append((event_id, start_time, end_time))
 
         updated_count = 0
         with sqlite3.connect(self.cache_path) as conn:
@@ -534,7 +456,7 @@ class ScreenshotManager:
             rows = cursor.fetchall()
 
             for filename, timestamp_str in rows:
-                screenshot_ts = datetime.fromisoformat(timestamp_str)
+                screenshot_ts = datetime.datetime.fromisoformat(timestamp_str)
 
                 # マッチする地震を探す
                 matched_event_id = None
@@ -572,14 +494,15 @@ class ScreenshotManager:
             地震情報が付加されたスクリーンショットのリスト
 
         """
-        # 地震データを辞書形式で取得
-        earthquake_map: dict[str, dict] = {}
+        # 地震データを EarthquakeData のマップとして取得
+        earthquake_map: dict[str, rsudp.types.EarthquakeData] = {}
         if quake_db_path.exists():
             with sqlite3.connect(quake_db_path) as quake_conn:
                 quake_conn.row_factory = sqlite3.Row
                 quake_cursor = quake_conn.execute("SELECT * FROM earthquakes")
                 for row in quake_cursor:
-                    earthquake_map[row["event_id"]] = dict(row)
+                    eq = rsudp.types.EarthquakeData(**dict(row))
+                    earthquake_map[eq.event_id] = eq
 
         # キャッシュから地震関連スクリーンショットを取得
         with sqlite3.connect(self.cache_path) as conn:
@@ -604,25 +527,7 @@ class ScreenshotManager:
             for row in cursor:
                 event_id = row[14]
                 earthquake = earthquake_map.get(event_id)
-
-                screenshots.append(
-                    {
-                        "filename": row[0],
-                        "filepath": row[1],
-                        "year": row[2],
-                        "month": row[3],
-                        "day": row[4],
-                        "hour": row[5],
-                        "minute": row[6],
-                        "second": row[7],
-                        "timestamp": row[8],
-                        "sta": row[9],
-                        "lta": row[10],
-                        "sta_lta_ratio": row[11],
-                        "max_count": row[12],
-                        "metadata": row[13],
-                        "earthquake": earthquake,
-                    }
-                )
+                # row[0:14] の14要素を渡す（earthquake_event_id は別途処理）
+                screenshots.append(rsudp.types.row_to_screenshot_dict(row[:14], earthquake))
 
             return screenshots

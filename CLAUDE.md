@@ -119,6 +119,7 @@ src/
     │   ├── healthz.py              # Liveness チェック（rsudp-healthz）
     │   └── cleaner.py              # スクリーンショットクリーナー（rsudp-cleaner）
     ├── screenshot_manager.py       # スクリーンショット管理・メタデータキャッシュ
+    ├── types.py                    # 共通型定義（dataclass）
     ├── quake/
     │   ├── crawl.py                # 気象庁 API クローラー
     │   └── database.py             # 地震データベース管理
@@ -331,6 +332,191 @@ def function():
 
     """
 ```
+
+### dataclass の活用
+
+内部データ構造には dataclass を使用し、型安全性を確保する:
+
+- `rsudp/types.py` に共通の型定義を集約
+- `dict` を返す関数には dataclass で戻り値型を明示
+- フロントエンドの `frontend/src/types.ts` と整合性を保つ
+- API レスポンスでは `dataclasses.asdict()` で辞書に変換
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class ParsedFilename:
+    filename: str
+    prefix: str
+    year: int
+    # ...
+
+# 使用例: API レスポンスでの変換
+import dataclasses
+return flask.jsonify(dataclasses.asdict(parsed))
+```
+
+### 型安全性のガイドライン
+
+#### Protocol の導入について
+
+- Protocol は既存の dataclass や型ヒントで十分な場合は導入しない
+- インターフェースが複数の異なるクラスで共有される場合にのみ検討
+
+#### dict vs dataclass の選択基準
+
+- 構造が固定されているデータには dataclass を使用
+- 外部 API（JMA 等）のレスポンスは dict のまま受け取り、内部で dataclass に変換
+- API レスポンスでは `dataclasses.asdict()` で辞書に変換
+
+```python
+# 外部 API レスポンスを内部データ構造に変換
+def get_all_earthquakes() -> list[EarthquakeData]:
+    rows = fetch_from_db()
+    return [EarthquakeData(**dict(row)) for row in rows]
+
+# API レスポンスで辞書に戻す
+import dataclasses
+return flask.jsonify([dataclasses.asdict(eq) for eq in earthquakes])
+```
+
+#### 関数の共通化基準
+
+- 完全に同一のコードが2箇所以上で重複している場合は共通化
+- 2-3行程度の単純な計算式は共通化しない（可読性低下のデメリット）
+- 共通関数は適切なモジュールに配置（型に関連する関数は types.py など）
+
+### コード重複の回避
+
+同じデータ構造を構築するコードは共通関数に集約する:
+
+- 辞書構築ロジックはヘルパー関数（例: `rsudp.types.row_to_screenshot_dict()`）にまとめる
+- 複数箇所で同じ処理がある場合は DRY 原則に従う
+- パス解決など共通操作も関数化する
+
+### 地震時間範囲計算
+
+地震発生時刻から前後の時間範囲を計算する場合は、`rsudp.types.calculate_earthquake_time_range()` を使用する:
+
+```python
+start_time, end_time = rsudp.types.calculate_earthquake_time_range(
+    earthquake.detected_at,
+    before_seconds=30,
+    after_seconds=240,
+)
+```
+
+### Path オブジェクトの扱い
+
+- `shutil.move()`, `shutil.copy()` 等には Path オブジェクトをそのまま渡す
+- 不要な `str()` 変換は行わない（Python 3.6+ でサポート）
+
+```python
+# 推奨: Path オブジェクトをそのまま渡す
+shutil.move(file_path, new_path)
+
+# 非推奨: 不要な str() 変換
+shutil.move(str(file_path), str(new_path))
+```
+
+### my_lib の積極的活用
+
+my_lib の機能を活用してコードをシンプルにする:
+
+- `my_lib.safe_access.safe()`: hasattr/getattr チェーンの簡略化
+- `my_lib.config.accessor()`: 深いネストの設定アクセスを安全に
+
+```python
+# hasattr/getattr チェーンの簡略化
+import my_lib.safe_access
+
+sa = my_lib.safe_access.safe(obj)
+if sa.attr1 and sa.attr2:
+    value = sa.attr1.value()
+```
+
+### 未使用の dataclass について
+
+`types.py` に定義された dataclass は積極的に活用する:
+
+- 新しい辞書を返す関数を書く前に、既存の dataclass を確認
+- `SignalStatistics`, `DateInfo` 等は定義済みなので活用すること
+- 新規に定義する場合は `types.py` に集約
+
+### タイムゾーン定数
+
+- JST タイムゾーンは `rsudp.types.JST` を使用
+- ファイルごとにローカル定義しない（`datetime.timezone(datetime.timedelta(hours=9))` 等）
+- テストでも `rsudp.types.JST` を参照する
+
+### テストコードの規約
+
+- テストでも本番コードと同じインポートスタイル・規約に従う
+- タイムゾーン定数は `rsudp.types.JST` を使用（`zoneinfo` や手動 `timezone` 構築は禁止）
+- 共通のテストデータ挿入は `tests/helpers.py` の `insert_screenshot_metadata()` ヘルパー関数を使用
+
+```python
+# 推奨: helpers.py のヘルパー関数を使用
+from tests.helpers import insert_screenshot_metadata
+
+with sqlite3.connect(manager.cache_path) as conn:
+    insert_screenshot_metadata(conn, max_count=500.0)
+
+# 非推奨: 毎回 SQL INSERT 文を記述
+with sqlite3.connect(manager.cache_path) as conn:
+    conn.execute(
+        """INSERT INTO screenshot_metadata (...) VALUES (?, ?, ...)""",
+        (...),
+    )
+```
+
+### タイムゾーン変換
+
+- 手動オフセット追加 (`+ timedelta(hours=9)`) は使用しない
+- 常に `astimezone(rsudp.types.JST)` を使用する
+
+```python
+# 推奨: astimezone() で変換
+ts = datetime.datetime.fromisoformat(timestamp)
+jst = ts.astimezone(rsudp.types.JST)
+
+# 非推奨: 手動でオフセット追加
+ts = datetime.datetime.fromisoformat(timestamp)
+jst = ts + datetime.timedelta(hours=9)  # タイムゾーン情報が失われる
+```
+
+### isinstance() と Union 型
+
+Python 3.10+ では `isinstance(x, Type1 | Type2)` が有効:
+
+- タプル形式 `isinstance(x, (Type1, Type2))` と同等だが、より読みやすい
+- このプロジェクトでは Union 型構文を使用してよい
+
+```python
+# Python 3.10+ では両方とも有効
+isinstance(value, str | int)           # Union 型構文（推奨）
+isinstance(value, (str, int))          # タプル形式（従来方式）
+```
+
+### コード重複の許容範囲
+
+以下のケースは重複として扱わず、各箇所で明示的に記述する:
+
+- クエリパラメータ取得（各エンドポイントで明示的に記述した方が可読性が高い）
+- 2-3行程度の単純なパターン（共通化すると可読性が低下する）
+
+```python
+# 許容される重複: 各エンドポイントで明示的に取得
+min_max_signal = flask.request.args.get("min_max_signal", type=float)
+earthquake_only = flask.request.args.get("earthquake_only", "false").lower() == "true"
+```
+
+### 後方互換性コード
+
+- `pyproject.toml` の `requires-python` を確認し、不要な互換性コードは削除
+- Python 3.11+ では `datetime.fromisoformat()` が "Z" 接尾辞をサポート
+- 古いバージョン向けの回避策は不要
 
 ## デプロイ
 

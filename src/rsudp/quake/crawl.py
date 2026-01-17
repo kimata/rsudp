@@ -9,14 +9,14 @@ Options:
   -c CONFIG     : CONFIG を設定ファイルとして読み込んで実行します．[default: config.yaml]
 """
 
+import datetime
 import logging
 import re
-from datetime import datetime
 
 import requests
 
 import rsudp.config
-from rsudp.quake.database import QuakeDatabase
+import rsudp.quake.database
 
 # JMA API endpoints
 _JMA_LIST_URL = "https://www.jma.go.jp/bosai/quake/data/list.json"
@@ -81,12 +81,9 @@ def _parse_intensity(intensity_str: str) -> int:
     return intensity_map.get(intensity_str, 0)
 
 
-def _parse_origin_time(origin_time_str: str) -> datetime:
+def _parse_origin_time(origin_time_str: str) -> datetime.datetime:
     """Parse ISO format origin time string to datetime."""
-    # Handle 'Z' suffix for UTC
-    if origin_time_str.endswith("Z"):
-        origin_time_str = origin_time_str[:-1] + "+00:00"
-    return datetime.fromisoformat(origin_time_str)
+    return datetime.datetime.fromisoformat(origin_time_str)
 
 
 class QuakeCrawler:
@@ -95,7 +92,7 @@ class QuakeCrawler:
     def __init__(self, config: rsudp.config.Config):
         """Initialize the crawler with configuration."""
         self.config = config
-        self.db = QuakeDatabase(config)
+        self.db = rsudp.quake.database.QuakeDatabase(config)
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -233,16 +230,16 @@ def crawl_earthquakes(config: rsudp.config.Config, min_intensity: int = 3) -> li
 ######################################################################
 if __name__ == "__main__":
     import pathlib
-    import traceback
 
+    import docopt
     import my_lib.config
     import my_lib.logger
     import my_lib.pretty
-    from docopt import docopt
 
     SCHEMA_CONFIG = pathlib.Path(__file__).parent.parent.parent.parent / "schema" / "config.schema"
 
-    args = docopt(__doc__) if __doc__ is not None else {"-c": "config.yaml"}
+    assert __doc__ is not None  # noqa: S101 - type narrowing for pyright
+    args = docopt.docopt(__doc__)
 
     my_lib.logger.init("test", level=logging.INFO)
 
@@ -252,75 +249,12 @@ if __name__ == "__main__":
     try:
         logging.info("地震情報の収集を開始します")
 
-        crawler = QuakeCrawler(config)
-
-        # 地震一覧を取得
-        earthquake_list = crawler.fetch_earthquake_list()
-        logging.info("取得した地震情報: %d件", len(earthquake_list))
-
-        # 震度3以上の地震を抽出して詳細を取得
-        collected_data = []
-        for eq in earthquake_list:
-            max_intensity_str = eq.get("maxi", "0")
-            max_intensity = _parse_intensity(max_intensity_str)
-
-            if max_intensity < 3:
-                continue
-
-            json_file = eq.get("json")
-            if not json_file:
-                continue
-
-            detail = crawler.fetch_earthquake_detail(json_file)
-            if not detail:
-                continue
-
-            try:
-                earthquake_data = detail.get("Body", {}).get("Earthquake", {})
-                hypocenter = earthquake_data.get("Hypocenter", {}).get("Area", {})
-
-                origin_time_str = earthquake_data.get("OriginTime")
-                if not origin_time_str:
-                    continue
-
-                detected_at = _parse_origin_time(origin_time_str)
-
-                coord_str = hypocenter.get("Coordinate", "")
-                if not coord_str:
-                    continue
-
-                latitude, longitude, depth = _parse_coordinate(coord_str)
-
-                magnitude = earthquake_data.get("Magnitude", 0.0)
-                if magnitude is None:
-                    magnitude = 0.0
-
-                epicenter_name = hypocenter.get("Name", "不明")
-
-                collected_data.append(
-                    {
-                        "event_id": eq.get("eid"),
-                        "detected_at": detected_at.isoformat(),
-                        "latitude": latitude,
-                        "longitude": longitude,
-                        "magnitude": float(magnitude),
-                        "depth": depth,
-                        "epicenter_name": epicenter_name,
-                        "max_intensity": max_intensity_str,
-                    }
-                )
-
-            except (ValueError, KeyError, TypeError):
-                logging.warning("Failed to parse earthquake: %s", eq.get("eid"))
-                continue
-
-        logging.info("震度3以上の地震: %d件", len(collected_data))
-        logging.info(my_lib.pretty.format(collected_data))
-
-        # データベースに保存
-        new_earthquakes = crawler.crawl_and_store(min_intensity=3)
+        # crawl_and_store で収集・保存を一括実行
+        new_earthquakes = crawl_earthquakes(config, min_intensity=3)
         logging.info("新規追加: %d件", len(new_earthquakes))
+
+        if new_earthquakes:
+            logging.info(my_lib.pretty.format(new_earthquakes))
 
     except Exception:
         logging.exception("Error during earthquake crawl")
-        logging.debug(traceback.format_exc())

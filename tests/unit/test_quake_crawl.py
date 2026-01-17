@@ -5,14 +5,11 @@ QuakeCrawler のユニットテスト.
 気象庁地震情報クローラーの基本機能をテストします。
 """
 
-import zoneinfo
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from rsudp.quake import crawl
-
-JST = zoneinfo.ZoneInfo("Asia/Tokyo")
 
 
 class TestParseCoordinate:

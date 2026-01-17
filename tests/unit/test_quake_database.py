@@ -5,12 +5,10 @@ QuakeDatabase のユニットテスト.
 地震データベースの基本機能をテストします。
 """
 
-import zoneinfo
 from datetime import UTC, datetime
 
+import rsudp.types
 from rsudp.quake.database import QuakeDatabase
-
-JST = zoneinfo.ZoneInfo("Asia/Tokyo")
 
 
 class TestQuakeDatabaseInit:
@@ -72,7 +70,7 @@ class TestInsertEarthquake:
 
         earthquakes = db.get_all_earthquakes()
         assert len(earthquakes) == 1
-        assert earthquakes[0]["magnitude"] == 5.0
+        assert earthquakes[0].magnitude == 5.0
 
 
 class TestGetEarthquakeForTimestamp:
@@ -88,7 +86,7 @@ class TestGetEarthquakeForTimestamp:
         result = db.get_earthquake_for_timestamp(search_time)
 
         assert result is not None
-        assert result["event_id"] == "test-quake-001"
+        assert result.event_id == "test-quake-001"
 
     def test_find_earthquake_within_window(self, quake_db_config, sample_earthquake_jst):
         """時間窓内で地震を検索できることを確認."""
@@ -100,7 +98,7 @@ class TestGetEarthquakeForTimestamp:
         result = db.get_earthquake_for_timestamp(search_time)
 
         assert result is not None
-        assert result["event_id"] == "test-quake-001"
+        assert result.event_id == "test-quake-001"
 
     def test_no_match_outside_window(self, quake_db_config, sample_earthquake_jst):
         """時間窓外では地震が見つからないことを確認."""
@@ -144,9 +142,9 @@ class TestGetAllEarthquakes:
 
         # 異なる時刻で 3 件挿入
         times = [
-            datetime(2025, 12, 10, 10, 0, 0, tzinfo=JST),
-            datetime(2025, 12, 12, 10, 0, 0, tzinfo=JST),
-            datetime(2025, 12, 11, 10, 0, 0, tzinfo=JST),
+            datetime(2025, 12, 10, 10, 0, 0, tzinfo=rsudp.types.JST),
+            datetime(2025, 12, 12, 10, 0, 0, tzinfo=rsudp.types.JST),
+            datetime(2025, 12, 11, 10, 0, 0, tzinfo=rsudp.types.JST),
         ]
         for i, t in enumerate(times):
             db.insert_earthquake(
@@ -162,9 +160,9 @@ class TestGetAllEarthquakes:
         result = db.get_all_earthquakes()
 
         # 発生時刻の降順（最新が先頭）
-        assert result[0]["event_id"] == "quake-1"  # 12/12
-        assert result[1]["event_id"] == "quake-2"  # 12/11
-        assert result[2]["event_id"] == "quake-0"  # 12/10
+        assert result[0].event_id == "quake-1"  # 12/12
+        assert result[1].event_id == "quake-2"  # 12/11
+        assert result[2].event_id == "quake-0"  # 12/10
 
     def test_get_all_earthquakes_limit(self, quake_db_config):
         """limit パラメータが正しく機能することを確認."""
@@ -174,7 +172,7 @@ class TestGetAllEarthquakes:
         for i in range(5):
             db.insert_earthquake(
                 event_id=f"quake-{i}",
-                detected_at=datetime(2025, 12, 10 + i, 10, 0, 0, tzinfo=JST),
+                detected_at=datetime(2025, 12, 10 + i, 10, 0, 0, tzinfo=rsudp.types.JST),
                 latitude=35.0,
                 longitude=139.0,
                 magnitude=4.0,
@@ -201,7 +199,7 @@ class TestGetEarthquakeTimeRanges:
         start_time, end_time, eq = ranges[0]
 
         # デフォルト: before_seconds=30, after_seconds=240
-        detected_at = datetime.fromisoformat(eq["detected_at"])
+        detected_at = datetime.fromisoformat(eq.detected_at)
         assert start_time < detected_at
         assert end_time > detected_at
 

@@ -17,15 +17,16 @@ Options:
   --min-mag=MAG           : 最小マグニチュードを指定します。[default: 3.0]
 """
 
+import datetime
 import logging
 import pathlib
 import sqlite3
-from datetime import datetime, timedelta, timezone
 
 import my_lib.config
 import my_lib.logger
 
 import rsudp.config
+import rsudp.types
 
 _SCHEMA_CONFIG = "schema/config.schema"
 
@@ -33,8 +34,6 @@ _SCHEMA_CONFIG = "schema/config.schema"
 DEFAULT_MIN_MAX_COUNT = 300000  # 最小振幅閾値
 DEFAULT_TIME_WINDOW_MINUTES = 10  # 地震との時間差（分）
 DEFAULT_MIN_MAGNITUDE = 3.0  # 最小マグニチュード
-
-_JST = timezone(timedelta(hours=9))
 
 
 def get_screenshots_to_clean(
@@ -87,7 +86,7 @@ def get_screenshots_to_clean(
     # 地震の時刻をパース
     quake_times = []
     for eq in earthquakes:
-        dt = datetime.fromisoformat(eq["detected_at"])
+        dt = datetime.datetime.fromisoformat(eq["detected_at"])
         quake_times.append((dt, eq["epicenter_name"], eq["magnitude"]))
 
     # 削除対象を特定
@@ -95,8 +94,8 @@ def get_screenshots_to_clean(
     to_delete = []
 
     for ss in screenshots:
-        ss_time = datetime.fromisoformat(ss["timestamp"])
-        ss_time_jst = ss_time.astimezone(_JST)
+        ss_time = datetime.datetime.fromisoformat(ss["timestamp"])
+        ss_time_jst = ss_time.astimezone(rsudp.types.JST)
 
         # 付近に地震があるか確認
         found_quake = None

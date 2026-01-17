@@ -1,21 +1,24 @@
 """Screenshot viewer API endpoints for rsudp web interface."""
 
+import dataclasses
+import datetime
 import functools
 import html
-import re
 import threading
-from datetime import UTC, datetime
+import traceback
 from pathlib import Path
 
+import flask
 import my_lib.flask_util
 import my_lib.webapp.config
-from flask import Blueprint, Response, current_app, jsonify, make_response, request, send_file
 
 import rsudp.config
-from rsudp.quake.crawl import crawl_earthquakes
-from rsudp.screenshot_manager import ScreenshotManager
+import rsudp.quake.crawl
+import rsudp.quake.database
+import rsudp.screenshot_manager
+import rsudp.types
 
-viewer_api = Blueprint("viewer_api", __name__, url_prefix="/rsudp")
+viewer_api = flask.Blueprint("viewer_api", __name__, url_prefix="/rsudp")
 blueprint = viewer_api  # Alias for compatibility with webui.py
 
 
@@ -28,10 +31,10 @@ def no_cache(func):
         # jsonify の結果は Response オブジェクトまたはタプル
         if isinstance(response, tuple):
             # エラーレスポンス (response, status_code) の場合
-            resp = make_response(response[0])
+            resp = flask.make_response(response[0])
             resp.status_code = response[1]
         else:
-            resp = make_response(response)
+            resp = flask.make_response(response)
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Expires"] = "0"
@@ -41,7 +44,7 @@ def no_cache(func):
 
 
 # Global instance of ScreenshotManager
-_screenshot_manager: ScreenshotManager | None = None
+_screenshot_manager: rsudp.screenshot_manager.ScreenshotManager | None = None
 
 # Lock for scan operation to prevent concurrent scans
 _scan_lock = threading.Lock()
@@ -50,106 +53,54 @@ _is_scanning = False
 
 def _get_config() -> rsudp.config.Config:
     """Get Config instance from Flask app."""
-    return current_app.config["CONFIG"]
+    return flask.current_app.config["CONFIG"]
 
 
-def _get_screenshot_manager() -> ScreenshotManager:
+def _get_screenshot_manager() -> rsudp.screenshot_manager.ScreenshotManager:
     """Get or create ScreenshotManager instance."""
     global _screenshot_manager
     if _screenshot_manager is None:
         config = _get_config()
-        _screenshot_manager = ScreenshotManager(config)
+        _screenshot_manager = rsudp.screenshot_manager.ScreenshotManager(config)
         # Initialize: organize files and scan cache once at startup
         _screenshot_manager.organize_files()
         _screenshot_manager.scan_and_cache_all()
     return _screenshot_manager
 
 
-def _parse_filename(filename: str) -> dict | None:
-    """
-    Parse screenshot filename to extract timestamp information.
-
-    Format: PREFIX-YYYY-MM-DD-HHMMSS.png (e.g., SHAKE-2025-08-12-104039.png)
-    """
-    pattern = r"^(.+?)-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})\.png$"
-    match = re.match(pattern, filename)
-
-    if not match:
-        return None
-
-    prefix, year, month, day, hour, minute, second = match.groups()
-
-    return {
-        "filename": filename,
-        "prefix": prefix,
-        "year": int(year),
-        "month": int(month),
-        "day": int(day),
-        "hour": int(hour),
-        "minute": int(minute),
-        "second": int(second),
-        "timestamp": datetime(
-            int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=UTC
-        ).isoformat(),
-    }
+def _resolve_config_path(path: Path) -> Path:
+    """設定から取得したパスを解決する（相対パスの場合はプロジェクトルートから解決）."""
+    if path.is_absolute():
+        return path
+    # srcディレクトリの親ディレクトリ（プロジェクトルート）を基準にする
+    project_root = Path.cwd().parent if Path.cwd().name == "src" else Path.cwd()
+    return project_root / path
 
 
 def _get_screenshots_path() -> Path:
     """Get the screenshots directory path from config."""
     config = _get_config()
-    path = config.plot.screenshot.path
-
-    # 相対パスの場合は、プロジェクトルートから解決
-    if not path.is_absolute():
-        # srcディレクトリの親ディレクトリ（プロジェクトルート）を基準にする
-        project_root = Path.cwd().parent if Path.cwd().name == "src" else Path.cwd()
-        path = project_root / path
-
-    return path
+    return _resolve_config_path(config.plot.screenshot.path)
 
 
 def _get_quake_db_path() -> Path | None:
     """Get the quake database path from config."""
     config = _get_config()
-    path = config.data.quake
-
-    if not path.is_absolute():
-        project_root = Path.cwd().parent if Path.cwd().name == "src" else Path.cwd()
-        path = project_root / path
-
-    return path
+    return _resolve_config_path(config.data.quake)
 
 
 def _format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = None) -> dict:
     """Format screenshot dict with optional earthquake info."""
     manager = _get_screenshot_manager()
 
-    result = {
-        "filename": s["filename"],
-        "prefix": s["filename"].split("-")[0],
-        "year": s["year"],
-        "month": s["month"],
-        "day": s["day"],
-        "hour": s["hour"],
-        "minute": s["minute"],
-        "second": s["second"],
-        "timestamp": s["timestamp"],
-        "sta": s["sta"],
-        "lta": s["lta"],
-        "sta_lta_ratio": s["sta_lta_ratio"],
-        "max_count": s["max_count"],
-        "metadata": s["metadata"],
-    }
-
-    # Add earthquake info if available
-    if "earthquake" in s:
-        result["earthquake"] = s["earthquake"]
+    # 地震情報を取得（辞書に含まれていない場合）
+    earthquake = None
+    if "earthquake" in s and s["earthquake"] is not None:
+        earthquake = s["earthquake"]
     elif quake_db_path:
-        eq = manager.get_earthquake_for_screenshot(s["timestamp"], quake_db_path)
-        if eq:
-            result["earthquake"] = eq
+        earthquake = manager.get_earthquake_for_screenshot(s["timestamp"], quake_db_path)
 
-    return result
+    return rsudp.types.screenshot_dict_to_response(s, earthquake)
 
 
 @viewer_api.route("/api/screenshot/", methods=["GET"])
@@ -168,8 +119,8 @@ def list_screenshots():
         manager = _get_screenshot_manager()
 
         # Get filter parameters
-        min_max_signal = request.args.get("min_max_signal", type=float)
-        earthquake_only = request.args.get("earthquake_only", "false").lower() == "true"
+        min_max_signal = flask.request.args.get("min_max_signal", type=float)
+        earthquake_only = flask.request.args.get("earthquake_only", "false").lower() == "true"
 
         quake_db_path = _get_quake_db_path()
 
@@ -187,7 +138,7 @@ def list_screenshots():
             screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
             formatted_screenshots = [_format_screenshot_with_earthquake(s, None) for s in screenshots]
 
-        return jsonify(
+        return flask.jsonify(
             {
                 "screenshots": formatted_screenshots,
                 "total": len(formatted_screenshots),
@@ -196,9 +147,7 @@ def list_screenshots():
         )
 
     except Exception as e:
-        import traceback
-
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return flask.jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 @viewer_api.route("/api/screenshot/years/", methods=["GET"])
@@ -212,18 +161,18 @@ def list_years():
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = request.args.get("min_max_signal", type=float)
+        min_max_signal = flask.request.args.get("min_max_signal", type=float)
 
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
 
         # Extract unique years
-        years = sorted({d["year"] for d in dates}, reverse=True)
+        years = sorted({d.year for d in dates}, reverse=True)
 
-        return jsonify({"years": years})
+        return flask.jsonify({"years": years})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/<int:year>/months/", methods=["GET"])
@@ -237,18 +186,18 @@ def list_months(year: int):
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = request.args.get("min_max_signal", type=float)
+        min_max_signal = flask.request.args.get("min_max_signal", type=float)
 
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
 
         # Extract months for the specified year
-        months = sorted({d["month"] for d in dates if d["year"] == year}, reverse=True)
+        months = sorted({d.month for d in dates if d.year == year}, reverse=True)
 
-        return jsonify({"months": months})
+        return flask.jsonify({"months": months})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/days/", methods=["GET"])
@@ -262,18 +211,18 @@ def list_days(year: int, month: int):
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = request.args.get("min_max_signal", type=float)
+        min_max_signal = flask.request.args.get("min_max_signal", type=float)
 
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
 
         # Extract days for the specified year and month
-        days = sorted({d["day"] for d in dates if d["year"] == year and d["month"] == month}, reverse=True)
+        days = sorted({d.day for d in dates if d.year == year and d.month == month}, reverse=True)
 
-        return jsonify({"days": days})
+        return flask.jsonify({"days": days})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/<int:day>/", methods=["GET"])
@@ -288,37 +237,22 @@ def list_by_date(year: int, month: int, day: int):
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = request.args.get("min_max_signal", type=float)
+        min_max_signal = flask.request.args.get("min_max_signal", type=float)
 
         # Get screenshots with optional maximum signal filter
         screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
 
-        # Filter by date
+        # Filter by date and format
         files = [
-            {
-                "filename": s["filename"],
-                "prefix": s["filename"].split("-")[0],
-                "year": s["year"],
-                "month": s["month"],
-                "day": s["day"],
-                "hour": s["hour"],
-                "minute": s["minute"],
-                "second": s["second"],
-                "timestamp": s["timestamp"],
-                "sta": s["sta"],
-                "lta": s["lta"],
-                "sta_lta_ratio": s["sta_lta_ratio"],
-                "max_count": s["max_count"],
-                "metadata": s["metadata"],
-            }
+            rsudp.types.screenshot_dict_to_response(s)
             for s in screenshots
             if s["year"] == year and s["month"] == month and s["day"] == day
         ]
 
-        return jsonify({"screenshots": files, "total": len(files)})
+        return flask.jsonify({"screenshots": files, "total": len(files)})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 def _get_image_file_path(filename: str):
@@ -350,15 +284,15 @@ def get_image(filename: str):
         file_path_str = _get_image_file_path(filename)
 
         if not file_path_str:
-            return jsonify({"error": "File not found"}), 404
+            return flask.jsonify({"error": "File not found"}), 404
 
         file_path = Path(file_path_str)
 
         if file_path.stat().st_size == 0:
-            return jsonify({"error": "File is empty"}), 404
+            return flask.jsonify({"error": "File is empty"}), 404
 
         # Send file with optimal cache headers
-        return send_file(
+        return flask.send_file(
             str(file_path),
             mimetype="image/png",
             as_attachment=False,
@@ -370,7 +304,7 @@ def get_image(filename: str):
         )
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/ogp/<path:filename>", methods=["GET"])
@@ -382,21 +316,21 @@ def get_ogp_image(filename: str):
     """
     import io
 
-    from PIL import Image
+    import PIL.Image
 
     try:
         file_path_str = _get_image_file_path(filename)
 
         if not file_path_str:
-            return jsonify({"error": "File not found"}), 404
+            return flask.jsonify({"error": "File not found"}), 404
 
         file_path = Path(file_path_str)
 
         if file_path.stat().st_size == 0:
-            return jsonify({"error": "File is empty"}), 404
+            return flask.jsonify({"error": "File is empty"}), 404
 
         # 画像を開く
-        with Image.open(file_path) as img:
+        with PIL.Image.open(file_path) as img:
             width, height = img.size
 
             # Twitter Cards推奨アスペクト比 1.91:1
@@ -411,7 +345,7 @@ def get_ogp_image(filename: str):
             cropped.save(output, format="PNG", optimize=True)
             output.seek(0)
 
-            response = send_file(
+            response = flask.send_file(
                 output,
                 mimetype="image/png",
                 as_attachment=False,
@@ -424,7 +358,7 @@ def get_ogp_image(filename: str):
             return response
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/latest/", methods=["GET"])
@@ -438,38 +372,21 @@ def get_latest():
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = request.args.get("min_max_signal", type=float)
+        min_max_signal = flask.request.args.get("min_max_signal", type=float)
 
         # Get screenshots with optional maximum signal filter
         screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
 
         if not screenshots:
-            return jsonify({"error": "No screenshots found"}), 404
+            return flask.jsonify({"error": "No screenshots found"}), 404
 
         # First one is already the latest (sorted by timestamp desc)
         latest = screenshots[0]
 
-        return jsonify(
-            {
-                "filename": latest["filename"],
-                "prefix": latest["filename"].split("-")[0],
-                "year": latest["year"],
-                "month": latest["month"],
-                "day": latest["day"],
-                "hour": latest["hour"],
-                "minute": latest["minute"],
-                "second": latest["second"],
-                "timestamp": latest["timestamp"],
-                "sta": latest["sta"],
-                "lta": latest["lta"],
-                "sta_lta_ratio": latest["sta_lta_ratio"],
-                "max_count": latest["max_count"],
-                "metadata": latest["metadata"],
-            }
-        )
+        return flask.jsonify(rsudp.types.screenshot_dict_to_response(latest))
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/statistics/", methods=["GET"])
@@ -484,7 +401,7 @@ def get_statistics():
     try:
         manager = _get_screenshot_manager()
         quake_db_path = _get_quake_db_path()
-        earthquake_only = request.args.get("earthquake_only", "false").lower() == "true"
+        earthquake_only = flask.request.args.get("earthquake_only", "false").lower() == "true"
 
         stats = manager.get_signal_statistics(
             quake_db_path=quake_db_path,
@@ -497,22 +414,20 @@ def get_statistics():
                 quake_db_path=quake_db_path,
                 earthquake_only=False,
             )
-            stats["absolute_total"] = all_stats["total"]
+            stats.absolute_total = all_stats.total
         else:
-            stats["absolute_total"] = stats["total"]
+            stats.absolute_total = stats.total
 
         # Add earthquake count
         if quake_db_path and quake_db_path.exists():
-            from rsudp.quake.database import QuakeDatabase
-
-            quake_db = QuakeDatabase(_get_config())
-            stats["earthquake_count"] = quake_db.count_earthquakes()
+            quake_db = rsudp.quake.database.QuakeDatabase(_get_config())
+            stats.earthquake_count = quake_db.count_earthquakes()
         else:
-            stats["earthquake_count"] = 0
+            stats.earthquake_count = 0
 
-        return jsonify(stats)
+        return flask.jsonify(dataclasses.asdict(stats))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/scan/", methods=["POST"])
@@ -528,11 +443,11 @@ def scan_screenshots():
 
     # Try to acquire lock without blocking
     if not _scan_lock.acquire(blocking=False):
-        return jsonify({"success": True, "message": "Scan already in progress", "skipped": True})
+        return flask.jsonify({"success": True, "message": "Scan already in progress", "skipped": True})
 
     try:
         if _is_scanning:
-            return jsonify({"success": True, "message": "Scan already in progress", "skipped": True})
+            return flask.jsonify({"success": True, "message": "Scan already in progress", "skipped": True})
 
         _is_scanning = True
         manager = _get_screenshot_manager()
@@ -541,11 +456,9 @@ def scan_screenshots():
         manager.organize_files()
         new_count = manager.scan_and_cache_all()
 
-        return jsonify({"success": True, "new_files": new_count, "skipped": False})
+        return flask.jsonify({"success": True, "new_files": new_count, "skipped": False})
     except Exception as e:
-        import traceback
-
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return flask.jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
     finally:
         _is_scanning = False
         _scan_lock.release()
@@ -557,12 +470,10 @@ def crawl_earthquake_data():
     """Trigger earthquake data crawl from JMA."""
     try:
         config = _get_config()
-        new_count = crawl_earthquakes(config, min_intensity=3)
-        return jsonify({"success": True, "new_earthquakes": new_count})
+        new_count = rsudp.quake.crawl.crawl_earthquakes(config, min_intensity=3)
+        return flask.jsonify({"success": True, "new_earthquakes": new_count})
     except Exception as e:
-        import traceback
-
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return flask.jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 @viewer_api.route("/api/earthquake/list/", methods=["GET"])
@@ -571,14 +482,13 @@ def crawl_earthquake_data():
 def list_earthquakes():
     """List all stored earthquakes."""
     try:
-        from rsudp.quake.database import QuakeDatabase
-
         config = _get_config()
-        quake_db = QuakeDatabase(config)
+        quake_db = rsudp.quake.database.QuakeDatabase(config)
         earthquakes = quake_db.get_all_earthquakes(limit=100)
-        return jsonify({"earthquakes": earthquakes, "total": len(earthquakes)})
+        earthquakes_dict = [dataclasses.asdict(eq) for eq in earthquakes]
+        return flask.jsonify({"earthquakes": earthquakes_dict, "total": len(earthquakes_dict)})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return flask.jsonify({"error": str(e)}), 500
 
 
 @viewer_api.route("/api/screenshot/clean/", methods=["POST"])
@@ -594,19 +504,19 @@ def clean_screenshots():
     - dry_run: True の場合、実際には削除しない (default: False)
     """
     try:
-        from rsudp.cli import cleaner
+        import rsudp.cli.cleaner
 
         config = _get_config()
 
         # リクエストパラメータを取得
-        data = request.get_json() or {}
-        min_max_count = data.get("min_max_count", cleaner.DEFAULT_MIN_MAX_COUNT)
-        time_window_minutes = data.get("time_window_minutes", cleaner.DEFAULT_TIME_WINDOW_MINUTES)
-        min_magnitude = data.get("min_magnitude", cleaner.DEFAULT_MIN_MAGNITUDE)
+        data = flask.request.get_json() or {}
+        min_max_count = data.get("min_max_count", rsudp.cli.cleaner.DEFAULT_MIN_MAX_COUNT)
+        time_window_minutes = data.get("time_window_minutes", rsudp.cli.cleaner.DEFAULT_TIME_WINDOW_MINUTES)
+        min_magnitude = data.get("min_magnitude", rsudp.cli.cleaner.DEFAULT_MIN_MAGNITUDE)
         dry_run = data.get("dry_run", False)
 
         # 削除対象を取得
-        to_delete = cleaner.get_screenshots_to_clean(
+        to_delete = rsudp.cli.cleaner.get_screenshots_to_clean(
             config,
             min_max_count=min_max_count,
             time_window_minutes=time_window_minutes,
@@ -615,7 +525,7 @@ def clean_screenshots():
 
         if dry_run:
             # dry-run モードでは削除対象のリストを返すだけ
-            return jsonify(
+            return flask.jsonify(
                 {
                     "success": True,
                     "dry_run": True,
@@ -632,9 +542,9 @@ def clean_screenshots():
             )
 
         # 実際に削除
-        deleted_count = cleaner.delete_screenshots(config, to_delete, dry_run=False)
+        deleted_count = rsudp.cli.cleaner.delete_screenshots(config, to_delete, dry_run=False)
 
-        return jsonify(
+        return flask.jsonify(
             {
                 "success": True,
                 "dry_run": False,
@@ -643,9 +553,7 @@ def clean_screenshots():
         )
 
     except Exception as e:
-        import traceback
-
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return flask.jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 def _get_ogp_content_for_screenshot(
@@ -653,13 +561,11 @@ def _get_ogp_content_for_screenshot(
     base_url: str,
 ) -> tuple[str, str, str, str]:
     """スクリーンショットのOGPコンテンツを取得する."""
-    from datetime import timedelta
-
     manager = _get_screenshot_manager()
     quake_db_path = _get_quake_db_path()
 
     # ファイル名からタイムスタンプを解析
-    parsed = _parse_filename(filename)
+    parsed = rsudp.types.parse_filename(filename)
     if not parsed:
         return ("", "", "", "")
 
@@ -670,8 +576,8 @@ def _get_ogp_content_for_screenshot(
         return ("", "", "", "")
 
     # 日時をフォーマット（JSTに変換）
-    ts = datetime.fromisoformat(screenshot["timestamp"])
-    jst = ts + timedelta(hours=9)
+    ts = datetime.datetime.fromisoformat(screenshot["timestamp"])
+    jst = ts.astimezone(rsudp.types.JST)
     date_str = jst.strftime("%-m/%-d %H:%M")
 
     # 地震情報を取得
@@ -682,11 +588,11 @@ def _get_ogp_content_for_screenshot(
     )
 
     if earthquake:
-        eq_ts = datetime.fromisoformat(earthquake["detected_at"])
+        eq_ts = datetime.datetime.fromisoformat(earthquake.detected_at)
         eq_date_str = eq_ts.strftime("%-m/%-d %H:%M")
-        title = f"{eq_date_str} {earthquake['epicenter_name']} M{earthquake['magnitude']}"
+        title = f"{eq_date_str} {earthquake.epicenter_name} M{earthquake.magnitude}"
         description = (
-            f"震度{earthquake['max_intensity']} | 深さ{earthquake['depth']}km | Raspberry Shake 地震計記録"
+            f"震度{earthquake.max_intensity} | 深さ{earthquake.depth}km | Raspberry Shake 地震計記録"
         )
     else:
         title = f"{date_str} 地震計記録"
@@ -761,7 +667,7 @@ def _generate_ogp_meta_tags(filename: str | None, base_url: str) -> str:
 
 
 @viewer_api.route("/", methods=["GET"])
-def index_with_ogp() -> Response:
+def index_with_ogp() -> flask.Response:
     """
     OGPメタタグを含むindex.htmlを返す.
 
@@ -771,11 +677,11 @@ def index_with_ogp() -> Response:
     try:
         # 静的ファイルディレクトリからindex.htmlを読み込む
         if my_lib.webapp.config.STATIC_DIR_PATH is None:
-            return Response("Static directory not configured", status=500)
+            return flask.Response("Static directory not configured", status=500)
 
         index_path = my_lib.webapp.config.STATIC_DIR_PATH / "index.html"
         if not index_path.exists():
-            return Response("index.html not found", status=404)
+            return flask.Response("index.html not found", status=404)
 
         # index.htmlを読み込む
         with index_path.open(encoding="utf-8") as f:
@@ -783,12 +689,12 @@ def index_with_ogp() -> Response:
 
         # ベースURLを構築
         # X-Forwarded-Proto と X-Forwarded-Host を考慮
-        scheme = request.headers.get("X-Forwarded-Proto", request.scheme)
-        host = request.headers.get("X-Forwarded-Host", request.host)
+        scheme = flask.request.headers.get("X-Forwarded-Proto", flask.request.scheme)
+        host = flask.request.headers.get("X-Forwarded-Host", flask.request.host)
         base_url = f"{scheme}://{host}/rsudp"
 
         # ファイル名を取得
-        filename = request.args.get("file")
+        filename = flask.request.args.get("file")
 
         # OGPメタタグを生成
         ogp_tags = _generate_ogp_meta_tags(filename, base_url)
@@ -796,9 +702,7 @@ def index_with_ogp() -> Response:
         # </head>の前にOGPタグを挿入
         html_content = html_content.replace("</head>", f"{ogp_tags}\n    </head>")
 
-        return Response(html_content, mimetype="text/html")
+        return flask.Response(html_content, mimetype="text/html")
 
     except Exception as e:
-        import traceback
-
-        return Response(f"Error: {e}\n{traceback.format_exc()}", status=500)
+        return flask.Response(f"Error: {e}\n{traceback.format_exc()}", status=500)

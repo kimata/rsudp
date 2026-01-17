@@ -196,7 +196,7 @@ class TestTimezoneIntegration:
         result = manager.get_earthquake_for_screenshot(screenshot_ts, quake_db_path)
 
         assert result is not None
-        assert result["event_id"] == "tz-test-001"
+        assert result.event_id == "tz-test-001"
 
     def test_timezone_no_false_match(self, config, temp_dir):
         """UTC と JST の誤マッチが発生しないことを確認."""
