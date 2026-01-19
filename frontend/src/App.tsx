@@ -101,6 +101,10 @@ const App: React.FC = () => {
     const [shouldScrollToCurrentImage, setShouldScrollToCurrentImage] = useState(false);
     const [isFiltering, setIsFiltering] = useState(false); // フィルタ適用中フラグ
     const [isRefreshing, setIsRefreshing] = useState(false); // 更新ボタン押下中フラグ
+    const [notification, setNotification] = useState<{
+        message: string;
+        type: "success" | "info";
+    } | null>(null); // 通知メッセージ
 
     // ユーザーが明示的に操作したかを追跡するフラグ
     // URLにはユーザーが明示的に変更したパラメータのみ含める
@@ -451,22 +455,50 @@ const App: React.FC = () => {
         [earthquakeOnly, minMaxSignalThreshold],
     );
 
-    const handleRefresh = useCallback(async () => {
-        setIsRefreshing(true);
-        try {
-            // まずサーバー側で新規ファイルをスキャン
+    // 通知を表示（3秒後に自動消去）
+    const showNotification = useCallback((message: string, type: "success" | "info") => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    }, []);
+
+    const handleRefresh = useCallback(
+        async (fullScan: boolean = false) => {
+            setIsRefreshing(true);
             try {
-                await screenshotApi.scanScreenshots();
-            } catch (err) {
-                console.error("Scan error:", err);
-                // スキャンが失敗してもデータ読み込みは続行
+                // まずサーバー側で新規ファイルをスキャン
+                let newFiles = 0;
+                try {
+                    const scanResult = await screenshotApi.scanScreenshots(fullScan);
+                    newFiles = scanResult.new_files ?? 0;
+                } catch (err) {
+                    console.error("Scan error:", err);
+                    // スキャンが失敗してもデータ読み込みは続行
+                }
+
+                // 前の件数を保存
+                const previousCount = allScreenshots.length;
+
+                // データを再読み込み
+                await loadInitialData();
+
+                // 新規ファイルの通知を表示
+                if (newFiles > 0) {
+                    showNotification(`${newFiles}件の新しいスクリーンショットが追加されました`, "success");
+                } else if (fullScan) {
+                    // 手動更新時に新規ファイルがない場合も通知
+                    showNotification("新しいスクリーンショットはありません", "info");
+                }
+            } finally {
+                setIsRefreshing(false);
             }
-            // データを再読み込み
-            await loadInitialData();
-        } finally {
-            setIsRefreshing(false);
-        }
-    }, [loadInitialData]);
+        },
+        [loadInitialData, showNotification, allScreenshots.length]
+    );
+
+    // 手動更新（完全スキャン）
+    const handleManualRefresh = useCallback(async () => {
+        await handleRefresh(true);
+    }, [handleRefresh]);
 
     // SSE による自動更新フック
     const { isConnected, lastRefreshed, connectionError, manualRefresh } = useAutoRefresh({
@@ -474,15 +506,20 @@ const App: React.FC = () => {
         pauseWhenHidden: true,
     });
 
-    // ステータスタグクリック時のハンドラ
+    // ステータスタグクリック時のハンドラ（完全スキャンを実行）
     const handleStatusClick = useCallback(async () => {
         setIsRefreshing(true);
         try {
-            await manualRefresh();
+            // 未接続の場合は再接続を試みる
+            if (!isConnected) {
+                manualRefresh();
+            }
+            // 完全スキャンを実行
+            await handleManualRefresh();
         } finally {
             setIsRefreshing(false);
         }
-    }, [manualRefresh]);
+    }, [isConnected, manualRefresh, handleManualRefresh]);
 
     // 最終更新時刻のフォーマット
     const formatLastRefreshed = (date: Date | null): string => {
@@ -675,6 +712,30 @@ const App: React.FC = () => {
                     <button
                         className="ml-auto size-5 rounded-full hover:bg-red-200 flex items-center justify-center"
                         onClick={() => setError(null)}
+                    >
+                        <Icon name="x-mark" className="size-4" />
+                    </button>
+                </div>
+            )}
+
+            {/* 通知メッセージ */}
+            {notification && (
+                <div
+                    className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in ${
+                        notification.type === "success"
+                            ? "bg-green-500 text-white"
+                            : "bg-blue-500 text-white"
+                    }`}
+                >
+                    {notification.type === "success" ? (
+                        <Icon name="check-circle" className="size-5" />
+                    ) : (
+                        <Icon name="information-circle" className="size-5" />
+                    )}
+                    <span>{notification.message}</span>
+                    <button
+                        className="ml-2 hover:bg-white/20 rounded-full p-1"
+                        onClick={() => setNotification(null)}
                     >
                         <Icon name="x-mark" className="size-4" />
                     </button>

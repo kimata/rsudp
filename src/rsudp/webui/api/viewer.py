@@ -438,8 +438,20 @@ def scan_screenshots():
 
     Uses a lock to prevent concurrent scans. If a scan is already in progress,
     returns immediately with a message indicating that.
+
+    Query parameters:
+    - full: If true, perform a full scan. Otherwise, perform an incremental scan.
+            Default is false (incremental scan).
     """
     global _is_scanning
+
+    # full パラメータを取得（クエリパラメータまたは JSON ボディから）
+    full_scan = False
+    if flask.request.is_json:
+        data = flask.request.get_json() or {}
+        full_scan = data.get("full", False)
+    else:
+        full_scan = flask.request.args.get("full", "false").lower() == "true"
 
     # Try to acquire lock without blocking
     if not _scan_lock.acquire(blocking=False):
@@ -454,9 +466,17 @@ def scan_screenshots():
 
         # Organize files and scan for new ones
         manager.organize_files()
-        new_count = manager.scan_and_cache_all()
 
-        return flask.jsonify({"success": True, "new_files": new_count, "skipped": False})
+        new_count = manager.scan_and_cache_all() if full_scan else manager.scan_incremental()
+
+        return flask.jsonify(
+            {
+                "success": True,
+                "new_files": new_count,
+                "skipped": False,
+                "scan_type": "full" if full_scan else "incremental",
+            }
+        )
     except Exception as e:
         return flask.jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
     finally:

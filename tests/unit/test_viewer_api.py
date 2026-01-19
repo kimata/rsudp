@@ -64,6 +64,77 @@ class TestApiEndpoints:
         assert "success" in data
 
 
+class TestScanEndpoint:
+    """スキャンエンドポイントの詳細テスト."""
+
+    def test_scan_default_incremental(self, flask_client):
+        """デフォルトでは増分スキャンが実行されることを確認."""
+        response = flask_client.post("/rsudp/api/screenshot/scan/")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["scan_type"] == "incremental"
+        assert data["skipped"] is False
+
+    def test_scan_with_full_true_json(self, flask_client):
+        """full=true で完全スキャンが実行されることを確認（JSON ボディ）."""
+        response = flask_client.post(
+            "/rsudp/api/screenshot/scan/",
+            json={"full": True},
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["scan_type"] == "full"
+
+    def test_scan_with_full_false_json(self, flask_client):
+        """full=false で増分スキャンが実行されることを確認（JSON ボディ）."""
+        response = flask_client.post(
+            "/rsudp/api/screenshot/scan/",
+            json={"full": False},
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["scan_type"] == "incremental"
+
+    def test_scan_with_full_true_query_param(self, flask_client):
+        """full=true で完全スキャンが実行されることを確認（クエリパラメータ）."""
+        response = flask_client.post("/rsudp/api/screenshot/scan/?full=true")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["scan_type"] == "full"
+
+    def test_scan_with_full_false_query_param(self, flask_client):
+        """full=false で増分スキャンが実行されることを確認（クエリパラメータ）."""
+        response = flask_client.post("/rsudp/api/screenshot/scan/?full=false")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["scan_type"] == "incremental"
+
+    def test_scan_response_structure(self, flask_client):
+        """スキャンのレスポンス構造を確認."""
+        response = flask_client.post(
+            "/rsudp/api/screenshot/scan/",
+            json={"full": True},
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert "new_files" in data
+        assert "skipped" in data
+        assert "scan_type" in data
+        assert isinstance(data["new_files"], int)
+
+
 class TestQueryParameters:
     """クエリパラメータのテスト."""
 

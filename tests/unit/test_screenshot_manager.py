@@ -447,3 +447,116 @@ class TestGetAvailableDates:
         # 低い閾値でフィルタ
         result = manager.get_available_dates(min_max_signal=100.0)
         assert len(result) == 1
+
+
+class TestGetLatestCachedDate:
+    """get_latest_cached_date のテスト."""
+
+    def test_get_latest_cached_date_empty(self, screenshot_config):
+        """キャッシュが空の場合は None を返す"""
+        manager = ScreenshotManager(screenshot_config)
+
+        result = manager.get_latest_cached_date()
+
+        assert result is None
+
+    def test_get_latest_cached_date_with_data(self, screenshot_config):
+        """キャッシュにデータがある場合は最新の日付を返す"""
+        manager = ScreenshotManager(screenshot_config)
+
+        # キャッシュにデータを追加
+        with sqlite3.connect(manager.cache_path) as conn:
+            insert_screenshot_metadata(conn)
+
+        result = manager.get_latest_cached_date()
+
+        assert result is not None
+        assert result.year == 2025
+        assert result.month == 12
+        assert result.day == 12
+
+
+class TestScanIncremental:
+    """scan_incremental のテスト."""
+
+    def test_scan_incremental_fallback_to_full(self, screenshot_config):
+        """キャッシュが空の場合は完全スキャンにフォールバック"""
+        from PIL import Image
+
+        manager = ScreenshotManager(screenshot_config)
+
+        # テストファイルを作成
+        screenshot_dir = screenshot_config.plot.screenshot.path
+        date_dir = screenshot_dir / "2025" / "12" / "12"
+        date_dir.mkdir(parents=True, exist_ok=True)
+        test_file = date_dir / "SHAKE-2025-12-12-190500.png"
+
+        img = Image.new("RGB", (100, 100), color="red")
+        img.save(test_file)
+
+        # キャッシュが空なので完全スキャンが実行される
+        new_count = manager.scan_incremental()
+
+        assert new_count == 1
+
+        # キャッシュされていることを確認
+        with sqlite3.connect(manager.cache_path) as conn:
+            cursor = conn.execute("SELECT COUNT(*) FROM screenshot_metadata")
+            count = cursor.fetchone()[0]
+
+        assert count == 1
+
+    def test_scan_incremental_only_scans_recent_dates(self, screenshot_config):
+        """増分スキャンは最新日付以降のディレクトリのみをスキャン"""
+        from PIL import Image
+
+        manager = ScreenshotManager(screenshot_config)
+
+        screenshot_dir = screenshot_config.plot.screenshot.path
+
+        # 古い日付のファイルを作成（2025/11/15）
+        old_dir = screenshot_dir / "2025" / "11" / "15"
+        old_dir.mkdir(parents=True, exist_ok=True)
+        old_file = old_dir / "SHAKE-2025-11-15-120000.png"
+        img = Image.new("RGB", (100, 100), color="red")
+        img.save(old_file)
+
+        # キャッシュに最新の日付（2025/12/12）を追加
+        with sqlite3.connect(manager.cache_path) as conn:
+            insert_screenshot_metadata(conn)
+
+        # 新しい日付のファイルを作成（2025/12/13）
+        new_dir = screenshot_dir / "2025" / "12" / "13"
+        new_dir.mkdir(parents=True, exist_ok=True)
+        new_file = new_dir / "SHAKE-2025-12-13-100000.png"
+        img.save(new_file)
+
+        # 増分スキャンを実行
+        new_count = manager.scan_incremental()
+
+        # 新しい日付のファイルのみがスキャンされる
+        assert new_count == 1
+
+        # キャッシュを確認（古いファイルはスキャンされていない）
+        with sqlite3.connect(manager.cache_path) as conn:
+            cursor = conn.execute("SELECT filename FROM screenshot_metadata ORDER BY timestamp")
+            filenames = [row[0] for row in cursor.fetchall()]
+
+        assert "SHAKE-2025-12-12-190500.png" in filenames
+        assert "SHAKE-2025-12-13-100000.png" in filenames
+        assert "SHAKE-2025-11-15-120000.png" not in filenames
+
+    def test_scan_incremental_no_directory(self, screenshot_config):
+        """ディレクトリが存在しない場合"""
+        import shutil
+
+        manager = ScreenshotManager(screenshot_config)
+
+        # ディレクトリを削除
+        if screenshot_config.plot.screenshot.path.exists():
+            shutil.rmtree(screenshot_config.plot.screenshot.path)
+
+        # エラーなく完了
+        new_count = manager.scan_incremental()
+
+        assert new_count == 0

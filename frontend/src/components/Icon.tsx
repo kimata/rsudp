@@ -16,6 +16,8 @@ import {
     DevicePhoneMobileIcon,
     ListBulletIcon,
     XMarkIcon,
+    CheckCircleIcon,
+    InformationCircleIcon,
 } from "@heroicons/react/24/solid";
 
 const iconMap = {
@@ -36,6 +38,8 @@ const iconMap = {
     "device-phone-mobile": DevicePhoneMobileIcon,
     "list-bullet": ListBulletIcon,
     "x-mark": XMarkIcon,
+    "check-circle": CheckCircleIcon,
+    "information-circle": InformationCircleIcon,
 } as const;
 
 export type IconName = keyof typeof iconMap;

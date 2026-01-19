@@ -83,8 +83,8 @@ def _start_background_monitor(config: rsudp.config.Config):
             logging.exception("地震クローラーエラー")
             return False
 
-    def _scan_screenshots():
-        """スクリーンショットをスキャンし、新規ファイルがあれば True を返す"""
+    def _scan_screenshots_full() -> int:
+        """完全スキャンを実行し、新規ファイル数を返す."""
         from rsudp.screenshot_manager import ScreenshotManager
 
         try:
@@ -92,12 +92,26 @@ def _start_background_monitor(config: rsudp.config.Config):
             manager.organize_files()
             new_count = manager.scan_and_cache_all()
             if new_count > 0:
-                logging.info("スクリーンショット監視: %d件の新規ファイルを検出", new_count)
-                return True
-            return False
+                logging.info("スクリーンショット監視（完全スキャン）: %d件の新規ファイルを検出", new_count)
+            return new_count
         except Exception:
             logging.exception("スクリーンショットスキャンエラー")
-            return False
+            return 0
+
+    def _scan_screenshots_incremental() -> int:
+        """増分スキャンを実行し、新規ファイル数を返す."""
+        from rsudp.screenshot_manager import ScreenshotManager
+
+        try:
+            manager = ScreenshotManager(config)
+            manager.organize_files()
+            new_count = manager.scan_incremental()
+            if new_count > 0:
+                logging.info("スクリーンショット監視（増分スキャン）: %d件の新規ファイルを検出", new_count)
+            return new_count
+        except Exception:
+            logging.exception("スクリーンショットスキャンエラー")
+            return 0
 
     def monitor_loop():
         quake_interval_count = _QUAKE_CRAWL_INTERVAL // _SCREENSHOT_SCAN_INTERVAL
@@ -109,29 +123,28 @@ def _start_background_monitor(config: rsudp.config.Config):
             _QUAKE_CRAWL_INTERVAL,
         )
 
-        # 起動時に即座に1回実行
-        has_update = _scan_screenshots()
+        # 起動時に完全スキャンを1回実行
+        new_files = _scan_screenshots_full()
         quake_updated = _crawl_earthquakes()
-        if has_update or quake_updated:
+        if new_files > 0 or quake_updated:
             my_lib.webapp.event.notify_event(my_lib.webapp.event.EVENT_TYPE.DATA)
 
-        # 定期実行ループ
+        # 定期実行ループ（増分スキャン）
         while not _monitor_stop_event.wait(_SCREENSHOT_SCAN_INTERVAL):
             loop_count += 1
-            has_update = False
+            new_files = 0
+            quake_updated = False
 
-            # スクリーンショットスキャン（毎回）
-            if _scan_screenshots():
-                has_update = True
+            # スクリーンショット増分スキャン（毎回）
+            new_files = _scan_screenshots_incremental()
 
             # 地震クロール（1時間ごと）
             if loop_count >= quake_interval_count:
                 loop_count = 0
-                if _crawl_earthquakes():
-                    has_update = True
+                quake_updated = _crawl_earthquakes()
 
             # 更新があればクライアントに通知
-            if has_update:
+            if new_files > 0 or quake_updated:
                 my_lib.webapp.event.notify_event(my_lib.webapp.event.EVENT_TYPE.DATA)
 
         logging.info("バックグラウンド監視停止")

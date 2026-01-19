@@ -149,6 +149,26 @@ class ScreenshotManager:
                 ),
             )
 
+    def get_latest_cached_date(self) -> rsudp.types.DateInfo | None:
+        """
+        キャッシュ内の最新のスクリーンショットの日付を取得する.
+
+        Returns:
+            最新の日付情報、またはキャッシュが空の場合は None
+
+        """
+        with sqlite3.connect(self.cache_path) as conn:
+            cursor = conn.execute("""
+                SELECT year, month, day
+                FROM screenshot_metadata
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """)
+            row = cursor.fetchone()
+            if row:
+                return rsudp.types.DateInfo(year=row[0], month=row[1], day=row[2])
+            return None
+
     def scan_and_cache_all(self) -> int:
         """
         すべてのスクリーンショットファイルをスキャンしてキャッシュを更新する.
@@ -180,6 +200,80 @@ class ScreenshotManager:
 
             self._cache_file_metadata(file_path)
             new_count += 1
+
+        return new_count
+
+    def scan_incremental(self) -> int:
+        """
+        最新のキャッシュ日付以降のファイルのみをスキャンしてキャッシュを更新する.
+
+        増分スキャンは、最新のキャッシュ日付と同じ日付以降のディレクトリのみを
+        スキャンすることで、パフォーマンスを向上させる。
+
+        Returns:
+            新規または更新されたファイル数
+
+        """
+        if not self.screenshot_path.exists():
+            return 0
+
+        latest_date = self.get_latest_cached_date()
+
+        # キャッシュが空の場合は完全スキャンにフォールバック
+        if not latest_date:
+            logging.info("増分スキャン: キャッシュが空のため完全スキャンを実行")
+            return self.scan_and_cache_all()
+
+        new_count = 0
+
+        # 最新日付以降のディレクトリをスキャン
+        # ディレクトリ構造: YYYY/MM/DD
+        for year_dir in self.screenshot_path.iterdir():
+            if not year_dir.is_dir() or not year_dir.name.isdigit():
+                continue
+
+            year = int(year_dir.name)
+            if year < latest_date.year:
+                continue
+
+            for month_dir in year_dir.iterdir():
+                if not month_dir.is_dir() or not month_dir.name.isdigit():
+                    continue
+
+                month = int(month_dir.name)
+                if year == latest_date.year and month < latest_date.month:
+                    continue
+
+                for day_dir in month_dir.iterdir():
+                    if not day_dir.is_dir() or not day_dir.name.isdigit():
+                        continue
+
+                    day = int(day_dir.name)
+                    if year == latest_date.year and month == latest_date.month and day < latest_date.day:
+                        continue
+
+                    # この日付のディレクトリ内のファイルをスキャン
+                    for file_path in day_dir.glob("*.png"):
+                        if not file_path.is_file():
+                            continue
+
+                        # すでにキャッシュされているか確認
+                        with sqlite3.connect(self.cache_path) as conn:
+                            cursor = conn.execute(
+                                "SELECT file_size FROM screenshot_metadata WHERE filename = ?",
+                                (file_path.name,),
+                            )
+                            row = cursor.fetchone()
+
+                            # キャッシュ済みでファイルサイズが変わっていなければスキップ
+                            if row and row[0] == file_path.stat().st_size:
+                                continue
+
+                        self._cache_file_metadata(file_path)
+                        new_count += 1
+
+        if new_count > 0:
+            logging.info("増分スキャン: %d件の新規ファイルを検出", new_count)
 
         return new_count
 

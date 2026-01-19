@@ -57,8 +57,15 @@ export const screenshotApi = {
         return response.data;
     },
 
-    scanScreenshots: async (): Promise<{ success: boolean; new_files?: number; skipped: boolean }> => {
-        const response = await api.post<{ success: boolean; new_files?: number; skipped: boolean }>("/scan/");
+    scanScreenshots: async (
+        full: boolean = false
+    ): Promise<{ success: boolean; new_files?: number; skipped: boolean; scan_type?: string }> => {
+        const response = await api.post<{
+            success: boolean;
+            new_files?: number;
+            skipped: boolean;
+            scan_type?: string;
+        }>("/scan/", { full });
         return response.data;
     },
 };
