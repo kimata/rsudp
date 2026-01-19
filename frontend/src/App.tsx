@@ -475,9 +475,6 @@ const App: React.FC = () => {
                     // スキャンが失敗してもデータ読み込みは続行
                 }
 
-                // 前の件数を保存
-                const previousCount = allScreenshots.length;
-
                 // データを再読み込み
                 await loadInitialData();
 
@@ -492,7 +489,7 @@ const App: React.FC = () => {
                 setIsRefreshing(false);
             }
         },
-        [loadInitialData, showNotification, allScreenshots.length]
+        [loadInitialData, showNotification]
     );
 
     // 手動更新（完全スキャン）
