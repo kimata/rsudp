@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 
 dependencies = [
     "pymodes @ git+https://github.com/junzis/pyModeS@v2.21.1",
-    "my-lib @ git+https://github.com/kimata/my-py-lib@fa5db4c94da59f2434501e8f89326890d24fb80e",
+    "my-lib @ git+https://github.com/kimata/my-py-lib@4fd91641829a496ecf9469f9f08b575ade595b38",
     "flask>=3.1.1",
     "flask-cors>=6.0.1",
     "Pillow>=10.0.0",
@@ -138,3 +138,4 @@ reportArgumentType = false
 reportOperatorIssue = false
 reportIndexIssue = false
 reportGeneralTypeIssues = false
+reportAttributeAccessIssue = false
