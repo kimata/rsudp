@@ -92,9 +92,6 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
-[tool.hatch.build.hooks.vcs]
-version-file = "src/rsudp/_version.py"
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/rsudp"]
 
