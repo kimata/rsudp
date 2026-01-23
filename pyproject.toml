@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 
 dependencies = [
     "pymodes @ git+https://github.com/junzis/pyModeS@v2.21.1",
-    "my-lib @ git+https://github.com/kimata/my-py-lib@e5d5c889ca3adbc9b8d1a4ed81c2125752e7c5b3",
+    "my-lib @ git+https://github.com/kimata/my-py-lib@617257a6f37bed41b9b3ad650983cb404a1ed115",
     "flask>=3.1.2",
     "flask-cors>=6.0.2",
     "Pillow>=12.1.0",
@@ -37,12 +37,12 @@ dev = [
     "pytest-timeout>=2.4.0",
     "time-machine>=3.2.0",
     "mypy>=1.19.1",
-    "pyright>=1.1.407",
+    "pyright>=1.1.408",
     "ty>=0.0.1a7",
     "types-pytz>=2025.2.0",
     "types-paramiko>=4.0.0",
     "types-pyyaml>=6.0.12",
-    "types-requests>=2.32.0",
+    "types-requests>=2.32.4",
 ]
 
 [tool.uv]
@@ -80,13 +80,17 @@ select = ["E", "F", "W", "I", "B", "UP"]
 [tool.ty]
 [tool.ty.rules]
 
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "semver"
+format = "{base}"
+
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-source = "vcs"
-fallback-version = "0.0.0"
+source = "uv-dynamic-versioning"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/rsudp/_version.py"
@@ -146,3 +150,4 @@ reportArgumentType = false
 reportOperatorIssue = false
 reportIndexIssue = false
 reportGeneralTypeIssues = false
+reportAttributeAccessIssue = false
