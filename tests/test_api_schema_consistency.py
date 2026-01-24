@@ -1,9 +1,9 @@
-# ruff: noqa: S101, TRY003, EM102
+# ruff: noqa: S101
 """
 API schema consistency tests between frontend (TypeScript) and backend (Python).
 
 This module verifies that:
-1. Pydantic schemas match the TypeScript interfaces in react/src/types.ts
+1. Pydantic schemas match the TypeScript interfaces in frontend/src/types.ts
 2. API responses conform to the defined schemas
 """
 
@@ -16,15 +16,13 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from rsudp.webui.api.schemas import (
-    DaysResponse,
+    Earthquake,
     ErrorResponse,
-    MonthsResponse,
     Screenshot,
     ScreenshotListResponse,
     ScreenshotListWithPathResponse,
     StatisticsResponse,
     SysInfo,
-    YearsResponse,
 )
 
 
@@ -33,8 +31,8 @@ class TestSchemaFieldConsistency:
 
     @pytest.fixture
     def typescript_types(self) -> dict[str, dict[str, Any]]:
-        """Parse TypeScript interfaces from react/src/types.ts."""
-        types_file = Path(__file__).parent.parent / "react" / "src" / "types.ts"
+        """Parse TypeScript interfaces from frontend/src/types.ts."""
+        types_file = Path(__file__).parent.parent / "frontend" / "src" / "types.ts"
         content = types_file.read_text()
 
         interfaces = {}
@@ -65,32 +63,47 @@ class TestSchemaFieldConsistency:
             "boolean": {bool},
             "number[]": {list},
             "Screenshot[]": {list},
+            "Earthquake": {Earthquake},
         }
         return type_mapping.get(ts_type, {object})
 
     def _get_pydantic_field_type(self, model: type[BaseModel], field_name: str) -> tuple[type, bool]:
         """Get the type and optionality of a Pydantic model field."""
+        import types
+
         field_info = model.model_fields.get(field_name)
         if field_info is None:
             raise ValueError(f"Field {field_name} not found in {model.__name__}")
 
         annotation = field_info.annotation
         is_optional = False
+        actual_type = annotation
 
         origin = get_origin(annotation)
-        if origin is type(None) or (hasattr(origin, "__origin__") and origin.__origin__ is type(None)):
-            is_optional = True
-        elif str(annotation).startswith("typing.Optional") or str(annotation).startswith("Optional"):
-            is_optional = True
-            args = get_args(annotation)
-            if args:
-                annotation = args[0]
 
-        if origin is list or str(annotation).startswith("list"):
+        # Handle Union types (including X | None syntax)
+        if origin is types.UnionType or (origin is not None and str(origin) == "typing.Union"):
+            args = get_args(annotation)
+            # Check if None is one of the union members (optional field)
+            if type(None) in args:
+                is_optional = True
+                # Get the non-None type
+                for arg in args:
+                    if arg is not type(None):
+                        actual_type = arg
+                        break
+            else:
+                actual_type = args[0] if args else object
+
+        if origin is list or str(actual_type).startswith("list"):
             return list, is_optional
 
-        if annotation in (int, float, str, bool):
-            return annotation, is_optional
+        if actual_type in (int, float, str, bool):
+            return actual_type, is_optional
+
+        # Handle class types (like Earthquake)
+        if isinstance(actual_type, type):
+            return actual_type, is_optional
 
         return object, is_optional
 
@@ -129,36 +142,6 @@ class TestSchemaFieldConsistency:
                 f"Field '{field_name}' missing in Pydantic ScreenshotListResponse"
             )
 
-    def test_years_response_schema_matches_typescript(self, typescript_types):
-        """Verify YearsResponse schema matches TypeScript interface."""
-        ts_response = typescript_types.get("YearsResponse")
-        assert ts_response is not None, "YearsResponse interface not found in TypeScript"
-
-        for field_name in ts_response:
-            assert field_name in YearsResponse.model_fields, (
-                f"Field '{field_name}' missing in Pydantic YearsResponse"
-            )
-
-    def test_months_response_schema_matches_typescript(self, typescript_types):
-        """Verify MonthsResponse schema matches TypeScript interface."""
-        ts_response = typescript_types.get("MonthsResponse")
-        assert ts_response is not None, "MonthsResponse interface not found in TypeScript"
-
-        for field_name in ts_response:
-            assert field_name in MonthsResponse.model_fields, (
-                f"Field '{field_name}' missing in Pydantic MonthsResponse"
-            )
-
-    def test_days_response_schema_matches_typescript(self, typescript_types):
-        """Verify DaysResponse schema matches TypeScript interface."""
-        ts_response = typescript_types.get("DaysResponse")
-        assert ts_response is not None, "DaysResponse interface not found in TypeScript"
-
-        for field_name in ts_response:
-            assert field_name in DaysResponse.model_fields, (
-                f"Field '{field_name}' missing in Pydantic DaysResponse"
-            )
-
     def test_statistics_response_schema_matches_typescript(self, typescript_types):
         """Verify StatisticsResponse schema matches TypeScript interface."""
         ts_response = typescript_types.get("StatisticsResponse")
@@ -176,6 +159,16 @@ class TestSchemaFieldConsistency:
 
         for field_name in ts_response:
             assert field_name in SysInfo.model_fields, f"Field '{field_name}' missing in Pydantic SysInfo"
+
+    def test_earthquake_schema_matches_typescript(self, typescript_types):
+        """Verify Earthquake schema matches TypeScript interface."""
+        ts_earthquake = typescript_types.get("Earthquake")
+        assert ts_earthquake is not None, "Earthquake interface not found in TypeScript"
+
+        for field_name in ts_earthquake:
+            assert field_name in Earthquake.model_fields, (
+                f"Field '{field_name}' missing in Pydantic Earthquake"
+            )
 
 
 class TestSchemaValidation:
@@ -196,6 +189,7 @@ class TestSchemaValidation:
             "sta": 1.5,
             "lta": 0.8,
             "sta_lta_ratio": 1.875,
+            "max_count": 1000.0,
             "metadata": "test metadata",
         }
         screenshot = Screenshot(**data)
@@ -214,6 +208,7 @@ class TestSchemaValidation:
             "minute": 30,
             "second": 45,
             "timestamp": "2025-01-15T10:30:45+00:00",
+            "max_count": 1000.0,
         }
         screenshot = Screenshot(**data)
         assert screenshot.sta is None
@@ -233,6 +228,7 @@ class TestSchemaValidation:
             "minute": 30,
             "second": 45,
             "timestamp": "2025-01-15T10:30:45+00:00",
+            "max_count": 1000.0,
         }
         with pytest.raises(ValidationError):
             Screenshot(**data)
@@ -251,6 +247,7 @@ class TestSchemaValidation:
                     "minute": 30,
                     "second": 45,
                     "timestamp": "2025-01-15T10:30:45+00:00",
+                    "max_count": 1000.0,
                 }
             ],
             "total": 1,
@@ -259,38 +256,28 @@ class TestSchemaValidation:
         assert response.total == 1
         assert len(response.screenshots) == 1
 
-    def test_years_response_valid(self):
-        """Test YearsResponse schema accepts valid data."""
-        data = {"years": [2025, 2024, 2023]}
-        response = YearsResponse(**data)
-        assert response.years == [2025, 2024, 2023]
-
-    def test_months_response_valid(self):
-        """Test MonthsResponse schema accepts valid data."""
-        data = {"months": [12, 11, 10]}
-        response = MonthsResponse(**data)
-        assert response.months == [12, 11, 10]
-
-    def test_days_response_valid(self):
-        """Test DaysResponse schema accepts valid data."""
-        data = {"days": [31, 30, 29]}
-        response = DaysResponse(**data)
-        assert response.days == [31, 30, 29]
-
     def test_statistics_response_valid(self):
         """Test StatisticsResponse schema accepts valid data."""
-        data = {"total": 100, "min_sta": 0.5, "max_sta": 5.0, "avg_sta": 2.5, "with_sta": 80}
+        data = {
+            "total": 100,
+            "absolute_total": 150,
+            "min_signal": 0.5,
+            "max_signal": 5.0,
+            "avg_signal": 2.5,
+            "with_signal": 80,
+            "earthquake_count": 5,
+        }
         response = StatisticsResponse(**data)
         assert response.total == 100
-        assert response.with_sta == 80
+        assert response.with_signal == 80
 
     def test_statistics_response_optional_fields(self):
-        """Test StatisticsResponse allows optional STA fields to be None."""
-        data = {"total": 0, "with_sta": 0}
+        """Test StatisticsResponse allows optional fields to be None."""
+        data = {"total": 0, "absolute_total": 0, "with_signal": 0}
         response = StatisticsResponse(**data)
-        assert response.min_sta is None
-        assert response.max_sta is None
-        assert response.avg_sta is None
+        assert response.min_signal is None
+        assert response.max_signal is None
+        assert response.avg_signal is None
 
 
 class TestApiResponseValidation:
@@ -307,43 +294,6 @@ class TestApiResponseValidation:
         assert isinstance(validated.total, int)
         assert isinstance(validated.path, str)
 
-    def test_list_years_response_schema(self, client):
-        """Test /api/screenshot/years/ response conforms to schema."""
-        response = client.get("/rsudp/api/screenshot/years/")
-        assert response.status_code == 200
-
-        data = json.loads(response.data)
-        validated = YearsResponse(**data)
-        assert isinstance(validated.years, list)
-
-    def test_list_months_response_schema(self, client):
-        """Test /api/screenshot/<year>/months/ response conforms to schema."""
-        response = client.get("/rsudp/api/screenshot/2025/months/")
-        assert response.status_code == 200
-
-        data = json.loads(response.data)
-        validated = MonthsResponse(**data)
-        assert isinstance(validated.months, list)
-
-    def test_list_days_response_schema(self, client):
-        """Test /api/screenshot/<year>/<month>/days/ response conforms to schema."""
-        response = client.get("/rsudp/api/screenshot/2025/1/days/")
-        assert response.status_code == 200
-
-        data = json.loads(response.data)
-        validated = DaysResponse(**data)
-        assert isinstance(validated.days, list)
-
-    def test_list_by_date_response_schema(self, client):
-        """Test /api/screenshot/<year>/<month>/<day>/ response conforms to schema."""
-        response = client.get("/rsudp/api/screenshot/2025/1/15/")
-        assert response.status_code == 200
-
-        data = json.loads(response.data)
-        validated = ScreenshotListResponse(**data)
-        assert isinstance(validated.screenshots, list)
-        assert isinstance(validated.total, int)
-
     def test_statistics_response_schema(self, client):
         """Test /api/screenshot/statistics/ response conforms to schema."""
         response = client.get("/rsudp/api/screenshot/statistics/")
@@ -352,7 +302,7 @@ class TestApiResponseValidation:
         data = json.loads(response.data)
         validated = StatisticsResponse(**data)
         assert isinstance(validated.total, int)
-        assert isinstance(validated.with_sta, int)
+        assert isinstance(validated.with_signal, int)
 
     def test_latest_response_schema_empty(self, client):
         """Test /api/screenshot/latest/ returns proper error when empty."""
@@ -378,6 +328,7 @@ class TestSchemaJsonSerialization:
             minute=30,
             second=45,
             timestamp="2025-01-15T10:30:45+00:00",
+            max_count=1000.0,
         )
         json_str = screenshot.model_dump_json()
         parsed = json.loads(json_str)
@@ -398,6 +349,7 @@ class TestSchemaJsonSerialization:
                     minute=30,
                     second=45,
                     timestamp="2025-01-15T10:30:45+00:00",
+                    max_count=1000.0,
                 )
             ],
             total=1,

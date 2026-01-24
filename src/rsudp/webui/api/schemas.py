@@ -2,17 +2,37 @@
 API schemas for rsudp web interface.
 
 This module defines Pydantic schemas that mirror the TypeScript interfaces
-in react/src/types.ts to ensure frontend-backend API consistency.
+in frontend/src/types.ts to ensure frontend-backend API consistency.
 """
 
 from pydantic import BaseModel, ConfigDict
+
+
+class Earthquake(BaseModel):
+    """
+    Earthquake data schema.
+
+    Mirrors TypeScript interface: frontend/src/types.ts:Earthquake
+    """
+
+    model_config = ConfigDict(strict=True)
+
+    id: int
+    event_id: str
+    detected_at: str
+    latitude: float
+    longitude: float
+    magnitude: float
+    depth: int
+    epicenter_name: str
+    max_intensity: str | None = None
 
 
 class Screenshot(BaseModel):
     """
     Screenshot metadata schema.
 
-    Mirrors TypeScript interface: react/src/types.ts:Screenshot
+    Mirrors TypeScript interface: frontend/src/types.ts:Screenshot
     """
 
     model_config = ConfigDict(strict=True)
@@ -29,14 +49,16 @@ class Screenshot(BaseModel):
     sta: float | None = None
     lta: float | None = None
     sta_lta_ratio: float | None = None
+    max_count: float
     metadata: str | None = None
+    earthquake: Earthquake | None = None
 
 
 class ScreenshotListResponse(BaseModel):
     """
     Response schema for screenshot list endpoints.
 
-    Mirrors TypeScript interface: react/src/types.ts:ScreenshotListResponse
+    Mirrors TypeScript interface: frontend/src/types.ts:ScreenshotListResponse
     """
 
     model_config = ConfigDict(strict=True)
@@ -51,56 +73,22 @@ class ScreenshotListWithPathResponse(ScreenshotListResponse):
     path: str
 
 
-class YearsResponse(BaseModel):
-    """
-    Response schema for years endpoint.
-
-    Mirrors TypeScript interface: react/src/types.ts:YearsResponse
-    """
-
-    model_config = ConfigDict(strict=True)
-
-    years: list[int]
-
-
-class MonthsResponse(BaseModel):
-    """
-    Response schema for months endpoint.
-
-    Mirrors TypeScript interface: react/src/types.ts:MonthsResponse
-    """
-
-    model_config = ConfigDict(strict=True)
-
-    months: list[int]
-
-
-class DaysResponse(BaseModel):
-    """
-    Response schema for days endpoint.
-
-    Mirrors TypeScript interface: react/src/types.ts:DaysResponse
-    """
-
-    model_config = ConfigDict(strict=True)
-
-    days: list[int]
-
-
 class StatisticsResponse(BaseModel):
     """
     Response schema for statistics endpoint.
 
-    Mirrors TypeScript interface: react/src/types.ts:StatisticsResponse
+    Mirrors TypeScript interface: frontend/src/types.ts:StatisticsResponse
     """
 
     model_config = ConfigDict(strict=True)
 
     total: int
-    min_sta: float | None = None
-    max_sta: float | None = None
-    avg_sta: float | None = None
-    with_sta: int
+    absolute_total: int
+    min_signal: float | None = None
+    max_signal: float | None = None
+    avg_signal: float | None = None
+    with_signal: int
+    earthquake_count: int | None = None
 
 
 class ErrorResponse(BaseModel):
@@ -116,7 +104,7 @@ class SysInfo(BaseModel):
     """
     System information schema.
 
-    Mirrors TypeScript interface: react/src/types.ts:SysInfo
+    Mirrors TypeScript interface: frontend/src/types.ts:SysInfo
     """
 
     model_config = ConfigDict(strict=True)
