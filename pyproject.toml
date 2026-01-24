@@ -16,6 +16,7 @@ dependencies = [
     "flask-cors>=6.0.2",
     "Pillow>=12.1.0",
     "dacite>=1.9.2",
+    "pydantic>=2.0.0",
 ]
 
 [project.scripts]

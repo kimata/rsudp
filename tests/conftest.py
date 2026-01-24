@@ -1,5 +1,6 @@
+# ruff: noqa: SLF001
 """
-共通テストフィクスチャ
+共通テストフィクスチャ.
 
 テスト全体で使用する共通のフィクスチャとヘルパーを定義します。
 """
@@ -23,7 +24,7 @@ CONFIG_FILE = "config.yaml"
 # === 環境モック ===
 @pytest.fixture(scope="session", autouse=True)
 def env_mock():
-    """テスト環境用の環境変数モック"""
+    """テスト環境用の環境変数モック."""
     with unittest.mock.patch.dict(
         "os.environ",
         {
@@ -194,12 +195,22 @@ def flask_app(config):
     # Blueprint を登録
     app.register_blueprint(viewer.blueprint)
 
-    return app
+    yield app
+
+    # テスト後のクリーンアップ
+    viewer._screenshot_manager = None
 
 
 @pytest.fixture
 def flask_client(flask_app):
     """Flask テストクライアント."""
+    return flask_app.test_client()
+
+
+# エイリアス（APIスキーマ整合性テストで使用）
+@pytest.fixture
+def client(flask_app):
+    """Flask テストクライアント（flask_client のエイリアス）."""
     return flask_app.test_client()
 
 
