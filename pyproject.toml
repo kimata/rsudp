@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 
 dependencies = [
     "pymodes @ git+https://github.com/junzis/pyModeS@v2.21.1",
-    "my-lib @ git+https://github.com/kimata/my-py-lib@617257a6f37bed41b9b3ad650983cb404a1ed115",
+    "my-lib @ git+https://github.com/kimata/my-py-lib@c1c1a7dea26a950e442f3dabd53033f47dd2fd40",
     "flask>=3.1.2",
     "flask-cors>=6.0.2",
     "Pillow>=12.1.0",
@@ -22,6 +22,10 @@ dependencies = [
 rsudp-webui = "rsudp.cli.webui:main"
 rsudp-healthz = "rsudp.cli.healthz:main"
 rsudp-cleaner = "rsudp.cli.cleaner:main"
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
@@ -45,50 +49,6 @@ dev = [
     "types-requests>=2.32.4",
 ]
 
-[tool.uv]
-default-groups = ["dev"]
-
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = false
-warn_unused_configs = true
-ignore_missing_imports = true
-exclude = [
-    "^tests/",
-    "^.venv/",
-]
-
-[[tool.mypy.overrides]]
-module = [
-    "flask.*",
-    "flask_cors",
-    "flask_cors.*",
-    "docopt",
-    "docopt.*",
-    "pyModeS.*",
-    "sklearn.*",
-]
-ignore_missing_imports = true
-follow_imports = "skip"
-
-[tool.ruff]
-line-length = 110
-
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP"]
-
-[tool.ty]
-[tool.ty.rules]
-
-[tool.uv-dynamic-versioning]
-vcs = "git"
-style = "semver"
-format = "{base}"
-
-[build-system]
-requires = ["hatchling", "uv-dynamic-versioning"]
-build-backend = "hatchling.build"
-
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
@@ -97,6 +57,20 @@ packages = ["src/rsudp"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "semver"
+format = "{base}"
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -137,6 +111,29 @@ exclude_lines = [
 [tool.coverage.html]
 directory = "reports/coverage"
 
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = [
+    "^tests/",
+    "^.venv/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "flask.*",
+    "flask_cors",
+    "flask_cors.*",
+    "docopt",
+    "docopt.*",
+    "pyModeS.*",
+    "sklearn.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
@@ -148,3 +145,6 @@ reportOperatorIssue = false
 reportIndexIssue = false
 reportGeneralTypeIssues = false
 reportAttributeAccessIssue = false
+
+[tool.ty]
+[tool.ty.rules]
