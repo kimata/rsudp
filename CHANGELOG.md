@@ -1,22 +1,22 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+このプロジェクトの注目すべき変更点をすべてこのファイルに記載します。
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+このファイルのフォーマットは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に基づいており、
+このプロジェクトは [Semantic Versioning](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
 ## [Unreleased]
 
 ## [0.1.1] - 2026-01-24
 
-### Fixed
+### 🐛 Fixed
 
 - hatch-vcs ビルドフックの問題を修正
 - Docker ビルド時の fallback-version を追加
 
 ## [0.1.0] - 2026-01-23
 
-### Added
+### ✨ Added
 
 - Raspberry Shake からの UDP データ受信とリアルタイム可視化
 - 地震検出時の波形スクリーンショット自動保存
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker / Kubernetes 対応
 - CI/CD パイプライン（GitLab）
 
-### Changed
+### 🔄 Changed
 
 - CSS フレームワークを Bulma から Tailwind CSS v4 に移行
 

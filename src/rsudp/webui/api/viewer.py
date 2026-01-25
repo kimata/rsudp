@@ -11,12 +11,14 @@ from pathlib import Path
 import flask
 import my_lib.flask_util
 import my_lib.webapp.config
+from flask_pydantic import validate
 
 import rsudp.config
 import rsudp.quake.crawl
 import rsudp.quake.database
 import rsudp.screenshot_manager
 import rsudp.types
+import rsudp.webui.api.schemas as schemas
 
 viewer_api = flask.Blueprint("viewer_api", __name__, url_prefix="/rsudp")
 blueprint = viewer_api  # Alias for compatibility with webui.py
@@ -106,7 +108,8 @@ def _format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = Non
 @viewer_api.route("/api/screenshot/", methods=["GET"])
 @my_lib.flask_util.gzipped
 @no_cache
-def list_screenshots():
+@validate()
+def list_screenshots(query: schemas.ScreenshotListQuery):
     """
     List all screenshot files with parsed metadata.
 
@@ -118,9 +121,9 @@ def list_screenshots():
     try:
         manager = _get_screenshot_manager()
 
-        # Get filter parameters
-        min_max_signal = flask.request.args.get("min_max_signal", type=float)
-        earthquake_only = flask.request.args.get("earthquake_only", "false").lower() == "true"
+        # Get filter parameters from validated query
+        min_max_signal = query.min_max_signal
+        earthquake_only = query.earthquake_only
 
         quake_db_path = _get_quake_db_path()
 
@@ -152,7 +155,8 @@ def list_screenshots():
 
 @viewer_api.route("/api/screenshot/years/", methods=["GET"])
 @no_cache
-def list_years():
+@validate()
+def list_years(query: schemas.MinMaxSignalQuery):
     """
     Get list of available years.
 
@@ -161,7 +165,7 @@ def list_years():
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = flask.request.args.get("min_max_signal", type=float)
+        min_max_signal = query.min_max_signal
 
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
@@ -177,7 +181,8 @@ def list_years():
 
 @viewer_api.route("/api/screenshot/<int:year>/months/", methods=["GET"])
 @no_cache
-def list_months(year: int):
+@validate()
+def list_months(year: int, query: schemas.MinMaxSignalQuery):
     """
     Get list of available months for a specific year.
 
@@ -186,7 +191,7 @@ def list_months(year: int):
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = flask.request.args.get("min_max_signal", type=float)
+        min_max_signal = query.min_max_signal
 
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
@@ -202,7 +207,8 @@ def list_months(year: int):
 
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/days/", methods=["GET"])
 @no_cache
-def list_days(year: int, month: int):
+@validate()
+def list_days(year: int, month: int, query: schemas.MinMaxSignalQuery):
     """
     Get list of available days for a specific year and month.
 
@@ -211,7 +217,7 @@ def list_days(year: int, month: int):
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = flask.request.args.get("min_max_signal", type=float)
+        min_max_signal = query.min_max_signal
 
         # Get available dates with maximum signal filter
         dates = manager.get_available_dates(min_max_signal)
@@ -228,7 +234,8 @@ def list_days(year: int, month: int):
 @viewer_api.route("/api/screenshot/<int:year>/<int:month>/<int:day>/", methods=["GET"])
 @my_lib.flask_util.gzipped
 @no_cache
-def list_by_date(year: int, month: int, day: int):
+@validate()
+def list_by_date(year: int, month: int, day: int, query: schemas.MinMaxSignalQuery):
     """
     Get screenshots for a specific date.
 
@@ -237,7 +244,7 @@ def list_by_date(year: int, month: int, day: int):
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = flask.request.args.get("min_max_signal", type=float)
+        min_max_signal = query.min_max_signal
 
         # Get screenshots with optional maximum signal filter
         screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
@@ -363,7 +370,8 @@ def get_ogp_image(filename: str):
 
 @viewer_api.route("/api/screenshot/latest/", methods=["GET"])
 @no_cache
-def get_latest():
+@validate()
+def get_latest(query: schemas.MinMaxSignalQuery):
     """
     Get the most recent screenshot.
 
@@ -372,7 +380,7 @@ def get_latest():
     """
     try:
         manager = _get_screenshot_manager()
-        min_max_signal = flask.request.args.get("min_max_signal", type=float)
+        min_max_signal = query.min_max_signal
 
         # Get screenshots with optional maximum signal filter
         screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
@@ -391,7 +399,8 @@ def get_latest():
 
 @viewer_api.route("/api/screenshot/statistics/", methods=["GET"])
 @no_cache
-def get_statistics():
+@validate()
+def get_statistics(query: schemas.EarthquakeOnlyQuery):
     """
     Get signal value statistics for screenshots.
 
@@ -401,7 +410,7 @@ def get_statistics():
     try:
         manager = _get_screenshot_manager()
         quake_db_path = _get_quake_db_path()
-        earthquake_only = flask.request.args.get("earthquake_only", "false").lower() == "true"
+        earthquake_only = query.earthquake_only
 
         stats = manager.get_signal_statistics(
             quake_db_path=quake_db_path,
@@ -439,7 +448,7 @@ def scan_screenshots():
     Uses a lock to prevent concurrent scans. If a scan is already in progress,
     returns immediately with a message indicating that.
 
-    Query parameters:
+    Query parameters or request body:
     - full: If true, perform a full scan. Otherwise, perform an incremental scan.
             Default is false (incremental scan).
     """
@@ -513,7 +522,8 @@ def list_earthquakes():
 
 @viewer_api.route("/api/screenshot/clean/", methods=["POST"])
 @no_cache
-def clean_screenshots():
+@validate()
+def clean_screenshots(body: schemas.CleanRequest):
     """
     地震に関連しない高振幅スクリーンショットを削除する.
 
@@ -528,12 +538,11 @@ def clean_screenshots():
 
         config = _get_config()
 
-        # リクエストパラメータを取得
-        data = flask.request.get_json() or {}
-        min_max_count = data.get("min_max_count", rsudp.cli.cleaner.DEFAULT_MIN_MAX_COUNT)
-        time_window_minutes = data.get("time_window_minutes", rsudp.cli.cleaner.DEFAULT_TIME_WINDOW_MINUTES)
-        min_magnitude = data.get("min_magnitude", rsudp.cli.cleaner.DEFAULT_MIN_MAGNITUDE)
-        dry_run = data.get("dry_run", False)
+        # Get parameters from validated body
+        min_max_count = body.min_max_count
+        time_window_minutes = body.time_window_minutes
+        min_magnitude = body.min_magnitude
+        dry_run = body.dry_run
 
         # 削除対象を取得
         to_delete = rsudp.cli.cleaner.get_screenshots_to_clean(
@@ -687,7 +696,8 @@ def _generate_ogp_meta_tags(filename: str | None, base_url: str) -> str:
 
 
 @viewer_api.route("/", methods=["GET"])
-def index_with_ogp() -> flask.Response:
+@validate()
+def index_with_ogp(query: schemas.IndexQuery) -> flask.Response:
     """
     OGPメタタグを含むindex.htmlを返す.
 
@@ -713,8 +723,8 @@ def index_with_ogp() -> flask.Response:
         host = flask.request.headers.get("X-Forwarded-Host", flask.request.host)
         base_url = f"{scheme}://{host}/rsudp"
 
-        # ファイル名を取得
-        filename = flask.request.args.get("file")
+        # Get filename from validated query
+        filename = query.file
 
         # OGPメタタグを生成
         ogp_tags = _generate_ogp_meta_tags(filename, base_url)

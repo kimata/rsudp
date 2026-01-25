@@ -121,3 +121,42 @@ class SysInfo(BaseModel):
     disk_free_mb: float
     process_count: int
     cpu_temperature: float | None = None
+
+
+# ============================================================================
+# Request Parameter Schemas (for flask-pydantic @validate())
+# ============================================================================
+
+
+class ScreenshotListQuery(BaseModel):
+    """Query parameters for GET /api/screenshot/."""
+
+    min_max_signal: float | None = None
+    earthquake_only: bool = False
+
+
+class MinMaxSignalQuery(BaseModel):
+    """Query parameters for endpoints that only use min_max_signal filter."""
+
+    min_max_signal: float | None = None
+
+
+class EarthquakeOnlyQuery(BaseModel):
+    """Query parameters for GET /api/screenshot/statistics/."""
+
+    earthquake_only: bool = False
+
+
+class CleanRequest(BaseModel):
+    """Request body for POST /api/screenshot/clean/."""
+
+    min_max_count: int = 300000
+    time_window_minutes: int = 10
+    min_magnitude: float = 3.0
+    dry_run: bool = False
+
+
+class IndexQuery(BaseModel):
+    """Query parameters for GET / (index with OGP)."""
+
+    file: str | None = None
