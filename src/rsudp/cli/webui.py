@@ -15,6 +15,7 @@ import logging
 import os
 import pathlib
 import signal
+import sqlite3
 import sys
 import threading
 
@@ -36,11 +37,41 @@ _QUAKE_CRAWL_INTERVAL = 3600  # 1時間間隔で地震データを取得
 # グローバル変数で監視スレッドを管理
 _monitor_stop_event = threading.Event()
 _monitor_thread: threading.Thread | None = None
+_cache_watch_thread: threading.Thread | None = None
+_cache_watch_stop_event: threading.Event | None = None
+_quake_watch_thread: threading.Thread | None = None
+_quake_watch_stop_event: threading.Event | None = None
+
+
+def _get_cache_state(db_path: pathlib.Path) -> str | None:
+    """スクリーンショットキャッシュ DB の状態を取得する."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.execute("SELECT MAX(timestamp) FROM screenshot_metadata")
+            row = cursor.fetchone()
+            return row[0] if row else None
+    except sqlite3.Error:
+        logging.exception("Failed to get cache db state")
+        return None
+
+
+def _get_quake_state(db_path: pathlib.Path) -> str | None:
+    """地震 DB の状態を取得する."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.execute("SELECT MAX(updated_at) FROM earthquakes")
+            row = cursor.fetchone()
+            return row[0] if row else None
+    except sqlite3.Error:
+        logging.exception("Failed to get quake db state")
+        return None
 
 
 def _start_background_monitor(config: rsudp.config.Config):
     """バックグラウンド監視スレッドを開始する（スクリーンショット監視 + 地震クローラー）"""
     global _monitor_thread
+    global _cache_watch_thread, _cache_watch_stop_event
+    global _quake_watch_thread, _quake_watch_stop_event
 
     def _log_crawl_results(new_earthquakes: list[dict]):
         """クロール結果をログ出力する"""
@@ -124,10 +155,8 @@ def _start_background_monitor(config: rsudp.config.Config):
         )
 
         # 起動時に完全スキャンを1回実行
-        new_files = _scan_screenshots_full()
-        quake_updated = _crawl_earthquakes()
-        if new_files > 0 or quake_updated:
-            my_lib.webapp.event.notify_event(my_lib.webapp.event.EVENT_TYPE.DATA)
+        _scan_screenshots_full()
+        _crawl_earthquakes()
 
         # 定期実行ループ（増分スキャン）
         while not _monitor_stop_event.wait(_SCREENSHOT_SCAN_INTERVAL):
@@ -145,7 +174,7 @@ def _start_background_monitor(config: rsudp.config.Config):
 
             # 更新があればクライアントに通知
             if new_files > 0 or quake_updated:
-                my_lib.webapp.event.notify_event(my_lib.webapp.event.EVENT_TYPE.DATA)
+                logging.debug("Background monitor detected updates")
 
         logging.info("バックグラウンド監視停止")
 
@@ -153,16 +182,42 @@ def _start_background_monitor(config: rsudp.config.Config):
     _monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
     _monitor_thread.start()
 
+    if _cache_watch_thread is None:
+        _cache_watch_stop_event, _cache_watch_thread = my_lib.webapp.event.start_db_state_watcher(
+            config.data.cache,
+            _get_cache_state,
+            my_lib.webapp.event.EVENT_TYPE.CONTENT,
+        )
+
+    if _quake_watch_thread is None:
+        _quake_watch_stop_event, _quake_watch_thread = my_lib.webapp.event.start_db_state_watcher(
+            config.data.quake,
+            _get_quake_state,
+            my_lib.webapp.event.EVENT_TYPE.CONTENT,
+        )
+
 
 def _stop_background_monitor():
     """バックグラウンド監視スレッドを停止する"""
     global _monitor_thread
+    global _cache_watch_thread, _cache_watch_stop_event
+    global _quake_watch_thread, _quake_watch_stop_event
 
     if _monitor_thread and _monitor_thread.is_alive():
         logging.info("Stopping background monitor...")
         _monitor_stop_event.set()
         _monitor_thread.join(timeout=5)
         _monitor_thread = None
+
+    if _cache_watch_thread is not None and _cache_watch_stop_event is not None:
+        my_lib.webapp.event.stop_db_state_watcher(_cache_watch_stop_event, _cache_watch_thread)
+        _cache_watch_thread = None
+        _cache_watch_stop_event = None
+
+    if _quake_watch_thread is not None and _quake_watch_stop_event is not None:
+        my_lib.webapp.event.stop_db_state_watcher(_quake_watch_stop_event, _quake_watch_thread)
+        _quake_watch_thread = None
+        _quake_watch_stop_event = None
 
 
 def _term():

@@ -14,9 +14,9 @@ import collections
 import logging
 import pathlib
 import sys
-import time
 
 import my_lib.container_util
+import my_lib.healthz
 import my_lib.notify.slack
 
 import rsudp.config
@@ -52,31 +52,13 @@ def _get_recent_logs(lines: int = _LOG_TAIL_LINES) -> str:
 
 
 def _check_liveness() -> float | None:
-    """
-    rsudp の liveness をチェックする.
-
-    rsudp の liveness ファイルは os.utime() で mtime を更新するため、
-    ファイルの mtime を直接確認する。
-
-    Returns:
-        成功時は None、失敗時は最終更新からの経過秒数を返す。
-        ファイルが存在しない場合は -1 を返す。
-
-    """
-    if not _LIVENESS_FILE.exists():
-        logging.warning("rsudp is not executed.")
-        return -1
-
-    mtime = _LIVENESS_FILE.stat().st_mtime
-    elapsed = time.time() - mtime
-
-    # NOTE: 少なくとも1分は様子を見る
-    if elapsed > max(_LIVENESS_INTERVAL * 2, 60):
-        logging.warning("Execution interval of rsudp is too long. (%s sec)", f"{elapsed:,.1f}")
-        return elapsed
-
-    logging.debug("Execution interval of rsudp: %s sec", f"{elapsed:,.1f}")
-    return None
+    """rsudp の liveness をチェックする."""
+    target = my_lib.healthz.HealthzTarget(
+        name="rsudp",
+        liveness_file=_LIVENESS_FILE,
+        interval=_LIVENESS_INTERVAL,
+    )
+    return my_lib.healthz.check_liveness_elapsed(target)
 
 
 def _notify_error(config: rsudp.config.Config, message: str) -> None:
