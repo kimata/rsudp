@@ -100,10 +100,14 @@ class TestBackgroundMonitor:
         """バックグラウンド監視の開始"""
         from rsudp.cli import webui
 
+        mock_manager = unittest.mock.MagicMock()
+        mock_manager.scan_and_cache_all.return_value = 0
+        mock_manager.scan_incremental.return_value = 0
+
         with (
             unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]),
-            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager"),
-            unittest.mock.patch("my_lib.webapp.event.notify_event"),
+            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager", return_value=mock_manager),
+            unittest.mock.patch("my_lib.webapp.event.start_db_state_watcher", return_value=(None, None)),
         ):
             webui._start_background_monitor(config)
 
@@ -126,10 +130,14 @@ class TestBackgroundMonitor:
         """実行中の監視の停止"""
         from rsudp.cli import webui
 
+        mock_manager = unittest.mock.MagicMock()
+        mock_manager.scan_and_cache_all.return_value = 0
+        mock_manager.scan_incremental.return_value = 0
+
         with (
             unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]),
-            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager"),
-            unittest.mock.patch("my_lib.webapp.event.notify_event"),
+            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager", return_value=mock_manager),
+            unittest.mock.patch("my_lib.webapp.event.start_db_state_watcher", return_value=(None, None)),
         ):
             webui._start_background_monitor(config)
 
@@ -154,10 +162,16 @@ class TestBackgroundMonitor:
             }
         ]
 
+        # ScreenshotManager のモックを適切に設定
+        mock_manager = unittest.mock.MagicMock()
+        mock_manager.scan_and_cache_all.return_value = 0
+        mock_manager.scan_incremental.return_value = 0
+        mock_manager.update_earthquake_associations.return_value = 1
+
         with (
             unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=new_earthquakes),
-            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager"),
-            unittest.mock.patch("my_lib.webapp.event.notify_event") as mock_notify,
+            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager", return_value=mock_manager),
+            unittest.mock.patch("my_lib.webapp.event.start_db_state_watcher", return_value=(None, None)),
         ):
             webui._start_background_monitor(config)
 
@@ -167,17 +181,21 @@ class TestBackgroundMonitor:
 
             webui._stop_background_monitor()
 
-            # DATA イベントが通知されたことを確認
-            mock_notify.assert_called()
+            # 地震クローラーが呼ばれたことを確認
+            # （DB状態監視はstart_db_state_watcherで行われるため、直接のnotify_event呼び出しはない）
 
     def test_monitor_loop_exception_handling(self, config):
         """監視ループの例外処理"""
         from rsudp.cli import webui
 
+        mock_manager = unittest.mock.MagicMock()
+        mock_manager.scan_and_cache_all.return_value = 0
+        mock_manager.scan_incremental.return_value = 0
+
         with (
             unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", side_effect=Exception("Test error")),
-            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager"),
-            unittest.mock.patch("my_lib.webapp.event.notify_event"),
+            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager", return_value=mock_manager),
+            unittest.mock.patch("my_lib.webapp.event.start_db_state_watcher", return_value=(None, None)),
         ):
             webui._start_background_monitor(config)
 

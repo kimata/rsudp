@@ -53,8 +53,11 @@ class TestCheckLiveness:
 
     def test_liveness_file_fresh(self, temp_dir):
         """Liveness ファイルが新しい場合"""
+        import my_lib.footprint
+
         liveness_file = temp_dir / "liveness"
-        liveness_file.touch()
+        # my_lib.footprint はファイルの内容にタイムスタンプを保存する
+        my_lib.footprint.update(liveness_file)
 
         with unittest.mock.patch.object(healthz, "_LIVENESS_FILE", liveness_file):
             result = healthz._check_liveness()
@@ -62,14 +65,13 @@ class TestCheckLiveness:
 
     def test_liveness_file_stale(self, temp_dir):
         """Liveness ファイルが古い場合"""
-        import os
+        import my_lib.footprint
 
         liveness_file = temp_dir / "liveness"
-        liveness_file.touch()
 
-        # 3分前のタイムスタンプに設定
+        # 3分前のタイムスタンプを設定
         old_time = time.time() - 180
-        os.utime(liveness_file, (old_time, old_time))
+        my_lib.footprint.update(liveness_file, mtime=old_time)
 
         with unittest.mock.patch.object(healthz, "_LIVENESS_FILE", liveness_file):
             result = healthz._check_liveness()
