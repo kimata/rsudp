@@ -61,7 +61,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   // スケルトン表示（ローディング中または統計データがない場合）
   if (loading || !statistics) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[150px]">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[150px]">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="funnel" className="size-5" />
           最大振幅フィルタ
@@ -70,14 +70,14 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">最大振幅最小値</label>
           <div className="relative">
             <div
-              className="animate-pulse-skeleton h-8 bg-gray-200 dark:bg-gray-700 rounded"
+              className="animate-pulse-skeleton h-8 bg-gray-200 dark:bg-slate-700 rounded"
             />
           </div>
         </div>
         <div className="mb-4">
           <div className="relative">
             <div
-              className="animate-pulse-skeleton h-5 bg-gray-200 dark:bg-gray-700 rounded"
+              className="animate-pulse-skeleton h-5 bg-gray-200 dark:bg-slate-700 rounded"
             />
           </div>
           <p className="mt-1 text-sm text-gray-400">読み込み中...</p>
@@ -88,7 +88,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
 
   if (statistics.with_signal === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[150px]">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[150px]">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="funnel" className="size-5" />
           最大振幅フィルタ
@@ -101,12 +101,12 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[150px]">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[150px]">
       <h2 className="text-lg font-semibold flex items-center gap-2">
         <Icon name="funnel" className="size-5" />
         最大振幅フィルタ
         {isFiltering && (
-          <Icon name="arrow-path" className="size-4 text-blue-500" spin />
+          <Icon name="arrow-path" className="size-4 text-blue-600" spin />
         )}
       </h2>
 
@@ -114,7 +114,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">最大振幅最小値</label>
         <div className="relative">
           <input
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-right"
             type="text"
             value={inputValue ? parseInt(inputValue, 10).toLocaleString() : ''}
             readOnly

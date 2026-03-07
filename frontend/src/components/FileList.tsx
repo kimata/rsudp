@@ -73,10 +73,10 @@ const FileListItemContent = memo(
         ref={elementRef}
         style={style}
         data-index={index}
-        className={`file-list-item p-2 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors duration-200 ${
+        className={`file-list-item p-2 border-b border-gray-100 dark:border-slate-700 cursor-pointer transition-colors duration-200 ${
           isCurrentImage
-            ? 'bg-blue-500 text-white'
-            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+            ? 'bg-blue-600 text-white'
+            : 'hover:bg-gray-100 dark:hover:bg-slate-700'
         }`}
         onClick={handleClick}
       >
@@ -102,7 +102,7 @@ const FileListItemContent = memo(
                 className={`inline-flex items-center px-1.5 py-0.5 text-xs rounded flex-shrink-0 ml-2 ${
                   isCurrentImage
                     ? 'bg-white/20 text-white'
-                    : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                    : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'
                 }`}
               >
                 #{index + 1}
@@ -232,16 +232,16 @@ const FileList: React.FC<FileListProps> = memo(({
   // ローディング中の表示
   if (loading && allImages.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="list-bullet" className="size-5" />
           ファイル一覧
         </h2>
         <div
-          className="h-[400px] border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center mt-4"
+          className="h-[400px] border border-gray-300 dark:border-slate-600 rounded flex items-center justify-center mt-4"
         >
           <div className="text-center">
-            <Icon name="arrow-path" className="size-8 text-blue-500" spin />
+            <Icon name="arrow-path" className="size-8 text-blue-600" spin />
             <p className="text-gray-600 dark:text-gray-400 mt-3 flex items-center justify-center gap-2">
               <Icon name="list-bullet" className="size-5" />
               ファイル一覧を読み込み中...
@@ -258,13 +258,13 @@ const FileList: React.FC<FileListProps> = memo(({
 
   if (allImages.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="list-bullet" className="size-5" />
           ファイル一覧
         </h2>
         <div
-          className="h-[400px] border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center mt-4"
+          className="h-[400px] border border-gray-300 dark:border-slate-600 rounded flex items-center justify-center mt-4"
         >
           <div className="text-center text-gray-500">
             <p>ファイルがありません</p>
@@ -279,28 +279,28 @@ const FileList: React.FC<FileListProps> = memo(({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
       <h2 className="text-lg font-semibold flex items-center gap-2">
         <Icon name="list-bullet" className="size-5" />
         ファイル一覧
         {isFiltering && (
-          <Icon name="arrow-path" className="size-4 text-blue-500" spin />
+          <Icon name="arrow-path" className="size-4 text-blue-600" spin />
         )}
       </h2>
       <div className="relative mt-4">
         {/* フィルタ適用中のオーバーレイ */}
         {isFiltering && (
           <div
-            className="absolute inset-0 bg-white/70 dark:bg-gray-800/70 z-10 flex items-center justify-center rounded"
+            className="absolute inset-0 bg-white/70 dark:bg-slate-800/70 z-10 flex items-center justify-center rounded"
           >
             <div className="text-center">
-              <Icon name="arrow-path" className="size-6 text-blue-500" spin />
+              <Icon name="arrow-path" className="size-6 text-blue-600" spin />
               <p className="text-sm text-gray-500 mt-2">フィルタ適用中...</p>
             </div>
           </div>
         )}
         <div
-          className={`border border-gray-300 dark:border-gray-600 rounded transition-opacity duration-200 ${isFiltering ? 'opacity-50' : 'opacity-100'}`}
+          className={`border border-gray-300 dark:border-slate-600 rounded transition-opacity duration-200 ${isFiltering ? 'opacity-50' : 'opacity-100'}`}
         >
           <List
             listRef={listRef}

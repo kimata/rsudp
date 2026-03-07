@@ -32,13 +32,13 @@ const DateSelector: React.FC<DateSelectorProps> = ({
   ];
 
   const buttonBaseClass = "px-2 py-1 text-sm rounded font-medium transition-colors disabled:opacity-50";
-  const buttonActiveClass = "bg-teal-500 text-white hover:bg-teal-600";
-  const buttonInactiveClass = "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600";
+  const buttonActiveClass = "bg-blue-600 text-white hover:bg-blue-700";
+  const buttonInactiveClass = "bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600";
 
   return (
     <>
       {/* 日付フィルタ */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[180px]">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[180px]">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="calendar" className="size-5" />
           日付フィルタ
@@ -58,7 +58,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
         ) : years.length > 5 ? (
           <div className="relative">
             <select
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
               value={selectedYear || ''}
               onChange={(e) => onYearChange(e.target.value ? Number(e.target.value) : null)}
               disabled={loading}
@@ -101,7 +101,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
           {months.length > 6 ? (
             <div className="relative">
               <select
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 value={selectedMonth || ''}
                 onChange={(e) => onMonthChange(e.target.value ? Number(e.target.value) : null)}
                 disabled={loading}
@@ -145,7 +145,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
           {days.length > 10 ? (
             <div className="relative">
               <select
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 value={selectedDay || ''}
                 onChange={(e) => onDayChange(e.target.value ? Number(e.target.value) : null)}
                 disabled={loading}

@@ -226,7 +226,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   if (!currentImage) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 text-center">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 text-center">
         <p className="text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
           <Icon name="photo" className="size-5" />
           画像が選択されていません
@@ -275,7 +275,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
       {/* デスクトップ表示 */}
       <div className="hidden lg:flex items-center justify-between min-h-[50px] flex-wrap gap-2 mb-4">
         <div className="flex items-center">
@@ -293,7 +293,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
               </span>
               {currentImage.earthquake && (
                 <span
-                  className="inline-flex items-center px-2 py-1 text-sm rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 ml-3 whitespace-nowrap"
+                  className="inline-flex items-center px-2 py-1 text-sm rounded bg-amber-50 dark:bg-amber-900/60 text-amber-700 dark:text-amber-200 ml-3 whitespace-nowrap"
                 >
                   <Icon name="globe" className="size-4 mr-1" />
                   近傍で発生した地震: {formatEarthquakeDateTime(currentImage.earthquake.detected_at)} {currentImage.earthquake.epicenter_name} M{currentImage.earthquake.magnitude}
@@ -311,14 +311,14 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 className="flex flex-wrap justify-end items-center gap-1"
               >
                 <Icon name="chart-bar" className="size-5" />
-                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-50 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200">
                   最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
                 </span>
-                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-sky-50 dark:bg-sky-900/60 text-sky-700 dark:text-sky-200">
                   STA: {Math.round(currentImage.sta).toLocaleString()}
                 </span>
                 {currentImage.sta_lta_ratio && (
-                  <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                  <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                     比率: {currentImage.sta_lta_ratio.toFixed(3)}
                   </span>
                 )}
@@ -347,7 +347,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           {currentImage.earthquake && (
             <div className="mt-2">
               <span
-                className="inline-flex items-center px-2 py-1 text-sm rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 whitespace-nowrap"
+                className="inline-flex items-center px-2 py-1 text-sm rounded bg-amber-50 dark:bg-amber-900/60 text-amber-700 dark:text-amber-200 whitespace-nowrap"
               >
                 <Icon name="globe" className="size-4 mr-1" />
                 近傍で発生した地震: {formatEarthquakeDateTime(currentImage.earthquake.detected_at)} {currentImage.earthquake.epicenter_name} M{currentImage.earthquake.magnitude}
@@ -363,14 +363,14 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             {currentImage.sta ? (
               <>
                 <Icon name="chart-bar" className="size-5" />
-                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-50 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200">
                   最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
                 </span>
-                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-sky-50 dark:bg-sky-900/60 text-sky-700 dark:text-sky-200">
                   STA: {Math.round(currentImage.sta).toLocaleString()}
                 </span>
                 {currentImage.sta_lta_ratio && (
-                  <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                  <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                     比率: {currentImage.sta_lta_ratio.toFixed(3)}
                   </span>
                 )}
@@ -390,11 +390,11 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       >
         {(imageLoading || isTransitioning) && (
           <div
-            className="absolute inset-0 z-10 bg-white/90 dark:bg-gray-800/90 p-8 text-center"
+            className="absolute inset-0 z-10 bg-white/90 dark:bg-slate-800/90 p-8 text-center"
           >
             <div className="flex justify-center items-center min-h-[300px]">
               <div>
-                <Icon name="arrow-path" className="size-12 text-blue-500" spin />
+                <Icon name="arrow-path" className="size-12 text-blue-600" spin />
                 <p className="text-gray-600 dark:text-gray-400 mt-3 flex items-center justify-center gap-2">
                   <Icon name="clock" className="size-5" />
                   画像を読み込み中...
@@ -415,7 +415,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 </p>
                 <p className="text-sm text-gray-500 mt-1">ファイル: {currentImage.filename}</p>
                 <button
-                  className="mt-2 px-4 py-2 text-sm rounded bg-teal-500 text-white hover:bg-teal-600 transition-colors flex items-center gap-2 mx-auto"
+                  className="mt-2 px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
                   onClick={() => {
                     setImageLoading(true);
                     setImageError(false);
@@ -452,18 +452,18 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       <div className="hidden lg:block mt-4 mb-4">
         <div className="flex justify-center items-center gap-4">
           <button
-            className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             onClick={navigatePrevious}
             disabled={!canNavigatePrevious}
           >
             <Icon name="chevron-left" className="size-5" />
             <span>前へ</span>
           </button>
-          <span className="inline-flex items-center px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 h-9">
+          <span className="inline-flex items-center px-3 py-1 text-sm rounded bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 h-9">
             {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
           </span>
           <button
-            className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             onClick={navigateNext}
             disabled={!canNavigateNext}
           >

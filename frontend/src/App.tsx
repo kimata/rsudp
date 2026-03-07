@@ -635,9 +635,9 @@ const App: React.FC = () => {
 
     return (
         <div className="w-full max-w-full p-2">
-            <nav className="flex items-center justify-between bg-gray-800 px-4 py-2 rounded w-full" role="navigation">
+            <nav className="flex items-center justify-between bg-slate-700 px-4 py-2 rounded w-full" role="navigation">
                 <div className="flex items-center">
-                    <a className="flex items-center px-3 py-2 text-white hover:bg-gray-700 rounded transition-colors" href="/rsudp/">
+                    <a className="flex items-center px-3 py-2 text-white hover:bg-slate-600 rounded transition-colors" href="/rsudp/">
                         <h1 className="text-xl font-semibold text-white flex items-center">
                             <Icon name="camera" className="size-6 mx-2" />
                             <span className="hidden lg:inline">RSUDP スクリーンショットビューア</span>
@@ -654,7 +654,7 @@ const App: React.FC = () => {
                 <div className="hidden lg:flex items-center">
                     <div className="px-3 py-2">
                         <span
-                            className={`inline-flex items-center px-3 py-1.5 text-base rounded cursor-pointer ${isConnected ? "bg-green-500 text-white" : "bg-yellow-500 text-white"}`}
+                            className={`inline-flex items-center px-3 py-1.5 text-base rounded cursor-pointer ${isConnected ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"}`}
                             onClick={handleStatusClick}
                             title={
                                 isConnected
@@ -685,7 +685,7 @@ const App: React.FC = () => {
                 <div className="lg:hidden flex items-center">
                     <div className="px-3 py-2">
                         <span
-                            className={`inline-flex items-center px-2 py-1 text-sm rounded cursor-pointer ${isConnected ? "bg-green-500 text-white" : "bg-yellow-500 text-white"}`}
+                            className={`inline-flex items-center px-2 py-1 text-sm rounded cursor-pointer ${isConnected ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"}`}
                             onClick={handleStatusClick}
                             title={isConnected ? "タップで更新" : connectionError || "タップで再接続・更新"}
                         >
@@ -720,8 +720,8 @@ const App: React.FC = () => {
                 <div
                     className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in ${
                         notification.type === "success"
-                            ? "bg-green-500 text-white"
-                            : "bg-blue-500 text-white"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-blue-600 text-white"
                     }`}
                 >
                     {notification.type === "success" ? (
@@ -743,7 +743,7 @@ const App: React.FC = () => {
             <div className="lg:hidden">
                 <div className="mt-2">
                     {loading && !currentScreenshot ? (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]">
                             {/* ヘッダー部分のスケルトン */}
                             <div className="min-h-[80px] mb-4">
                                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
@@ -752,15 +752,15 @@ const App: React.FC = () => {
                                 </span>
                                 <br />
                                 <span
-                                    className="inline-block w-[200px] h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
+                                    className="inline-block w-[200px] h-5 bg-gray-200 dark:bg-slate-700 rounded animate-pulse-skeleton"
                                 />
                             </div>
                             {/* 画像部分のスケルトン */}
                             <div
-                                className="min-h-[400px] bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center animate-pulse-skeleton"
+                                className="min-h-[400px] bg-gray-200 dark:bg-slate-700 rounded flex items-center justify-center animate-pulse-skeleton"
                             >
                                 <div className="text-center">
-                                    <Icon name="arrow-path" className="size-12 text-blue-500" spin />
+                                    <Icon name="arrow-path" className="size-12 text-blue-600" spin />
                                     <p className="text-gray-600 dark:text-gray-400 mt-4">
                                         スクリーンショットを読み込み中...
                                     </p>
@@ -768,7 +768,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]">
                             <div
                                 className="flex justify-center items-center min-h-[500px]"
                             >
@@ -818,12 +818,12 @@ const App: React.FC = () => {
                         isFiltering={isFiltering}
                     />
 
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
                         <h2 className="text-lg font-semibold flex items-center gap-2">
                             <Icon name="globe" className="size-5" />
                             地震フィルタ
                             {isFiltering && (
-                                <Icon name="arrow-path" className="size-4 text-blue-500" spin />
+                                <Icon name="arrow-path" className="size-4 text-blue-600" spin />
                             )}
                         </h2>
                         <div className="mb-4 mt-4">
@@ -851,7 +851,7 @@ const App: React.FC = () => {
                         isFiltering={isFiltering}
                     />
 
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[120px]">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[120px]">
                         <h2 className="text-lg font-semibold flex items-center gap-2">
                             <Icon name="chart-bar" className="size-5" />
                             統計情報
@@ -862,13 +862,13 @@ const App: React.FC = () => {
                                     <p>
                                         全スクリーンショット数:{" "}
                                         <span
-                                            className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
+                                            className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-slate-700 rounded animate-pulse-skeleton"
                                         />
                                     </p>
                                     <p>
                                         フィルタ後:{" "}
                                         <span
-                                            className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
+                                            className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-slate-700 rounded animate-pulse-skeleton"
                                         />
                                     </p>
                                 </>
@@ -891,7 +891,7 @@ const App: React.FC = () => {
 
                 <div className="flex-1">
                     {loading && !currentScreenshot ? (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]">
                             {/* ヘッダー部分のスケルトン */}
                             <div className="flex items-center justify-between min-h-[50px]">
                                 <div className="flex items-center">
@@ -901,22 +901,22 @@ const App: React.FC = () => {
                                             発生日時
                                         </span>
                                         <span
-                                            className="inline-block w-[200px] h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
+                                            className="inline-block w-[200px] h-5 bg-gray-200 dark:bg-slate-700 rounded animate-pulse-skeleton"
                                         />
                                     </div>
                                 </div>
                                 <div className="flex items-center">
                                     <span
-                                        className="inline-block w-[250px] h-7 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
+                                        className="inline-block w-[250px] h-7 bg-gray-200 dark:bg-slate-700 rounded animate-pulse-skeleton"
                                     />
                                 </div>
                             </div>
                             {/* 画像部分のスケルトン */}
                             <div
-                                className="min-h-[400px] bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center animate-pulse-skeleton mt-4"
+                                className="min-h-[400px] bg-gray-200 dark:bg-slate-700 rounded flex items-center justify-center animate-pulse-skeleton mt-4"
                             >
                                 <div className="text-center">
-                                    <Icon name="arrow-path" className="size-12 text-blue-500" spin />
+                                    <Icon name="arrow-path" className="size-12 text-blue-600" spin />
                                     <p className="text-gray-600 dark:text-gray-400 mt-4">
                                         スクリーンショットを読み込み中...
                                     </p>
@@ -927,14 +927,14 @@ const App: React.FC = () => {
                                 className="flex justify-center items-center gap-4 mt-4"
                             >
                                 <span
-                                    className="px-4 py-2 rounded bg-blue-500 text-white opacity-50 flex items-center gap-2"
+                                    className="px-4 py-2 rounded bg-blue-600 text-white opacity-50 flex items-center gap-2"
                                 >
                                     <Icon name="chevron-left" className="size-5" />
                                     <span>前へ</span>
                                 </span>
-                                <span className="inline-flex items-center px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-700">- / -</span>
+                                <span className="inline-flex items-center px-3 py-1 text-sm rounded bg-gray-100 dark:bg-slate-700">- / -</span>
                                 <span
-                                    className="px-4 py-2 rounded bg-blue-500 text-white opacity-50 flex items-center gap-2"
+                                    className="px-4 py-2 rounded bg-blue-600 text-white opacity-50 flex items-center gap-2"
                                 >
                                     <span>次へ</span>
                                     <Icon name="chevron-right" className="size-5" />
@@ -942,7 +942,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]">
                             <div
                                 className="flex justify-center items-center min-h-[500px]"
                             >
@@ -989,12 +989,12 @@ const App: React.FC = () => {
                     isFiltering={isFiltering}
                 />
 
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5">
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         <Icon name="globe" className="size-5" />
                         地震フィルタ
                         {isFiltering && (
-                            <Icon name="arrow-path" className="size-4 text-blue-500" spin />
+                            <Icon name="arrow-path" className="size-4 text-blue-600" spin />
                         )}
                     </h2>
                     <div className="mb-4 mt-4">
@@ -1028,7 +1028,7 @@ const App: React.FC = () => {
                     isFiltering={isFiltering}
                 />
 
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 min-h-[120px]">
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[120px]">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         <Icon name="chart-bar" className="size-5" />
                         統計情報
@@ -1039,13 +1039,13 @@ const App: React.FC = () => {
                                 <p>
                                     全スクリーンショット数:{" "}
                                     <span
-                                        className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
+                                        className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-slate-700 rounded animate-pulse-skeleton"
                                     />
                                 </p>
                                 <p>
                                     フィルタ後:{" "}
                                     <span
-                                        className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse-skeleton"
+                                        className="inline-block w-[60px] h-4 bg-gray-200 dark:bg-slate-700 rounded animate-pulse-skeleton"
                                     />
                                 </p>
                             </>
