@@ -183,12 +183,12 @@ class QuakeCrawler:
             logging.warning("Failed to parse earthquake: %s", event_id)
             return None
 
-    def crawl_and_store(self, min_intensity: int = 3) -> list[dict]:
+    def crawl_and_store(self, min_intensity: int = 2) -> list[dict]:
         """
         Crawl earthquake data and store in database.
 
         Args:
-            min_intensity: Minimum intensity to store (default: 3)
+            min_intensity: Minimum intensity to store (default: 2)
 
         Returns:
             新規追加された地震情報のリスト
@@ -211,13 +211,13 @@ class QuakeCrawler:
         return new_earthquakes
 
 
-def crawl_earthquakes(config: rsudp.config.Config, min_intensity: int = 3) -> list[dict]:
+def crawl_earthquakes(config: rsudp.config.Config, min_intensity: int = 2) -> list[dict]:
     """
     Crawl and store earthquakes from JMA.
 
     Args:
         config: Application configuration
-        min_intensity: Minimum intensity to store (default: 3)
+        min_intensity: Minimum intensity to store (default: 2)
 
     Returns:
         新規追加された地震情報のリスト
@@ -250,7 +250,7 @@ if __name__ == "__main__":
         logging.info("地震情報の収集を開始します")
 
         # crawl_and_store で収集・保存を一括実行
-        new_earthquakes = crawl_earthquakes(config, min_intensity=3)
+        new_earthquakes = crawl_earthquakes(config, min_intensity=2)
         logging.info("新規追加: %d件", len(new_earthquakes))
 
         if new_earthquakes:

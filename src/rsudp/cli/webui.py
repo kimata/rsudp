@@ -106,7 +106,7 @@ def _start_background_monitor(config: rsudp.config.Config):
 
         try:
             logging.info("地震クローラー: 地震データの収集を開始")
-            new_earthquakes = crawl_earthquakes(config, min_intensity=3)
+            new_earthquakes = crawl_earthquakes(config, min_intensity=2)
             _log_crawl_results(new_earthquakes)
             _update_earthquake_associations()
             return len(new_earthquakes) > 0

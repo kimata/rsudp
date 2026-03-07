@@ -166,11 +166,11 @@ class TestCrawlAndStore:
         """min_intensity でフィルタリングされることを確認."""
         crawler = crawl.QuakeCrawler(quake_db_config)
 
-        # 震度 2（min_intensity=3 未満）
-        mock_list = [{"eid": "quake-001", "maxi": "2", "json": "quake001.json"}]
+        # 震度 1（min_intensity=2 未満）
+        mock_list = [{"eid": "quake-001", "maxi": "1", "json": "quake001.json"}]
 
         with patch.object(crawler, "fetch_earthquake_list", return_value=mock_list):
-            result = crawler.crawl_and_store(min_intensity=3)
+            result = crawler.crawl_and_store(min_intensity=2)
 
         # 震度が閾値未満なのでスキップ
         assert result == []

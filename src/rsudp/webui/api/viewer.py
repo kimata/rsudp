@@ -499,7 +499,7 @@ def crawl_earthquake_data():
     """Trigger earthquake data crawl from JMA."""
     try:
         config = _get_config()
-        new_count = rsudp.quake.crawl.crawl_earthquakes(config, min_intensity=3)
+        new_count = rsudp.quake.crawl.crawl_earthquakes(config, min_intensity=2)
         return flask.jsonify({"success": True, "new_earthquakes": new_count})
     except Exception as e:
         return flask.jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
