@@ -59,14 +59,16 @@ def _get_config() -> rsudp.config.Config:
 
 
 def _get_screenshot_manager() -> rsudp.screenshot_manager.ScreenshotManager:
-    """Get or create ScreenshotManager instance."""
+    """Get or create ScreenshotManager instance.
+
+    organize_files / scan_and_cache_all はバックグラウンドモニターが
+    起動時に実行するため、ここでは行わない。cache.db は永続化されて
+    いるので前回のデータが利用可能。
+    """
     global _screenshot_manager
     if _screenshot_manager is None:
         config = _get_config()
         _screenshot_manager = rsudp.screenshot_manager.ScreenshotManager(config)
-        # Initialize: organize files and scan cache once at startup
-        _screenshot_manager.organize_files()
-        _screenshot_manager.scan_and_cache_all()
     return _screenshot_manager
 
 
