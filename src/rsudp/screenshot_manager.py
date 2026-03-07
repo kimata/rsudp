@@ -318,53 +318,32 @@ class ScreenshotManager:
 
     def get_signal_statistics(
         self,
-        quake_db_path: Path | None = None,
         *,
         earthquake_only: bool = False,
-        before_seconds: int = 30,
-        after_seconds: int = 240,
     ) -> rsudp.types.SignalStatistics:
         """
         信号値（max_count）の統計情報を取得する.
 
         Args:
-            quake_db_path: 地震データベースのパス
-            earthquake_only: Trueの場合、地震時間帯のスクリーンショットのみ対象
-            before_seconds: 地震発生前の許容秒数
-            after_seconds: 地震発生後の許容秒数
+            earthquake_only: Trueの場合、地震関連のスクリーンショットのみ対象
+                             （事前計算された earthquake_event_id を使用）
 
         """
-        if earthquake_only and quake_db_path and quake_db_path.exists():
-            # 地震フィルタ時は該当するスクリーンショットのみで統計を計算
-            screenshots = self.get_screenshots_with_earthquake_filter(
-                quake_db_path=quake_db_path,
-                before_seconds=before_seconds,
-                after_seconds=after_seconds,
-            )
+        # 事前計算された earthquake_event_id を使って SQL で集計
+        query = """
+            SELECT
+                COUNT(*) as total,
+                MIN(max_count) as min_signal,
+                MAX(max_count) as max_signal,
+                AVG(max_count) as avg_signal,
+                COUNT(CASE WHEN max_count IS NOT NULL THEN 1 END) as with_signal
+            FROM screenshot_metadata
+        """
+        if earthquake_only:
+            query += " WHERE earthquake_event_id IS NOT NULL"
 
-            if not screenshots:
-                return rsudp.types.SignalStatistics(total=0)
-
-            max_counts = [s["max_count"] for s in screenshots if s["max_count"] is not None]
-            return rsudp.types.SignalStatistics(
-                total=len(screenshots),
-                min_signal=min(max_counts) if max_counts else None,
-                max_signal=max(max_counts) if max_counts else None,
-                avg_signal=sum(max_counts) / len(max_counts) if max_counts else None,
-                with_signal=len(max_counts),
-            )
-
-        # 通常の統計
         with sqlite3.connect(self.cache_path) as conn:
-            cursor = conn.execute("""
-                SELECT
-                    COUNT(*) as total,
-                    MIN(max_count) as min_signal,
-                    MAX(max_count) as max_signal,
-                    AVG(max_count) as avg_signal,
-                    COUNT(CASE WHEN max_count IS NOT NULL THEN 1 END) as with_signal
-                FROM screenshot_metadata
-            """)
+            cursor = conn.execute(query)
 
             row = cursor.fetchone()
             return rsudp.types.SignalStatistics(

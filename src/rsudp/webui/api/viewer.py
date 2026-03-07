@@ -409,25 +409,19 @@ def get_statistics(query: schemas.EarthquakeOnlyQuery):
     """
     try:
         manager = _get_screenshot_manager()
-        quake_db_path = _get_quake_db_path()
         earthquake_only = query.earthquake_only
 
-        stats = manager.get_signal_statistics(
-            quake_db_path=quake_db_path,
-            earthquake_only=earthquake_only,
-        )
+        stats = manager.get_signal_statistics(earthquake_only=earthquake_only)
 
         # Add absolute total (without earthquake filter)
         if earthquake_only:
-            all_stats = manager.get_signal_statistics(
-                quake_db_path=quake_db_path,
-                earthquake_only=False,
-            )
+            all_stats = manager.get_signal_statistics(earthquake_only=False)
             stats.absolute_total = all_stats.total
         else:
             stats.absolute_total = stats.total
 
         # Add earthquake count
+        quake_db_path = _get_quake_db_path()
         if quake_db_path and quake_db_path.exists():
             quake_db = rsudp.quake.database.QuakeDatabase(_get_config())
             stats.earthquake_count = quake_db.count_earthquakes()

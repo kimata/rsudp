@@ -172,28 +172,13 @@ class TestGetSignalStatistics:
 
     def test_get_signal_statistics_earthquake_only(self, screenshot_config):
         """地震フィルタ付きの統計情報を確認."""
-        from rsudp.quake.database import QuakeDatabase
-
-        quake_db_path = screenshot_config.data.quake
-        quake_db = QuakeDatabase(screenshot_config)
-        # 2025-12-13 04:05:00 JST = 2025-12-12 19:05:00 UTC
-        insert_test_earthquake(
-            quake_db,
-            detected_at=datetime(2025, 12, 13, 4, 5, 0, tzinfo=rsudp.types.JST),
-            epicenter_name="東京都",
-            max_intensity="3",
-        )
-
         manager = ScreenshotManager(screenshot_config)
 
-        # キャッシュにスクリーンショットを追加
+        # earthquake_event_id 付きのスクリーンショットを追加
         with sqlite3.connect(manager.cache_path) as conn:
-            insert_screenshot_metadata(conn)
+            insert_screenshot_metadata(conn, earthquake_event_id="test-quake-001")
 
-        result = manager.get_signal_statistics(
-            quake_db_path=quake_db_path,
-            earthquake_only=True,
-        )
+        result = manager.get_signal_statistics(earthquake_only=True)
 
         assert result.total == 1
 
