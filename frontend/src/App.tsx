@@ -321,11 +321,6 @@ const App: React.FC = () => {
     // Load data on mount
     useEffect(() => {
         loadInitialData();
-
-        // バックグラウンドでサーバー側のスキャンも実行（結果は待たない）
-        screenshotApi.scanScreenshots().catch((err) => {
-            console.error("Background scan error:", err);
-        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
