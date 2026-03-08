@@ -38,7 +38,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({
   return (
     <>
       {/* 日付フィルタ */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[180px]">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[180px]">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="calendar" className="size-5" />
           日付フィルタ

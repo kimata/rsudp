@@ -10,8 +10,8 @@
     --color-warning: #f59e0b;
     --color-danger: #ef4444;
 
-    /* ダークナビバー背景（青みのあるスレートグレー） */
-    --color-navbar-dark: #334155;
+    /* ダークナビバー背景（深い紺色） */
+    --color-navbar-dark: #1e3a5f;
 
     /* Box shadow (Bulma互換) */
     --shadow-box: 0 0.5em 1em -0.125em rgba(10, 10, 10, 0.1), 0 0px 0 1px rgba(10, 10, 10, 0.02);

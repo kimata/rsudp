@@ -635,9 +635,9 @@ const App: React.FC = () => {
 
     return (
         <div className="w-full max-w-full p-2">
-            <nav className="flex items-center justify-between bg-slate-700 px-4 py-2 rounded w-full" role="navigation">
+            <nav className="flex items-center justify-between bg-blue-900 px-4 py-2 rounded w-full" role="navigation">
                 <div className="flex items-center">
-                    <a className="flex items-center px-3 py-2 text-white hover:bg-slate-600 rounded transition-colors" href="/rsudp/">
+                    <a className="flex items-center px-3 py-2 text-white hover:bg-blue-800 rounded transition-colors" href="/rsudp/">
                         <h1 className="text-xl font-semibold text-white flex items-center">
                             <Icon name="camera" className="size-6 mx-2" />
                             <span className="hidden lg:inline">RSUDP スクリーンショットビューア</span>
@@ -743,7 +743,7 @@ const App: React.FC = () => {
             <div className="lg:hidden">
                 <div className="mt-2">
                     {loading && !currentScreenshot ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]">
                             {/* ヘッダー部分のスケルトン */}
                             <div className="min-h-[80px] mb-4">
                                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
@@ -768,7 +768,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]">
                             <div
                                 className="flex justify-center items-center min-h-[500px]"
                             >
@@ -818,7 +818,7 @@ const App: React.FC = () => {
                         isFiltering={isFiltering}
                     />
 
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
                         <h2 className="text-lg font-semibold flex items-center gap-2">
                             <Icon name="globe" className="size-5" />
                             地震フィルタ
@@ -851,7 +851,7 @@ const App: React.FC = () => {
                         isFiltering={isFiltering}
                     />
 
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[120px]">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[120px]">
                         <h2 className="text-lg font-semibold flex items-center gap-2">
                             <Icon name="chart-bar" className="size-5" />
                             統計情報
@@ -891,7 +891,7 @@ const App: React.FC = () => {
 
                 <div className="flex-1">
                     {loading && !currentScreenshot ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]">
                             {/* ヘッダー部分のスケルトン */}
                             <div className="flex items-center justify-between min-h-[50px]">
                                 <div className="flex items-center">
@@ -942,7 +942,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]">
                             <div
                                 className="flex justify-center items-center min-h-[500px]"
                             >
@@ -989,7 +989,7 @@ const App: React.FC = () => {
                     isFiltering={isFiltering}
                 />
 
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         <Icon name="globe" className="size-5" />
                         地震フィルタ
@@ -1028,7 +1028,7 @@ const App: React.FC = () => {
                     isFiltering={isFiltering}
                 />
 
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[120px]">
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[120px]">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         <Icon name="chart-bar" className="size-5" />
                         統計情報

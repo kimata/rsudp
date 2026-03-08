@@ -232,7 +232,7 @@ const FileList: React.FC<FileListProps> = memo(({
   // ローディング中の表示
   if (loading && allImages.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="list-bullet" className="size-5" />
           ファイル一覧
@@ -258,7 +258,7 @@ const FileList: React.FC<FileListProps> = memo(({
 
   if (allImages.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="list-bullet" className="size-5" />
           ファイル一覧
@@ -279,7 +279,7 @@ const FileList: React.FC<FileListProps> = memo(({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
       <h2 className="text-lg font-semibold flex items-center gap-2">
         <Icon name="list-bullet" className="size-5" />
         ファイル一覧

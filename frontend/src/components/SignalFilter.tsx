@@ -61,7 +61,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   // スケルトン表示（ローディング中または統計データがない場合）
   if (loading || !statistics) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[150px]">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[150px]">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="funnel" className="size-5" />
           最大振幅フィルタ
@@ -88,7 +88,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
 
   if (statistics.with_signal === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[150px]">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[150px]">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Icon name="funnel" className="size-5" />
           最大振幅フィルタ
@@ -101,7 +101,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[150px]">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[150px]">
       <h2 className="text-lg font-semibold flex items-center gap-2">
         <Icon name="funnel" className="size-5" />
         最大振幅フィルタ

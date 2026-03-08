@@ -226,7 +226,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   if (!currentImage) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 text-center">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 text-center">
         <p className="text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
           <Icon name="photo" className="size-5" />
           画像が選択されていません
@@ -275,7 +275,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
       {/* デスクトップ表示 */}
       <div className="hidden lg:flex items-center justify-between min-h-[50px] flex-wrap gap-2 mb-4">
         <div className="flex items-center">
