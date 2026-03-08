@@ -654,7 +654,7 @@ const App: React.FC = () => {
                 <div className="hidden lg:flex items-center">
                     <div className="px-3 py-2">
                         <span
-                            className={`inline-flex items-center px-3 py-1.5 text-base rounded cursor-pointer ${isConnected ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"}`}
+                            className={`inline-flex items-center px-3 py-1.5 text-base rounded cursor-pointer ${isConnected ? "bg-sky-400/90 text-white" : "bg-amber-400 text-slate-800"}`}
                             onClick={handleStatusClick}
                             title={
                                 isConnected
@@ -685,7 +685,7 @@ const App: React.FC = () => {
                 <div className="lg:hidden flex items-center">
                     <div className="px-3 py-2">
                         <span
-                            className={`inline-flex items-center px-2 py-1 text-sm rounded cursor-pointer ${isConnected ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"}`}
+                            className={`inline-flex items-center px-2 py-1 text-sm rounded cursor-pointer ${isConnected ? "bg-sky-400/90 text-white" : "bg-amber-400 text-slate-800"}`}
                             onClick={handleStatusClick}
                             title={isConnected ? "タップで更新" : connectionError || "タップで再接続・更新"}
                         >
