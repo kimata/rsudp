@@ -792,9 +792,9 @@ const App: React.FC = () => {
             </div>
 
             {/* デスクトップ表示時: 従来のレイアウト */}
-            <div className="hidden lg:flex lg:flex-wrap mt-4 gap-4">
+            <div className="hidden lg:flex lg:flex-nowrap lg:items-start mt-4 gap-4">
                 <div
-                    className="w-full lg:w-1/3 min-w-[350px] max-w-[400px] space-y-4"
+                    className="w-full lg:w-1/3 min-w-[350px] max-w-[400px] space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto"
                 >
                     <DateSelector
                         years={years}
