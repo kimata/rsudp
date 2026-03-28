@@ -528,64 +528,6 @@ const App: React.FC = () => {
         return filteredScreenshots.length > 0 ? filteredScreenshots : signalFilteredScreenshots;
     }, [filteredScreenshots, signalFilteredScreenshots]);
 
-    // グローバルなナビゲーション機能
-    const navigateToNext = useCallback(() => {
-        if (displayImages.length === 0) return;
-
-        if (!currentScreenshot) {
-            // 画像が選択されていない場合は最初の画像を選択
-            setCurrentScreenshot(displayImages[0]);
-            return;
-        }
-
-        const currentIndex = displayImages.findIndex((img) => img.filename === currentScreenshot.filename);
-        if (currentIndex < displayImages.length - 1) {
-            setCurrentScreenshot(displayImages[currentIndex + 1]);
-        }
-    }, [currentScreenshot, displayImages]);
-
-    const navigateToPrevious = useCallback(() => {
-        if (displayImages.length === 0) return;
-
-        if (!currentScreenshot) {
-            // 画像が選択されていない場合は最初の画像を選択
-            setCurrentScreenshot(displayImages[0]);
-            return;
-        }
-
-        const currentIndex = displayImages.findIndex((img) => img.filename === currentScreenshot.filename);
-        if (currentIndex > 0) {
-            setCurrentScreenshot(displayImages[currentIndex - 1]);
-        }
-    }, [currentScreenshot, displayImages]);
-
-    // グローバルキーボードイベントハンドラー
-    const handleGlobalKeyDown = useCallback(
-        (event: KeyboardEvent) => {
-            // フォーカスが入力フィールドにある場合はスキップ
-            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) {
-                return;
-            }
-
-            if (event.key === "ArrowLeft") {
-                event.preventDefault();
-                navigateToPrevious();
-            } else if (event.key === "ArrowRight") {
-                event.preventDefault();
-                navigateToNext();
-            }
-        },
-        [navigateToPrevious, navigateToNext],
-    );
-
-    // グローバルキーボードイベントの登録
-    useEffect(() => {
-        document.addEventListener("keydown", handleGlobalKeyDown);
-        return () => {
-            document.removeEventListener("keydown", handleGlobalKeyDown);
-        };
-    }, [handleGlobalKeyDown]);
-
     // ブラウザの戻る/進むボタン対応
     useEffect(() => {
         const handlePopstate = () => {
