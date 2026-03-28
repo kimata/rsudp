@@ -155,3 +155,15 @@ input[type="range"]::-moz-range-thumb:hover {
 .animate-fade-in {
     animation: fade-in 0.3s ease-out forwards;
 }
+
+/* 背景のドットパターン（計測グリッドのイメージ） */
+body {
+    background-image: radial-gradient(circle, #cbd5e1 0.75px, transparent 0.75px);
+    background-size: 20px 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-image: radial-gradient(circle, #334155 0.75px, transparent 0.75px);
+    }
+}

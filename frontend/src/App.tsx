@@ -630,7 +630,7 @@ const App: React.FC = () => {
 
     return (
         <div className="w-full max-w-full p-2">
-            <nav className="flex items-center justify-between bg-blue-900 px-4 py-2 rounded w-full" role="navigation">
+            <nav className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-4 py-2 rounded w-full" role="navigation">
                 <div className="flex items-center">
                     <a className="flex items-center px-3 py-2 text-white hover:bg-blue-800 rounded transition-colors" href="/rsudp/">
                         <h1 className="text-xl font-semibold text-white flex items-center">
@@ -696,6 +696,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </nav>
+            <div className="h-[2px] bg-gradient-to-r from-transparent via-sky-400 to-transparent mt-1 rounded-full" />
 
             {error && (
                 <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mt-4 flex items-center">
@@ -738,7 +739,8 @@ const App: React.FC = () => {
             <div className="lg:hidden">
                 <div className="mt-2">
                     {loading && !currentScreenshot ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]">
+                            <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
                             {/* ヘッダー部分のスケルトン */}
                             <div className="min-h-[80px] mb-4">
                                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
@@ -763,7 +765,8 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]">
+                            <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
                             <div
                                 className="flex justify-center items-center min-h-[500px]"
                             >
@@ -813,9 +816,9 @@ const App: React.FC = () => {
                         isFiltering={isFiltering}
                     />
 
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-amber-500 p-5">
                         <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <Icon name="globe" className="size-5" />
+                            <span className="inline-flex items-center justify-center size-8 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"><Icon name="globe" className="size-4" /></span>
                             地震フィルタ
                             {isFiltering && (
                                 <Icon name="arrow-path" className="size-4 text-blue-600" spin />
@@ -846,9 +849,9 @@ const App: React.FC = () => {
                         isFiltering={isFiltering}
                     />
 
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[120px]">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-slate-400 p-5 min-h-[120px]">
                         <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <Icon name="chart-bar" className="size-5" />
+                            <span className="inline-flex items-center justify-center size-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"><Icon name="chart-bar" className="size-4" /></span>
                             統計情報
                         </h2>
                         <div className="mt-4">
@@ -886,7 +889,8 @@ const App: React.FC = () => {
 
                 <div className="flex-1">
                     {loading && !currentScreenshot ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]">
+                            <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
                             {/* ヘッダー部分のスケルトン */}
                             <div className="flex items-center justify-between min-h-[50px]">
                                 <div className="flex items-center">
@@ -922,14 +926,14 @@ const App: React.FC = () => {
                                 className="flex justify-center items-center gap-4 mt-4"
                             >
                                 <span
-                                    className="px-4 py-2 rounded bg-blue-600 text-white opacity-50 flex items-center gap-2"
+                                    className="px-5 py-2.5 rounded-full bg-blue-600 text-white opacity-50 flex items-center gap-2"
                                 >
                                     <Icon name="chevron-left" className="size-5" />
                                     <span>前へ</span>
                                 </span>
                                 <span className="inline-flex items-center px-3 py-1 text-sm rounded bg-gray-100 dark:bg-slate-700">- / -</span>
                                 <span
-                                    className="px-4 py-2 rounded bg-blue-600 text-white opacity-50 flex items-center gap-2"
+                                    className="px-5 py-2.5 rounded-full bg-blue-600 text-white opacity-50 flex items-center gap-2"
                                 >
                                     <span>次へ</span>
                                     <Icon name="chevron-right" className="size-5" />
@@ -937,7 +941,8 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]">
+                            <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
                             <div
                                 className="flex justify-center items-center min-h-[500px]"
                             >
@@ -984,9 +989,9 @@ const App: React.FC = () => {
                     isFiltering={isFiltering}
                 />
 
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-amber-500 p-5">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <Icon name="globe" className="size-5" />
+                        <span className="inline-flex items-center justify-center size-8 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"><Icon name="globe" className="size-4" /></span>
                         地震フィルタ
                         {isFiltering && (
                             <Icon name="arrow-path" className="size-4 text-blue-600" spin />
@@ -1023,9 +1028,9 @@ const App: React.FC = () => {
                     isFiltering={isFiltering}
                 />
 
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[120px]">
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-slate-400 p-5 min-h-[120px]">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <Icon name="chart-bar" className="size-5" />
+                        <span className="inline-flex items-center justify-center size-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"><Icon name="chart-bar" className="size-4" /></span>
                         統計情報
                     </h2>
                     <div className="mt-4">

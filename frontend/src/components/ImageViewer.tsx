@@ -226,7 +226,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   if (!currentImage) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 text-center">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-5 text-center">
         <p className="text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
           <Icon name="photo" className="size-5" />
           画像が選択されていません
@@ -275,7 +275,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
+      <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
       {/* デスクトップ表示 */}
       <div className="hidden lg:flex items-center justify-between min-h-[50px] flex-wrap gap-2 mb-4">
         <div className="flex items-center">
@@ -452,7 +453,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       <div className="hidden lg:block mt-4 mb-4">
         <div className="flex justify-center items-center gap-4">
           <button
-            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-5 py-2.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             onClick={navigatePrevious}
             disabled={!canNavigatePrevious}
           >
@@ -463,7 +464,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             {(currentIndex + 1).toLocaleString()} / {totalCount.toLocaleString()}
           </span>
           <button
-            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-5 py-2.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             onClick={navigateNext}
             disabled={!canNavigateNext}
           >

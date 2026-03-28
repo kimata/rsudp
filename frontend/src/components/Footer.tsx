@@ -27,30 +27,23 @@ function Footer() {
     };
 
     return (
-        <div className="ml-auto text-right p-2 mt-4" data-testid="footer">
-            <div className="text-base">
-                <p className="text-gray-500 mb-0 text-sm">
-                    更新日時: {updateTime}
-                </p>
-                <p className="text-gray-500 mb-0 text-sm">
-                    イメージビルド: {getImageBuildDate()}
-                </p>
-                <p className="text-gray-500 mb-0 text-sm">
-                    React ビルド: {buildDate.format('YYYY年MM月DD日 HH:mm:ss')} [{buildDate.fromNow()}]
-                </p>
-                <p className="text-gray-500 mb-0 text-sm">
-                    React バージョン: {reactVersion}
-                </p>
-                <p className="text-3xl">
-                    <a
-                        href="https://github.com/kimata/rsudp"
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        <GitHubIcon className="size-8 inline-block" />
-                    </a>
-                </p>
+        <footer className="mt-8 border-t border-gray-200 dark:border-slate-700 pt-4 pb-2 px-2" data-testid="footer">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-gray-400 dark:text-gray-500">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span>更新: {updateTime}</span>
+                    <span className="hidden sm:inline text-gray-300 dark:text-gray-600">|</span>
+                    <span>イメージ: {getImageBuildDate()}</span>
+                    <span className="hidden sm:inline text-gray-300 dark:text-gray-600">|</span>
+                    <span>React {reactVersion} ({buildDate.format('YYYY/MM/DD')})</span>
+                </div>
+                <a
+                    href="https://github.com/kimata/rsudp"
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                    <GitHubIcon className="size-5 inline-block" />
+                </a>
             </div>
-        </div>
+        </footer>
     );
 }
 

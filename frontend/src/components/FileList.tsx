@@ -232,9 +232,9 @@ const FileList: React.FC<FileListProps> = memo(({
   // ローディング中の表示
   if (loading && allImages.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-indigo-500 p-5">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Icon name="list-bullet" className="size-5" />
+          <span className="inline-flex items-center justify-center size-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"><Icon name="list-bullet" className="size-4" /></span>
           ファイル一覧
         </h2>
         <div
@@ -258,9 +258,9 @@ const FileList: React.FC<FileListProps> = memo(({
 
   if (allImages.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-indigo-500 p-5">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Icon name="list-bullet" className="size-5" />
+          <span className="inline-flex items-center justify-center size-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"><Icon name="list-bullet" className="size-4" /></span>
           ファイル一覧
         </h2>
         <div
@@ -279,9 +279,9 @@ const FileList: React.FC<FileListProps> = memo(({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-indigo-500 p-5">
       <h2 className="text-lg font-semibold flex items-center gap-2">
-        <Icon name="list-bullet" className="size-5" />
+        <span className="inline-flex items-center justify-center size-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"><Icon name="list-bullet" className="size-4" /></span>
         ファイル一覧
         {isFiltering && (
           <Icon name="arrow-path" className="size-4 text-blue-600" spin />

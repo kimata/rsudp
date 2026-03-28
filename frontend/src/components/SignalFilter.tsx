@@ -61,9 +61,9 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   // スケルトン表示（ローディング中または統計データがない場合）
   if (loading || !statistics) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[150px]">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-teal-500 p-5 min-h-[150px]">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Icon name="funnel" className="size-5" />
+          <span className="inline-flex items-center justify-center size-8 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400"><Icon name="funnel" className="size-4" /></span>
           最大振幅フィルタ
         </h2>
         <div className="mb-4 mt-4">
@@ -88,9 +88,9 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
 
   if (statistics.with_signal === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[150px]">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-teal-500 p-5 min-h-[150px]">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Icon name="funnel" className="size-5" />
+          <span className="inline-flex items-center justify-center size-8 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400"><Icon name="funnel" className="size-4" /></span>
           最大振幅フィルタ
         </h2>
         <div className="mt-4">
@@ -101,9 +101,9 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-t-2 border-t-blue-600 p-5 min-h-[150px]">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-4 border-l-teal-500 p-5 min-h-[150px]">
       <h2 className="text-lg font-semibold flex items-center gap-2">
-        <Icon name="funnel" className="size-5" />
+        <span className="inline-flex items-center justify-center size-8 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400"><Icon name="funnel" className="size-4" /></span>
         最大振幅フィルタ
         {isFiltering && (
           <Icon name="arrow-path" className="size-4 text-blue-600" spin />
