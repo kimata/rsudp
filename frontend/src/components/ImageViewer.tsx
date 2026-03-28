@@ -275,8 +275,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
-      <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>
       {/* デスクトップ表示 */}
       <div className="hidden lg:flex items-center justify-between min-h-[50px] flex-wrap gap-2 mb-4">
         <div className="flex items-center">

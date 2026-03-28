@@ -696,7 +696,6 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </nav>
-            <div className="h-[2px] bg-gradient-to-r from-transparent via-sky-400 to-transparent mt-1 rounded-full" />
 
             {error && (
                 <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mt-4 flex items-center">
@@ -739,8 +738,7 @@ const App: React.FC = () => {
             <div className="lg:hidden">
                 <div className="mt-2">
                     {loading && !currentScreenshot ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]">
-                            <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-5 min-h-[600px]">
                             {/* ヘッダー部分のスケルトン */}
                             <div className="min-h-[80px] mb-4">
                                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
@@ -765,8 +763,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]">
-                            <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-5 min-h-[600px]">
                             <div
                                 className="flex justify-center items-center min-h-[500px]"
                             >
@@ -792,7 +789,7 @@ const App: React.FC = () => {
             {/* デスクトップ表示時: 従来のレイアウト */}
             <div className="hidden lg:flex lg:flex-nowrap lg:items-start mt-4 gap-4">
                 <div
-                    className="w-full lg:w-1/3 min-w-[350px] max-w-[400px] space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto"
+                    className="w-full lg:w-1/3 min-w-[350px] max-w-[400px] space-y-4"
                 >
                     <DateSelector
                         years={years}
@@ -887,10 +884,9 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-1">
+                <div className="flex-1 lg:sticky lg:top-4 lg:self-start">
                     {loading && !currentScreenshot ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]">
-                            <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-5 min-h-[600px]">
                             {/* ヘッダー部分のスケルトン */}
                             <div className="flex items-center justify-between min-h-[50px]">
                                 <div className="flex items-center">
@@ -941,8 +937,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : !currentScreenshot && signalFilteredScreenshots.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden p-5 min-h-[600px]">
-                            <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mx-5 -mt-5 mb-4" />
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-5 min-h-[600px]">
                             <div
                                 className="flex justify-center items-center min-h-[500px]"
                             >
