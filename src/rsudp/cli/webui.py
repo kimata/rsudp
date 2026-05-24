@@ -239,18 +239,21 @@ def _sig_handler(num, frame):
         _term()
 
 
+_URL_PREFIX = "/rsudp"
+
+
 def _create_app(config: rsudp.config.Config):
     # NOTE: アクセスログは無効にする
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
     import my_lib.webapp.config
 
-    my_lib.webapp.config.URL_PREFIX = "/rsudp"
     # static_dir_path が相対パスの場合、base_dir（config.yaml の親ディレクトリ）から解決
     static_dir_path = config.webapp.static_dir_path
     if not static_dir_path.is_absolute():
         static_dir_path = (config.base_dir / static_dir_path).resolve()
-    my_lib.webapp.config.init(my_lib.webapp.config.WebappConfig(static_dir_path=static_dir_path))
+    webapp_config = my_lib.webapp.config.WebappConfig(static_dir_path=static_dir_path)
+    environment = my_lib.webapp.config.build_environment(webapp_config, url_prefix=_URL_PREFIX)
 
     import my_lib.webapp.base
     import my_lib.webapp.util
@@ -265,11 +268,14 @@ def _create_app(config: rsudp.config.Config):
 
     # OGPルートを優先するため、viewer blueprintを先に登録
     app.register_blueprint(rsudp.webui.api.viewer.blueprint)
-    app.register_blueprint(my_lib.webapp.base.blueprint, url_prefix=my_lib.webapp.config.URL_PREFIX)
-    app.register_blueprint(my_lib.webapp.base.blueprint_default)
-    app.register_blueprint(my_lib.webapp.util.blueprint, url_prefix=my_lib.webapp.config.URL_PREFIX)
+    app.register_blueprint(
+        my_lib.webapp.base.create_static_blueprint(environment=environment),
+        url_prefix=_URL_PREFIX,
+    )
+    app.register_blueprint(my_lib.webapp.base.create_root_redirect_blueprint(url_prefix=_URL_PREFIX))
+    app.register_blueprint(my_lib.webapp.util.blueprint, url_prefix=_URL_PREFIX)
     # SSE イベント通知用エンドポイント
-    app.register_blueprint(my_lib.webapp.event.blueprint, url_prefix=my_lib.webapp.config.URL_PREFIX)
+    app.register_blueprint(my_lib.webapp.event.blueprint, url_prefix=_URL_PREFIX)
 
     my_lib.webapp.config.show_handler_list(app)
 

@@ -14,6 +14,7 @@ interface UrlParams {
     file: string | null;
     earthquake: boolean | null;
     signal: number | null;
+    magnitude: number | null;
 }
 
 // URLからパラメータを取得
@@ -22,11 +23,13 @@ const getUrlParams = (): UrlParams => {
     const file = params.get("file");
     const earthquakeStr = params.get("earthquake");
     const signalStr = params.get("signal");
+    const magnitudeStr = params.get("magnitude");
 
     return {
         file,
         earthquake: earthquakeStr !== null ? earthquakeStr === "true" : null,
         signal: signalStr !== null ? parseInt(signalStr, 10) : null,
+        magnitude: magnitudeStr !== null ? parseFloat(magnitudeStr) : null,
     };
 };
 
@@ -35,11 +38,12 @@ interface UrlUpdateFlags {
     includeFile: boolean;
     includeEarthquake: boolean;
     includeSignal: boolean;
+    includeMagnitude: boolean;
 }
 
 // URLを更新（履歴に追加）- フラグに応じてパラメータを含める
 const updateUrl = (
-    params: { file?: string | null; earthquake?: boolean; signal?: number },
+    params: { file?: string | null; earthquake?: boolean; signal?: number; magnitude?: number },
     flags: UrlUpdateFlags,
     replace = false
 ) => {
@@ -63,12 +67,28 @@ const updateUrl = (
         url.searchParams.delete("signal");
     }
 
+    if (flags.includeMagnitude && params.magnitude !== undefined) {
+        url.searchParams.set("magnitude", params.magnitude.toString());
+    } else {
+        url.searchParams.delete("magnitude");
+    }
+
     if (replace) {
         window.history.replaceState({}, "", url.toString());
     } else {
         window.history.pushState({}, "", url.toString());
     }
 };
+
+// マグニチュードフィルタの選択肢
+const MAGNITUDE_OPTIONS = [
+    { value: 0, label: "すべて" },
+    { value: 3, label: "M3 以上" },
+    { value: 4, label: "M4 以上" },
+    { value: 5, label: "M5 以上" },
+    { value: 6, label: "M6 以上" },
+    { value: 7, label: "M7 以上" },
+];
 
 const App: React.FC = () => {
     const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -98,6 +118,10 @@ const App: React.FC = () => {
     const [earthquakeOnly, setEarthquakeOnly] = useState(
         initialUrlParams.current.earthquake !== null ? initialUrlParams.current.earthquake : true,
     );
+    // URLパラメータから最小マグニチュードの初期値を取得（未指定なら0=すべて）
+    const [minMagnitude, setMinMagnitude] = useState<number>(
+        initialUrlParams.current.magnitude !== null ? initialUrlParams.current.magnitude : 0,
+    );
     const [shouldScrollToCurrentImage, setShouldScrollToCurrentImage] = useState(false);
     const [isFiltering, setIsFiltering] = useState(false); // フィルタ適用中フラグ
     const [isRefreshing, setIsRefreshing] = useState(false); // 更新ボタン押下中フラグ
@@ -111,6 +135,7 @@ const App: React.FC = () => {
     const userSelectedFile = useRef(initialUrlParams.current.file !== null);
     const userChangedEarthquake = useRef(initialUrlParams.current.earthquake !== null);
     const userChangedSignal = useRef(initialUrlParams.current.signal !== null);
+    const userChangedMagnitude = useRef(initialUrlParams.current.magnitude !== null);
 
     // クライアント側で振幅フィルタを適用（APIリクエスト不要）
     // max_count が null の場合はフィルタを通過させる（メタデータ未取得のため）
@@ -168,10 +193,12 @@ const App: React.FC = () => {
         setError(null);
         try {
             console.log("Loading initial data from API...");
+            // min_magnitude は 0 の場合 undefined を渡す（フィルタ無し）
+            const effectiveMagnitude = minMagnitude > 0 ? minMagnitude : undefined;
             // Load statistics and screenshots in parallel
             const [stats, screenshotsData] = await Promise.all([
-                screenshotApi.getStatistics(earthquakeOnly),
-                screenshotApi.getAllScreenshots(undefined, earthquakeOnly),
+                screenshotApi.getStatistics(earthquakeOnly, effectiveMagnitude),
+                screenshotApi.getAllScreenshots(undefined, earthquakeOnly, effectiveMagnitude),
             ]);
 
             setStatistics(stats);
@@ -222,11 +249,13 @@ const App: React.FC = () => {
                                 file: urlFilename,
                                 earthquake: earthquakeOnly,
                                 signal: adjustedSignalThreshold,
+                                magnitude: minMagnitude,
                             },
                             {
                                 includeFile: userSelectedFile.current,
                                 includeEarthquake: userChangedEarthquake.current,
                                 includeSignal: userChangedSignal.current,
+                                includeMagnitude: userChangedMagnitude.current,
                             },
                             true,
                         );
@@ -240,11 +269,13 @@ const App: React.FC = () => {
                                 file: screenshotsData[0].filename,
                                 earthquake: earthquakeOnly,
                                 signal: signalThreshold,
+                                magnitude: minMagnitude,
                             },
                             {
                                 includeFile: false,
                                 includeEarthquake: userChangedEarthquake.current,
                                 includeSignal: userChangedSignal.current,
+                                includeMagnitude: userChangedMagnitude.current,
                             },
                             true,
                         );
@@ -257,11 +288,13 @@ const App: React.FC = () => {
                             file: screenshotsData[0].filename,
                             earthquake: earthquakeOnly,
                             signal: signalThreshold,
+                            magnitude: minMagnitude,
                         },
                         {
                             includeFile: false,
                             includeEarthquake: userChangedEarthquake.current,
                             includeSignal: userChangedSignal.current,
+                            includeMagnitude: userChangedMagnitude.current,
                         },
                         true,
                     );
@@ -279,7 +312,7 @@ const App: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [earthquakeOnly]);
+    }, [earthquakeOnly, minMagnitude]);
 
     // 地震フィルタ変更時に呼ばれる（振幅フィルタ変更時はAPIを呼ばない）
     const loadDataWithFilter = useCallback(async () => {
@@ -287,10 +320,12 @@ const App: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
+            // min_magnitude は 0 の場合 undefined を渡す（フィルタ無し）
+            const effectiveMagnitude = minMagnitude > 0 ? minMagnitude : undefined;
             // Load statistics and screenshots in parallel
             const [stats, screenshotsData] = await Promise.all([
-                screenshotApi.getStatistics(earthquakeOnly),
-                screenshotApi.getAllScreenshots(undefined, earthquakeOnly),
+                screenshotApi.getStatistics(earthquakeOnly, effectiveMagnitude),
+                screenshotApi.getAllScreenshots(undefined, earthquakeOnly, effectiveMagnitude),
             ]);
 
             setStatistics(stats);
@@ -316,7 +351,7 @@ const App: React.FC = () => {
             setLoading(false);
             setIsFiltering(false);
         }
-    }, [earthquakeOnly]);
+    }, [earthquakeOnly, minMagnitude]);
 
     // Load data on mount
     useEffect(() => {
@@ -324,18 +359,18 @@ const App: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // 地震フィルタ変更時はAPIからデータ再取得（初回ロード後のみ）
+    // 地震フィルタ or マグニチュード変更時はAPIからデータ再取得（初回ロード後のみ）
     // isInitialLoadがfalseになった瞬間ではなく、既にfalseだった時のみ実行
     useEffect(() => {
         if (!isInitialLoad) {
             // 前回既にisInitialLoad=falseだった場合のみ実行
-            // （＝earthquakeOnlyの変更による発火）
+            // （＝earthquakeOnly/minMagnitudeの変更による発火）
             if (!wasInitialLoad.current) {
                 loadDataWithFilter();
             }
         }
         wasInitialLoad.current = isInitialLoad;
-    }, [earthquakeOnly, loadDataWithFilter, isInitialLoad]);
+    }, [earthquakeOnly, minMagnitude, loadDataWithFilter, isInitialLoad]);
 
     // フィルタ変更時にURLを更新（popstate処理中は除く）
     useEffect(() => {
@@ -345,16 +380,18 @@ const App: React.FC = () => {
                     file: currentScreenshot.filename,
                     earthquake: earthquakeOnly,
                     signal: minMaxSignalThreshold,
+                    magnitude: minMagnitude,
                 },
                 {
                     includeFile: userSelectedFile.current,
                     includeEarthquake: userChangedEarthquake.current,
                     includeSignal: userChangedSignal.current,
+                    includeMagnitude: userChangedMagnitude.current,
                 },
                 true,
             );
         }
-    }, [earthquakeOnly, minMaxSignalThreshold, isInitialLoad, currentScreenshot]);
+    }, [earthquakeOnly, minMaxSignalThreshold, minMagnitude, isInitialLoad, currentScreenshot]);
 
     // 年選択がリストに存在しなくなった場合はリセット
     useEffect(() => {
@@ -423,6 +460,12 @@ const App: React.FC = () => {
         setMinMaxSignalThreshold(value);
     }, []);
 
+    // マグニチュードフィルタ変更ハンドラ
+    const handleMinMagnitudeChange = useCallback((value: number) => {
+        userChangedMagnitude.current = true;
+        setMinMagnitude(value);
+    }, []);
+
     const handleNavigate = useCallback(
         (screenshot: Screenshot) => {
             setShouldScrollToCurrentImage(true);
@@ -436,18 +479,20 @@ const App: React.FC = () => {
                         file: screenshot.filename,
                         earthquake: earthquakeOnly,
                         signal: minMaxSignalThreshold,
+                        magnitude: minMagnitude,
                     },
                     {
                         includeFile: true,
                         includeEarthquake: userChangedEarthquake.current,
                         includeSignal: userChangedSignal.current,
+                        includeMagnitude: userChangedMagnitude.current,
                     },
                 );
             }
             // スクロール後にフラグをリセット
             setTimeout(() => setShouldScrollToCurrentImage(false), 100);
         },
-        [earthquakeOnly, minMaxSignalThreshold],
+        [earthquakeOnly, minMaxSignalThreshold, minMagnitude],
     );
 
     // 通知を表示（3秒後に自動消去）
@@ -538,6 +583,7 @@ const App: React.FC = () => {
             userSelectedFile.current = urlParams.file !== null;
             userChangedEarthquake.current = urlParams.earthquake !== null;
             userChangedSignal.current = urlParams.signal !== null;
+            userChangedMagnitude.current = urlParams.magnitude !== null;
 
             // フィルタ状態を復元
             if (urlParams.earthquake !== null) {
@@ -545,6 +591,9 @@ const App: React.FC = () => {
             }
             if (urlParams.signal !== null) {
                 setMinMaxSignalThreshold(urlParams.signal);
+            }
+            if (urlParams.magnitude !== null) {
+                setMinMagnitude(urlParams.magnitude);
             }
 
             // ファイル選択を復元
@@ -775,8 +824,25 @@ const App: React.FC = () => {
                                 震度あり地震のみ表示
                             </label>
                             <p className="mt-1 text-sm text-gray-500">
-                                気象庁発表の震度3以上の地震時刻前後のデータのみ表示
+                                気象庁発表の地震時刻前後のデータのみ表示
                             </p>
+                        </div>
+                        <div className="mb-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                対象マグニチュード
+                            </label>
+                            <select
+                                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                value={minMagnitude}
+                                onChange={(e) => handleMinMagnitudeChange(parseFloat(e.target.value))}
+                                disabled={!earthquakeOnly || isFiltering}
+                            >
+                                {MAGNITUDE_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
@@ -946,7 +1012,7 @@ const App: React.FC = () => {
                             震度あり地震のみ表示
                         </label>
                         <p className="mt-1 text-sm text-gray-500">
-                            気象庁発表の震度3以上の地震時刻前後のデータのみ表示
+                            気象庁発表の地震時刻前後のデータのみ表示
                             {statistics?.earthquake_count !== undefined && (
                                 <>
                                     <br />
@@ -954,6 +1020,23 @@ const App: React.FC = () => {
                                 </>
                             )}
                         </p>
+                    </div>
+                    <div className="mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            対象マグニチュード
+                        </label>
+                        <select
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            value={minMagnitude}
+                            onChange={(e) => handleMinMagnitudeChange(parseFloat(e.target.value))}
+                            disabled={!earthquakeOnly || isFiltering}
+                        >
+                            {MAGNITUDE_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 

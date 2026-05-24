@@ -423,50 +423,21 @@ class TestOgpFunctions:
 class TestIndexWithOgp:
     """index_with_ogp のテスト."""
 
-    def test_index_static_dir_not_configured(self, flask_client):
-        """静的ディレクトリが設定されていない場合"""
-        import my_lib.webapp.config
-
-        original = my_lib.webapp.config.STATIC_DIR_PATH
-        my_lib.webapp.config.STATIC_DIR_PATH = None
-
-        try:
-            response = flask_client.get("/rsudp/")
-            assert response.status_code == 500
-        finally:
-            my_lib.webapp.config.STATIC_DIR_PATH = original
-
     def test_index_html_not_found(self, flask_client, config):
         """index.html が見つからない場合"""
-        import my_lib.webapp.config
-
-        original = my_lib.webapp.config.STATIC_DIR_PATH
-        my_lib.webapp.config.STATIC_DIR_PATH = config.webapp.static_dir_path
-
-        # 静的ディレクトリは存在するがindex.htmlがない
+        # 静的ディレクトリは存在するが index.html がない
         config.webapp.static_dir_path.mkdir(parents=True, exist_ok=True)
 
-        try:
-            response = flask_client.get("/rsudp/")
-            assert response.status_code == 404
-        finally:
-            my_lib.webapp.config.STATIC_DIR_PATH = original
+        response = flask_client.get("/rsudp/")
+        assert response.status_code == 404
 
     def test_index_success(self, flask_client, config):
         """index.html の正常取得"""
-        import my_lib.webapp.config
-
-        original = my_lib.webapp.config.STATIC_DIR_PATH
-        my_lib.webapp.config.STATIC_DIR_PATH = config.webapp.static_dir_path
-
-        # 静的ディレクトリとindex.htmlを作成
+        # 静的ディレクトリと index.html を作成
         config.webapp.static_dir_path.mkdir(parents=True, exist_ok=True)
         index_file = config.webapp.static_dir_path / "index.html"
         index_file.write_text("<html><head></head><body>Test</body></html>")
 
-        try:
-            response = flask_client.get("/rsudp/")
-            assert response.status_code == 200
-            assert b"og:title" in response.data
-        finally:
-            my_lib.webapp.config.STATIC_DIR_PATH = original
+        response = flask_client.get("/rsudp/")
+        assert response.status_code == 200
+        assert b"og:title" in response.data

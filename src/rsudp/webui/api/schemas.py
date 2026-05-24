@@ -133,6 +133,7 @@ class ScreenshotListQuery(BaseModel):
 
     min_max_signal: float | None = None
     earthquake_only: bool = False
+    min_magnitude: float | None = None
 
 
 class MinMaxSignalQuery(BaseModel):
@@ -145,6 +146,7 @@ class EarthquakeOnlyQuery(BaseModel):
     """Query parameters for GET /api/screenshot/statistics/."""
 
     earthquake_only: bool = False
+    min_magnitude: float | None = None
 
 
 class CleanRequest(BaseModel):

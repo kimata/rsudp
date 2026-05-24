@@ -316,10 +316,27 @@ class ScreenshotManager:
 
             return [rsudp.types.DateInfo(year=row[0], month=row[1], day=row[2]) for row in cursor]
 
+    def _get_event_ids_by_magnitude(
+        self,
+        quake_db_path: Path | None,
+        min_magnitude: float,
+    ) -> list[str]:
+        """指定マグニチュード以上の地震 event_id のリストを取得する."""
+        if not quake_db_path or not quake_db_path.exists():
+            return []
+        with sqlite3.connect(quake_db_path) as conn:
+            cursor = conn.execute(
+                "SELECT event_id FROM earthquakes WHERE magnitude >= ?",
+                (min_magnitude,),
+            )
+            return [row[0] for row in cursor.fetchall()]
+
     def get_signal_statistics(
         self,
         *,
         earthquake_only: bool = False,
+        quake_db_path: Path | None = None,
+        min_magnitude: float | None = None,
     ) -> rsudp.types.SignalStatistics:
         """
         信号値（max_count）の統計情報を取得する.
@@ -327,6 +344,8 @@ class ScreenshotManager:
         Args:
             earthquake_only: Trueの場合、地震関連のスクリーンショットのみ対象
                              （事前計算された earthquake_event_id を使用）
+            quake_db_path: 地震データベースのパス（min_magnitude 指定時に必要）
+            min_magnitude: 最小マグニチュードフィルタ（earthquake_only=True 時のみ有効）
 
         """
         # 事前計算された earthquake_event_id を使って SQL で集計
@@ -339,11 +358,21 @@ class ScreenshotManager:
                 COUNT(CASE WHEN max_count IS NOT NULL THEN 1 END) as with_signal
             FROM screenshot_metadata
         """
+        params: list = []
         if earthquake_only:
-            query += " WHERE earthquake_event_id IS NOT NULL"
+            if min_magnitude is not None:
+                event_ids = self._get_event_ids_by_magnitude(quake_db_path, min_magnitude)
+                if not event_ids:
+                    # 条件を満たす地震がない場合は空の統計を返す
+                    return rsudp.types.SignalStatistics(total=0)
+                placeholders = ",".join("?" * len(event_ids))
+                query += f" WHERE earthquake_event_id IN ({placeholders})"
+                params.extend(event_ids)
+            else:
+                query += " WHERE earthquake_event_id IS NOT NULL"
 
         with sqlite3.connect(self.cache_path) as conn:
-            cursor = conn.execute(query)
+            cursor = conn.execute(query, params)
 
             row = cursor.fetchone()
             return rsudp.types.SignalStatistics(
@@ -555,6 +584,7 @@ class ScreenshotManager:
         self,
         quake_db_path: Path,
         min_max_signal: float | None = None,
+        min_magnitude: float | None = None,
     ) -> list[dict]:
         """
         事前計算された地震関連付けを使って高速にフィルタリングする.
@@ -562,6 +592,7 @@ class ScreenshotManager:
         Args:
             quake_db_path: 地震データベースのパス（地震情報の取得に使用）
             min_max_signal: 最小 max_count フィルタ（オプション）
+            min_magnitude: 最小マグニチュードフィルタ（オプション）
 
         Returns:
             地震情報が付加されたスクリーンショットのリスト
@@ -577,6 +608,13 @@ class ScreenshotManager:
                     eq = rsudp.types.EarthquakeData(**dict(row))
                     earthquake_map[eq.event_id] = eq
 
+        # マグニチュードフィルタが指定されている場合は対象 event_id を絞り込む
+        target_event_ids: list[str] | None = None
+        if min_magnitude is not None:
+            target_event_ids = [eid for eid, eq in earthquake_map.items() if eq.magnitude >= min_magnitude]
+            if not target_event_ids:
+                return []
+
         # キャッシュから地震関連スクリーンショットを取得
         with sqlite3.connect(self.cache_path) as conn:
             query = """
@@ -584,9 +622,15 @@ class ScreenshotManager:
                        timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
                        metadata_raw, earthquake_event_id
                 FROM screenshot_metadata
-                WHERE earthquake_event_id IS NOT NULL
             """
             params: list = []
+
+            if target_event_ids is not None:
+                placeholders = ",".join("?" * len(target_event_ids))
+                query += f" WHERE earthquake_event_id IN ({placeholders})"
+                params.extend(target_event_ids)
+            else:
+                query += " WHERE earthquake_event_id IS NOT NULL"
 
             if min_max_signal is not None:
                 query += " AND max_count >= ?"

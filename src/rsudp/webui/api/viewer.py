@@ -10,7 +10,6 @@ from pathlib import Path
 
 import flask
 import my_lib.flask_util
-import my_lib.webapp.config
 from flask_pydantic import validate
 
 import rsudp.config
@@ -119,6 +118,7 @@ def list_screenshots(query: schemas.ScreenshotListQuery):
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter screenshots
     - earthquake_only: If true, only return screenshots during earthquake windows
+    - min_magnitude: Minimum earthquake magnitude (only effective when earthquake_only=true)
     """
     try:
         manager = _get_screenshot_manager()
@@ -126,6 +126,7 @@ def list_screenshots(query: schemas.ScreenshotListQuery):
         # Get filter parameters from validated query
         min_max_signal = query.min_max_signal
         earthquake_only = query.earthquake_only
+        min_magnitude = query.min_magnitude
 
         quake_db_path = _get_quake_db_path()
 
@@ -134,6 +135,7 @@ def list_screenshots(query: schemas.ScreenshotListQuery):
             screenshots = manager.get_screenshots_with_earthquake_filter_fast(
                 quake_db_path=quake_db_path,
                 min_max_signal=min_max_signal,
+                min_magnitude=min_magnitude,
             )
             # すでに earthquake キーが含まれているのでそのまま使用
             formatted_screenshots = [_format_screenshot_with_earthquake(s, None) for s in screenshots]
@@ -408,12 +410,20 @@ def get_statistics(query: schemas.EarthquakeOnlyQuery):
 
     Query parameters:
     - earthquake_only: If true, only include screenshots during earthquake windows
+    - min_magnitude: Minimum earthquake magnitude (only effective when earthquake_only=true)
     """
     try:
         manager = _get_screenshot_manager()
         earthquake_only = query.earthquake_only
+        min_magnitude = query.min_magnitude
 
-        stats = manager.get_signal_statistics(earthquake_only=earthquake_only)
+        quake_db_path = _get_quake_db_path()
+
+        stats = manager.get_signal_statistics(
+            earthquake_only=earthquake_only,
+            quake_db_path=quake_db_path,
+            min_magnitude=min_magnitude,
+        )
 
         # Add absolute total (without earthquake filter)
         if earthquake_only:
@@ -701,11 +711,13 @@ def index_with_ogp(query: schemas.IndexQuery) -> flask.Response:
     - file: スクリーンショットのファイル名（OGP生成に使用）
     """
     try:
-        # 静的ファイルディレクトリからindex.htmlを読み込む
-        if my_lib.webapp.config.STATIC_DIR_PATH is None:
-            return flask.Response("Static directory not configured", status=500)
+        # 静的ファイルディレクトリから index.html を読み込む
+        config = _get_config()
+        static_dir_path = config.webapp.static_dir_path
+        if not static_dir_path.is_absolute():
+            static_dir_path = (config.base_dir / static_dir_path).resolve()
 
-        index_path = my_lib.webapp.config.STATIC_DIR_PATH / "index.html"
+        index_path = static_dir_path / "index.html"
         if not index_path.exists():
             return flask.Response("index.html not found", status=404)
 

@@ -19,13 +19,20 @@ api.interceptors.request.use((config) => {
 });
 
 export const screenshotApi = {
-    getAllScreenshots: async (minMaxSignal?: number, earthquakeOnly?: boolean): Promise<Screenshot[]> => {
+    getAllScreenshots: async (
+        minMaxSignal?: number,
+        earthquakeOnly?: boolean,
+        minMagnitude?: number
+    ): Promise<Screenshot[]> => {
         const params: Record<string, string | number | boolean> = {};
         if (minMaxSignal !== undefined) {
             params.min_max_signal = minMaxSignal;
         }
         if (earthquakeOnly) {
             params.earthquake_only = "true";
+        }
+        if (minMagnitude !== undefined) {
+            params.min_magnitude = minMagnitude;
         }
         const response = await api.get<ScreenshotListResponse>("/", { params });
         return response.data.screenshots;
@@ -37,10 +44,13 @@ export const screenshotApi = {
         return response.data;
     },
 
-    getStatistics: async (earthquakeOnly?: boolean): Promise<StatisticsResponse> => {
-        const params: Record<string, string> = {};
+    getStatistics: async (earthquakeOnly?: boolean, minMagnitude?: number): Promise<StatisticsResponse> => {
+        const params: Record<string, string | number> = {};
         if (earthquakeOnly) {
             params.earthquake_only = "true";
+        }
+        if (minMagnitude !== undefined) {
+            params.min_magnitude = minMagnitude;
         }
         const response = await api.get<StatisticsResponse>("/statistics/", { params });
         return response.data;

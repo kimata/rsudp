@@ -214,6 +214,7 @@ Blueprint: `viewer_api` (URL prefix: `/rsudp`)
 
 - `min_max_signal`: 最小信号値（MaxCount）フィルタ
 - `earthquake_only`: 地震時間窓のみ返却（true/false）
+- `min_magnitude`: 最小マグニチュードフィルタ（`earthquake_only=true` 時のみ有効）
 
 ## 📊 データ出力
 
