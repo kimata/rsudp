@@ -1,0 +1,207 @@
+"""
+バックグラウンド監視（スクリーンショットスキャン + 地震クローラー）の実装.
+
+cli/webui.py から起動される BackgroundMonitor をまとめる。
+"""
+
+from __future__ import annotations
+
+import logging
+import pathlib
+import sqlite3
+import threading
+
+import my_lib.webapp.event
+
+import rsudp.config
+
+# スキャン間隔
+_SCREENSHOT_SCAN_INTERVAL = 60  # 1 分間隔でスクリーンショットをスキャン
+_QUAKE_CRAWL_INTERVAL = 3600  # 1 時間間隔で地震データを取得
+
+
+def _get_cache_state(db_path: pathlib.Path) -> str | None:
+    """スクリーンショットキャッシュ DB の状態を取得する."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.execute("SELECT MAX(timestamp) FROM screenshot_metadata")
+            row = cursor.fetchone()
+            return row[0] if row else None
+    except sqlite3.Error:
+        logging.exception("Failed to get cache db state")
+        return None
+
+
+def _get_quake_state(db_path: pathlib.Path) -> str | None:
+    """地震 DB の状態を取得する."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.execute("SELECT MAX(updated_at) FROM earthquakes")
+            row = cursor.fetchone()
+            return row[0] if row else None
+    except sqlite3.Error:
+        logging.exception("Failed to get quake db state")
+        return None
+
+
+class BackgroundMonitor:
+    """スクリーンショット監視と地震クローラーをまとめて管理する."""
+
+    def __init__(self, config: rsudp.config.Config) -> None:
+        self.config = config
+        self._stop_event = threading.Event()
+        self._monitor_thread: threading.Thread | None = None
+        self._cache_watch_thread: threading.Thread | None = None
+        self._cache_watch_stop_event: threading.Event | None = None
+        self._quake_watch_thread: threading.Thread | None = None
+        self._quake_watch_stop_event: threading.Event | None = None
+
+    def start(self) -> None:
+        """全てのバックグラウンドスレッドを起動する."""
+        self._stop_event.clear()
+        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._monitor_thread.start()
+
+        if self._cache_watch_thread is None:
+            (
+                self._cache_watch_stop_event,
+                self._cache_watch_thread,
+            ) = my_lib.webapp.event.start_db_state_watcher(
+                self.config.data.cache,
+                _get_cache_state,
+                my_lib.webapp.event.EVENT_TYPE.CONTENT,
+            )
+
+        if self._quake_watch_thread is None:
+            (
+                self._quake_watch_stop_event,
+                self._quake_watch_thread,
+            ) = my_lib.webapp.event.start_db_state_watcher(
+                self.config.data.quake,
+                _get_quake_state,
+                my_lib.webapp.event.EVENT_TYPE.CONTENT,
+            )
+
+    def stop(self) -> None:
+        """全てのバックグラウンドスレッドを停止する."""
+        if self._monitor_thread and self._monitor_thread.is_alive():
+            logging.info("Stopping background monitor...")
+            self._stop_event.set()
+            self._monitor_thread.join(timeout=5)
+            self._monitor_thread = None
+
+        if self._cache_watch_thread is not None and self._cache_watch_stop_event is not None:
+            my_lib.webapp.event.stop_db_state_watcher(self._cache_watch_stop_event, self._cache_watch_thread)
+            self._cache_watch_thread = None
+            self._cache_watch_stop_event = None
+
+        if self._quake_watch_thread is not None and self._quake_watch_stop_event is not None:
+            my_lib.webapp.event.stop_db_state_watcher(self._quake_watch_stop_event, self._quake_watch_thread)
+            self._quake_watch_thread = None
+            self._quake_watch_stop_event = None
+
+    # --- private ---
+
+    def _monitor_loop(self) -> None:
+        """定期実行ループ（スクリーンショット + 地震データ）."""
+        quake_interval_count = _QUAKE_CRAWL_INTERVAL // _SCREENSHOT_SCAN_INTERVAL
+        loop_count = 0
+
+        logging.info(
+            "バックグラウンド監視開始 (スクリーンショット: %d秒間隔, 地震: %d秒間隔)",
+            _SCREENSHOT_SCAN_INTERVAL,
+            _QUAKE_CRAWL_INTERVAL,
+        )
+
+        # 起動時に完全スキャンを 1 回実行
+        self._scan_full()
+        self._crawl_earthquakes()
+
+        # 定期実行ループ（増分スキャン）
+        while not self._stop_event.wait(_SCREENSHOT_SCAN_INTERVAL):
+            loop_count += 1
+
+            new_files = self._scan_incremental()
+
+            quake_updated = False
+            if loop_count >= quake_interval_count:
+                loop_count = 0
+                quake_updated = self._crawl_earthquakes()
+
+            if new_files > 0 or quake_updated:
+                logging.debug("Background monitor detected updates")
+
+        logging.info("バックグラウンド監視停止")
+
+    def _scan_full(self) -> int:
+        """完全スキャンを実行し、新規ファイル数を返す."""
+        import rsudp.screenshot_manager
+
+        try:
+            manager = rsudp.screenshot_manager.ScreenshotManager(self.config)
+            manager.organize_files()
+            new_count = manager.scan_and_cache_all()
+            if new_count > 0:
+                logging.info("スクリーンショット監視（完全スキャン）: %d件の新規ファイルを検出", new_count)
+            return new_count
+        except Exception:
+            logging.exception("スクリーンショットスキャンエラー")
+            return 0
+
+    def _scan_incremental(self) -> int:
+        """増分スキャンを実行し、新規ファイル数を返す."""
+        import rsudp.screenshot_manager
+
+        try:
+            manager = rsudp.screenshot_manager.ScreenshotManager(self.config)
+            manager.organize_files()
+            new_count = manager.scan_incremental()
+            if new_count > 0:
+                logging.info("スクリーンショット監視（増分スキャン）: %d件の新規ファイルを検出", new_count)
+            return new_count
+        except Exception:
+            logging.exception("スクリーンショットスキャンエラー")
+            return 0
+
+    def _crawl_earthquakes(self) -> bool:
+        """地震データを取得する. 新規があれば True."""
+        import rsudp.quake.crawl
+
+        try:
+            logging.info("地震クローラー: 地震データの収集を開始")
+            new_earthquakes = rsudp.quake.crawl.crawl_earthquakes(self.config, min_intensity=2)
+            self._log_crawl_results(new_earthquakes)
+            self._update_earthquake_associations()
+            return len(new_earthquakes) > 0
+        except Exception:
+            logging.exception("地震クローラーエラー")
+            return False
+
+    def _update_earthquake_associations(self) -> None:
+        """スクリーンショットと地震の関連付けを更新する."""
+        import rsudp.screenshot_manager
+
+        try:
+            manager = rsudp.screenshot_manager.ScreenshotManager(self.config)
+            updated = manager.update_earthquake_associations(self.config.data.quake)
+            logging.info("地震関連付け更新完了: %d 件", updated)
+        except Exception:
+            logging.exception("地震関連付け更新エラー")
+
+    @staticmethod
+    def _log_crawl_results(new_earthquakes: list[dict]) -> None:
+        """クロール結果をログ出力する."""
+        if not new_earthquakes:
+            logging.info("地震クローラー: 新規地震なし")
+            return
+
+        logging.info("地震クローラー: %d件の新規地震を追加", len(new_earthquakes))
+        for eq in new_earthquakes:
+            logging.info(
+                "  - %s %s M%.1f 震度%s 深さ%dkm",
+                eq["detected_at"].strftime("%Y-%m-%d %H:%M"),
+                eq["epicenter_name"],
+                eq["magnitude"],
+                eq["max_intensity"],
+                eq["depth"],
+            )
