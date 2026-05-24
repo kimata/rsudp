@@ -52,6 +52,20 @@ class Config:
     )
     base_dir: pathlib.Path = field(default_factory=pathlib.Path.cwd)
 
+    def __post_init__(self) -> None:
+        # 全てのパスは絶対パスである invariant を保証する
+        for label, path in (
+            ("base_dir", self.base_dir),
+            ("plot.screenshot.path", self.plot.screenshot.path),
+            ("data.cache", self.data.cache),
+            ("data.quake", self.data.quake),
+            ("data.selenium", self.data.selenium),
+            ("webapp.static_dir_path", self.webapp.static_dir_path),
+        ):
+            if not path.is_absolute():
+                msg = f"Config path must be absolute: {label}={path}"
+                raise ValueError(msg)
+
 
 def _parse_slack_config(
     slack_dict: dict[str, Any],

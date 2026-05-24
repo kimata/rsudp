@@ -297,39 +297,46 @@ class ScreenshotManager:
 
             return [rsudp.types.row_to_screenshot_dict(row) for row in cursor]
 
-    def get_available_dates(self, min_max_signal: float | None = None) -> list[rsudp.types.DateInfo]:
-        """最小信号値を満たすスクリーンショットが存在する日付のリストを取得する."""
+    def get_available_years(self, min_max_signal: float | None = None) -> list[int]:
+        """最小信号値を満たすスクリーンショットが存在する年のリストを取得する."""
+        query = "SELECT DISTINCT year FROM screenshot_metadata"
+        params: list = []
+        if min_max_signal is not None:
+            query += " WHERE max_count >= ?"
+            params.append(min_max_signal)
+        query += " ORDER BY year DESC"
+
         with sqlite3.connect(self.cache_path) as conn:
-            query = """
-                SELECT DISTINCT year, month, day
-                FROM screenshot_metadata
-            """
-            params = []
+            return [row[0] for row in conn.execute(query, params)]
 
-            if min_max_signal is not None:
-                query += " WHERE max_count >= ?"
-                params.append(min_max_signal)
+    def get_available_months(self, year: int, min_max_signal: float | None = None) -> list[int]:
+        """指定年で利用可能な月のリストを取得する."""
+        query = "SELECT DISTINCT month FROM screenshot_metadata WHERE year = ?"
+        params: list = [year]
+        if min_max_signal is not None:
+            query += " AND max_count >= ?"
+            params.append(min_max_signal)
+        query += " ORDER BY month DESC"
 
-            query += " ORDER BY year DESC, month DESC, day DESC"
+        with sqlite3.connect(self.cache_path) as conn:
+            return [row[0] for row in conn.execute(query, params)]
 
-            cursor = conn.execute(query, params)
+    def get_available_days(self, year: int, month: int, min_max_signal: float | None = None) -> list[int]:
+        """指定年月で利用可能な日のリストを取得する."""
+        query = "SELECT DISTINCT day FROM screenshot_metadata WHERE year = ? AND month = ?"
+        params: list = [year, month]
+        if min_max_signal is not None:
+            query += " AND max_count >= ?"
+            params.append(min_max_signal)
+        query += " ORDER BY day DESC"
 
-            return [rsudp.types.DateInfo(year=row[0], month=row[1], day=row[2]) for row in cursor]
+        with sqlite3.connect(self.cache_path) as conn:
+            return [row[0] for row in conn.execute(query, params)]
 
-    def _get_event_ids_by_magnitude(
-        self,
-        quake_db_path: Path | None,
-        min_magnitude: float,
-    ) -> list[str]:
-        """指定マグニチュード以上の地震 event_id のリストを取得する."""
-        if not quake_db_path or not quake_db_path.exists():
-            return []
-        with sqlite3.connect(quake_db_path) as conn:
-            cursor = conn.execute(
-                "SELECT event_id FROM earthquakes WHERE magnitude >= ?",
-                (min_magnitude,),
-            )
-            return [row[0] for row in cursor.fetchall()]
+    @staticmethod
+    def _attach_quake_db(conn: sqlite3.Connection, quake_db_path: Path) -> None:
+        """quake.db を `quake` スキーマとして接続に attach する."""
+        conn.execute("ATTACH DATABASE ? AS quake", (str(quake_db_path),))
 
     def get_signal_statistics(
         self,
@@ -348,33 +355,35 @@ class ScreenshotManager:
             min_magnitude: 最小マグニチュードフィルタ（earthquake_only=True 時のみ有効）
 
         """
-        # 事前計算された earthquake_event_id を使って SQL で集計
         query = """
             SELECT
                 COUNT(*) as total,
-                MIN(max_count) as min_signal,
-                MAX(max_count) as max_signal,
-                AVG(max_count) as avg_signal,
-                COUNT(CASE WHEN max_count IS NOT NULL THEN 1 END) as with_signal
-            FROM screenshot_metadata
+                MIN(s.max_count) as min_signal,
+                MAX(s.max_count) as max_signal,
+                AVG(s.max_count) as avg_signal,
+                COUNT(CASE WHEN s.max_count IS NOT NULL THEN 1 END) as with_signal
+            FROM screenshot_metadata s
         """
         params: list = []
+        needs_quake_attach = False
+
         if earthquake_only:
             if min_magnitude is not None:
-                event_ids = self._get_event_ids_by_magnitude(quake_db_path, min_magnitude)
-                if not event_ids:
-                    # 条件を満たす地震がない場合は空の統計を返す
+                if quake_db_path is None or not quake_db_path.exists():
                     return rsudp.types.SignalStatistics(total=0)
-                placeholders = ",".join("?" * len(event_ids))
-                query += f" WHERE earthquake_event_id IN ({placeholders})"
-                params.extend(event_ids)
+                query += (
+                    " JOIN quake.earthquakes q ON s.earthquake_event_id = q.event_id WHERE q.magnitude >= ?"
+                )
+                params.append(min_magnitude)
+                needs_quake_attach = True
             else:
-                query += " WHERE earthquake_event_id IS NOT NULL"
+                query += " WHERE s.earthquake_event_id IS NOT NULL"
 
         with sqlite3.connect(self.cache_path) as conn:
-            cursor = conn.execute(query, params)
-
-            row = cursor.fetchone()
+            if needs_quake_attach:
+                assert quake_db_path is not None  # noqa: S101 - type narrowing
+                self._attach_quake_db(conn, quake_db_path)
+            row = conn.execute(query, params).fetchone()
             return rsudp.types.SignalStatistics(
                 total=row[0],
                 min_signal=row[1],
@@ -598,53 +607,48 @@ class ScreenshotManager:
             地震情報が付加されたスクリーンショットのリスト
 
         """
-        # 地震データを EarthquakeData のマップとして取得
-        earthquake_map: dict[str, rsudp.types.EarthquakeData] = {}
-        if quake_db_path.exists():
-            with sqlite3.connect(quake_db_path) as quake_conn:
-                quake_conn.row_factory = sqlite3.Row
-                quake_cursor = quake_conn.execute("SELECT * FROM earthquakes")
-                for row in quake_cursor:
-                    eq = rsudp.types.EarthquakeData(**dict(row))
-                    earthquake_map[eq.event_id] = eq
+        if not quake_db_path.exists():
+            return []
 
-        # マグニチュードフィルタが指定されている場合は対象 event_id を絞り込む
-        target_event_ids: list[str] | None = None
+        query = """
+            SELECT s.filename, s.filepath, s.year, s.month, s.day, s.hour, s.minute, s.second,
+                   s.timestamp, s.sta_value, s.lta_value, s.sta_lta_ratio, s.max_count, s.metadata_raw,
+                   q.id, q.event_id, q.detected_at, q.latitude, q.longitude, q.magnitude,
+                   q.depth, q.epicenter_name, q.max_intensity, q.created_at, q.updated_at
+            FROM screenshot_metadata s
+            JOIN quake.earthquakes q ON s.earthquake_event_id = q.event_id
+        """
+        conditions: list[str] = []
+        params: list = []
+        if min_max_signal is not None:
+            conditions.append("s.max_count >= ?")
+            params.append(min_max_signal)
         if min_magnitude is not None:
-            target_event_ids = [eid for eid, eq in earthquake_map.items() if eq.magnitude >= min_magnitude]
-            if not target_event_ids:
-                return []
+            conditions.append("q.magnitude >= ?")
+            params.append(min_magnitude)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY s.timestamp DESC"
 
-        # キャッシュから地震関連スクリーンショットを取得
         with sqlite3.connect(self.cache_path) as conn:
-            query = """
-                SELECT filename, filepath, year, month, day, hour, minute, second,
-                       timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
-                       metadata_raw, earthquake_event_id
-                FROM screenshot_metadata
-            """
-            params: list = []
-
-            if target_event_ids is not None:
-                placeholders = ",".join("?" * len(target_event_ids))
-                query += f" WHERE earthquake_event_id IN ({placeholders})"
-                params.extend(target_event_ids)
-            else:
-                query += " WHERE earthquake_event_id IS NOT NULL"
-
-            if min_max_signal is not None:
-                query += " AND max_count >= ?"
-                params.append(min_max_signal)
-
-            query += " ORDER BY timestamp DESC"
-
+            self._attach_quake_db(conn, quake_db_path)
             cursor = conn.execute(query, params)
 
             screenshots = []
             for row in cursor:
-                event_id = row[14]
-                earthquake = earthquake_map.get(event_id)
-                # row[0:14] の14要素を渡す（earthquake_event_id は別途処理）
+                earthquake = rsudp.types.EarthquakeData(
+                    id=row[14],
+                    event_id=row[15],
+                    detected_at=row[16],
+                    latitude=row[17],
+                    longitude=row[18],
+                    magnitude=row[19],
+                    depth=row[20],
+                    epicenter_name=row[21],
+                    max_intensity=row[22],
+                    created_at=row[23],
+                    updated_at=row[24],
+                )
                 screenshots.append(rsudp.types.row_to_screenshot_dict(row[:14], earthquake))
 
             return screenshots

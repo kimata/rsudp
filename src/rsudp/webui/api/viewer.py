@@ -71,25 +71,14 @@ def _get_screenshot_manager() -> rsudp.screenshot_manager.ScreenshotManager:
     return _screenshot_manager
 
 
-def _resolve_config_path(path: Path) -> Path:
-    """設定から取得したパスを解決する（相対パスの場合はプロジェクトルートから解決）."""
-    if path.is_absolute():
-        return path
-    # srcディレクトリの親ディレクトリ（プロジェクトルート）を基準にする
-    project_root = Path.cwd().parent if Path.cwd().name == "src" else Path.cwd()
-    return project_root / path
-
-
 def _get_screenshots_path() -> Path:
     """Get the screenshots directory path from config."""
-    config = _get_config()
-    return _resolve_config_path(config.plot.screenshot.path)
+    return _get_config().plot.screenshot.path
 
 
-def _get_quake_db_path() -> Path | None:
+def _get_quake_db_path() -> Path:
     """Get the quake database path from config."""
-    config = _get_config()
-    return _resolve_config_path(config.data.quake)
+    return _get_config().data.quake
 
 
 def _format_screenshot_with_earthquake(s: dict, quake_db_path: Path | None = None) -> dict:
@@ -130,7 +119,7 @@ def list_screenshots(query: schemas.ScreenshotListQuery):
 
         quake_db_path = _get_quake_db_path()
 
-        if earthquake_only and quake_db_path and quake_db_path.exists():
+        if earthquake_only and quake_db_path.exists():
             # 事前計算された地震関連付けを使って高速にフィルタリング
             screenshots = manager.get_screenshots_with_earthquake_filter_fast(
                 quake_db_path=quake_db_path,
@@ -168,15 +157,7 @@ def list_years(query: schemas.MinMaxSignalQuery):
     - min_max_signal: Minimum maximum signal value to filter years
     """
     try:
-        manager = _get_screenshot_manager()
-        min_max_signal = query.min_max_signal
-
-        # Get available dates with maximum signal filter
-        dates = manager.get_available_dates(min_max_signal)
-
-        # Extract unique years
-        years = sorted({d.year for d in dates}, reverse=True)
-
+        years = _get_screenshot_manager().get_available_years(query.min_max_signal)
         return flask.jsonify({"years": years})
 
     except Exception as e:
@@ -194,15 +175,7 @@ def list_months(year: int, query: schemas.MinMaxSignalQuery):
     - min_max_signal: Minimum maximum signal value to filter months
     """
     try:
-        manager = _get_screenshot_manager()
-        min_max_signal = query.min_max_signal
-
-        # Get available dates with maximum signal filter
-        dates = manager.get_available_dates(min_max_signal)
-
-        # Extract months for the specified year
-        months = sorted({d.month for d in dates if d.year == year}, reverse=True)
-
+        months = _get_screenshot_manager().get_available_months(year, query.min_max_signal)
         return flask.jsonify({"months": months})
 
     except Exception as e:
@@ -220,15 +193,7 @@ def list_days(year: int, month: int, query: schemas.MinMaxSignalQuery):
     - min_max_signal: Minimum maximum signal value to filter days
     """
     try:
-        manager = _get_screenshot_manager()
-        min_max_signal = query.min_max_signal
-
-        # Get available dates with maximum signal filter
-        dates = manager.get_available_dates(min_max_signal)
-
-        # Extract days for the specified year and month
-        days = sorted({d.day for d in dates if d.year == year and d.month == month}, reverse=True)
-
+        days = _get_screenshot_manager().get_available_days(year, month, query.min_max_signal)
         return flask.jsonify({"days": days})
 
     except Exception as e:
@@ -433,8 +398,7 @@ def get_statistics(query: schemas.EarthquakeOnlyQuery):
             stats.absolute_total = stats.total
 
         # Add earthquake count
-        quake_db_path = _get_quake_db_path()
-        if quake_db_path and quake_db_path.exists():
+        if _get_quake_db_path().exists():
             quake_db = rsudp.quake.database.QuakeDatabase(_get_config())
             stats.earthquake_count = quake_db.count_earthquakes()
         else:
@@ -616,11 +580,7 @@ def _get_ogp_content_for_screenshot(
     date_str = jst.strftime("%-m/%-d %H:%M")
 
     # 地震情報を取得
-    earthquake = (
-        manager.get_earthquake_for_screenshot(screenshot["timestamp"], quake_db_path)
-        if quake_db_path
-        else None
-    )
+    earthquake = manager.get_earthquake_for_screenshot(screenshot["timestamp"], quake_db_path)
 
     if earthquake:
         eq_ts = datetime.datetime.fromisoformat(earthquake.detected_at)
@@ -712,12 +672,7 @@ def index_with_ogp(query: schemas.IndexQuery) -> flask.Response:
     """
     try:
         # 静的ファイルディレクトリから index.html を読み込む
-        config = _get_config()
-        static_dir_path = config.webapp.static_dir_path
-        if not static_dir_path.is_absolute():
-            static_dir_path = (config.base_dir / static_dir_path).resolve()
-
-        index_path = static_dir_path / "index.html"
+        index_path = _get_config().webapp.static_dir_path / "index.html"
         if not index_path.exists():
             return flask.Response("index.html not found", status=404)
 

@@ -248,11 +248,8 @@ def _create_app(config: rsudp.config.Config):
 
     import my_lib.webapp.config
 
-    # static_dir_path が相対パスの場合、base_dir（config.yaml の親ディレクトリ）から解決
-    static_dir_path = config.webapp.static_dir_path
-    if not static_dir_path.is_absolute():
-        static_dir_path = (config.base_dir / static_dir_path).resolve()
-    webapp_config = my_lib.webapp.config.WebappConfig(static_dir_path=static_dir_path)
+    # Config.__post_init__ で絶対パスであることが保証されている
+    webapp_config = my_lib.webapp.config.WebappConfig(static_dir_path=config.webapp.static_dir_path)
     environment = my_lib.webapp.config.build_environment(webapp_config, url_prefix=_URL_PREFIX)
 
     import my_lib.webapp.base

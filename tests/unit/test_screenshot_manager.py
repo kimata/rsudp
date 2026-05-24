@@ -400,38 +400,53 @@ class TestGetScreenshotsWithEarthquakeFilterFast:
 
 
 class TestGetAvailableDates:
-    """get_available_dates のテスト."""
+    """get_available_years / months / days のテスト."""
 
-    def test_get_available_dates(self, screenshot_config):
-        """利用可能な日付を取得"""
+    def test_get_available_years(self, screenshot_config):
+        """利用可能な年を取得"""
         manager = ScreenshotManager(screenshot_config)
 
-        # キャッシュにデータを追加
         with sqlite3.connect(manager.cache_path) as conn:
             insert_screenshot_metadata(conn)
 
-        result = manager.get_available_dates()
+        assert manager.get_available_years() == [2025]
 
-        assert len(result) == 1
-        assert result[0].year == 2025
-        assert result[0].month == 12
-        assert result[0].day == 12
+    def test_get_available_months(self, screenshot_config):
+        """指定年の月を取得"""
+        manager = ScreenshotManager(screenshot_config)
 
-    def test_get_available_dates_with_filter(self, screenshot_config):
+        with sqlite3.connect(manager.cache_path) as conn:
+            insert_screenshot_metadata(conn)
+
+        assert manager.get_available_months(2025) == [12]
+        assert manager.get_available_months(2024) == []
+
+    def test_get_available_days(self, screenshot_config):
+        """指定年月の日を取得"""
+        manager = ScreenshotManager(screenshot_config)
+
+        with sqlite3.connect(manager.cache_path) as conn:
+            insert_screenshot_metadata(conn)
+
+        assert manager.get_available_days(2025, 12) == [12]
+        assert manager.get_available_days(2025, 11) == []
+
+    def test_get_available_with_filter(self, screenshot_config):
         """最小信号値でフィルタリング"""
         manager = ScreenshotManager(screenshot_config)
 
-        # キャッシュにデータを追加（max_count=500.0 で閾値テスト用）
         with sqlite3.connect(manager.cache_path) as conn:
             insert_screenshot_metadata(conn, max_count=500.0)
 
-        # 高い閾値でフィルタ
-        result = manager.get_available_dates(min_max_signal=1000.0)
-        assert len(result) == 0
+        # 高い閾値: 全て除外
+        assert manager.get_available_years(min_max_signal=1000.0) == []
+        assert manager.get_available_months(2025, min_max_signal=1000.0) == []
+        assert manager.get_available_days(2025, 12, min_max_signal=1000.0) == []
 
-        # 低い閾値でフィルタ
-        result = manager.get_available_dates(min_max_signal=100.0)
-        assert len(result) == 1
+        # 低い閾値: 通過
+        assert manager.get_available_years(min_max_signal=100.0) == [2025]
+        assert manager.get_available_months(2025, min_max_signal=100.0) == [12]
+        assert manager.get_available_days(2025, 12, min_max_signal=100.0) == [12]
 
 
 class TestGetLatestCachedDate:
