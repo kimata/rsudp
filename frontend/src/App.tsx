@@ -187,19 +187,24 @@ const App: React.FC = () => {
         return filtered;
     }, [signalFilteredScreenshots, selectedYear, selectedMonth, selectedDay]);
 
+    // 統計情報とスクリーンショット一覧を並列取得する共通ヘルパー
+    const fetchScreenshotData = useCallback(async () => {
+        // min_magnitude は 0 の場合 undefined を渡す（フィルタ無し）
+        const effectiveMagnitude = minMagnitude > 0 ? minMagnitude : undefined;
+        const [stats, screenshotsData] = await Promise.all([
+            screenshotApi.getStatistics(earthquakeOnly, effectiveMagnitude),
+            screenshotApi.getAllScreenshots(undefined, earthquakeOnly, effectiveMagnitude),
+        ]);
+        return { stats, screenshotsData };
+    }, [earthquakeOnly, minMagnitude]);
+
     // データ読み込み関数（useCallbackでメモ化）
     const loadInitialData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             console.log("Loading initial data from API...");
-            // min_magnitude は 0 の場合 undefined を渡す（フィルタ無し）
-            const effectiveMagnitude = minMagnitude > 0 ? minMagnitude : undefined;
-            // Load statistics and screenshots in parallel
-            const [stats, screenshotsData] = await Promise.all([
-                screenshotApi.getStatistics(earthquakeOnly, effectiveMagnitude),
-                screenshotApi.getAllScreenshots(undefined, earthquakeOnly, effectiveMagnitude),
-            ]);
+            const { stats, screenshotsData } = await fetchScreenshotData();
 
             setStatistics(stats);
             setAllScreenshots(screenshotsData);
@@ -312,7 +317,7 @@ const App: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [earthquakeOnly, minMagnitude]);
+    }, [fetchScreenshotData, earthquakeOnly, minMagnitude]);
 
     // 地震フィルタ変更時に呼ばれる（振幅フィルタ変更時はAPIを呼ばない）
     const loadDataWithFilter = useCallback(async () => {
@@ -320,13 +325,7 @@ const App: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            // min_magnitude は 0 の場合 undefined を渡す（フィルタ無し）
-            const effectiveMagnitude = minMagnitude > 0 ? minMagnitude : undefined;
-            // Load statistics and screenshots in parallel
-            const [stats, screenshotsData] = await Promise.all([
-                screenshotApi.getStatistics(earthquakeOnly, effectiveMagnitude),
-                screenshotApi.getAllScreenshots(undefined, earthquakeOnly, effectiveMagnitude),
-            ]);
+            const { stats, screenshotsData } = await fetchScreenshotData();
 
             setStatistics(stats);
             setAllScreenshots(screenshotsData);
@@ -351,7 +350,7 @@ const App: React.FC = () => {
             setLoading(false);
             setIsFiltering(false);
         }
-    }, [earthquakeOnly, minMagnitude]);
+    }, [fetchScreenshotData]);
 
     // Load data on mount
     useEffect(() => {
