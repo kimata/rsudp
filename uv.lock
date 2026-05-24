@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.11"
 
 [options]
-exclude-newer = "2026-05-17T11:47:23.984630588Z"
+exclude-newer = "2026-05-17T22:58:25.202362777Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -1213,7 +1213,7 @@ wheels = [
 [[package]]
 name = "my-lib"
 version = "0.2.0"
-source = { git = "https://github.com/kimata/my-py-lib?rev=382621749920b8c09145ba739335616689bae96d#382621749920b8c09145ba739335616689bae96d" }
+source = { git = "https://github.com/kimata/my-py-lib?rev=1564ef8772b58a0b184254be4d3b1e9657ba5d60#1564ef8772b58a0b184254be4d3b1e9657ba5d60" }
 dependencies = [
     { name = "coloredlogs" },
     { name = "dacite" },
@@ -2256,7 +2256,7 @@ requires-dist = [
     { name = "flask", specifier = ">=3.1.2" },
     { name = "flask-cors", specifier = ">=6.0.2" },
     { name = "flask-pydantic", specifier = ">=0.12.0" },
-    { name = "my-lib", git = "https://github.com/kimata/my-py-lib?rev=382621749920b8c09145ba739335616689bae96d" },
+    { name = "my-lib", git = "https://github.com/kimata/my-py-lib?rev=1564ef8772b58a0b184254be4d3b1e9657ba5d60" },
     { name = "pillow", specifier = ">=12.1.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic", specifier = ">=2.10.0" },

@@ -99,8 +99,10 @@ def main() -> None:
         # コンテナ起動後の猶予期間を過ぎている場合のみ通知
         uptime = my_lib.container_util.get_uptime()
         if uptime > _CONTAINER_STARTUP_GRACE_PERIOD:
-            if elapsed < 0:
+            if elapsed == -1:
                 _notify_error(config, "Liveness file does not exist.")
+            elif elapsed == -2:
+                _notify_error(config, "Liveness file is corrupted (empty or unparseable).")
             else:
                 _notify_error(config, f"Liveness file is stale. Last updated {elapsed:,.1f} seconds ago.")
         else:
