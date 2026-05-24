@@ -22,6 +22,11 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   const [preloadedImages, setPreloadedImages] = useState<Map<string, HTMLImageElement>>(new Map());
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // displayedImage は <img src> として実際にレンダリングされる画像。
+  // 矢印キー連打時にブラウザへの不要なリクエストを抑えるため、
+  // currentImage の変更を 100ms debounce してから反映する
+  // （プリロード済みの場合は debounce せず即座に反映）。
+  const [displayedImage, setDisplayedImage] = useState<Screenshot | null>(currentImage);
   const currentImageRef = useRef<HTMLImageElement>(null);
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
@@ -49,11 +54,40 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     });
   };
 
-  // 隣接する画像を事前読み込み（前後5枚）
+  // currentImage → displayedImage の即時反映:
+  // プリロード済み or currentImage=null の場合は debounce 不要。
+  // preloadedImages 更新時の即時反映もこちらで担う。
   useEffect(() => {
-    if (!currentImage || allImages.length === 0) return;
+    if (!currentImage) {
+      setDisplayedImage(null);
+      return;
+    }
+    if (preloadedImages.has(currentImage.filename)) {
+      setDisplayedImage(currentImage);
+    }
+  }, [currentImage, preloadedImages]);
 
-    const currentIndex = allImages.findIndex(img => img.filename === currentImage.filename);
+  // 未プリロード時の debounce 反映:
+  // 矢印キー連打中はタイマーがリセットされ、最後のキー入力から 100ms 経過後に
+  // <img src> が更新される。preloadedImages 更新ではタイマーをリセットしないよう
+  // 依存配列を currentImage のみにする。
+  useEffect(() => {
+    if (!currentImage) return;
+    if (preloadedImages.has(currentImage.filename)) return;
+    const timer = setTimeout(() => {
+      setDisplayedImage(currentImage);
+    }, 100);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- preloadedImages 更新で timer をリセットしない
+  }, [currentImage]);
+
+  // 隣接する画像を事前読み込み（前後5枚）
+  // displayedImage 起点にすることで、連打中は preload を発火させず、
+  // ナビゲーションが落ち着いたタイミングで先読みを開始する。
+  useEffect(() => {
+    if (!displayedImage || allImages.length === 0) return;
+
+    const currentIndex = allImages.findIndex(img => img.filename === displayedImage.filename);
     const imagesToPreload: string[] = [];
     const preloadRange = 5; // 前後5枚を先読み
 
@@ -116,7 +150,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- preloadedImagesを依存配列に含めると無限ループになる
-  }, [currentImage, allImages]);
+  }, [displayedImage, allImages]);
 
   const handleImageLoad = () => {
     setImageLoading(false);
@@ -130,11 +164,11 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
     setIsTransitioning(false);
   };
 
-  // 現在の画像が変更された時の処理
+  // 表示画像（debounce 後）が変更された時の処理
   useEffect(() => {
-    if (currentImage) {
+    if (displayedImage) {
       // 事前読み込み済みの場合は即座に表示
-      if (preloadedImages.has(currentImage.filename)) {
+      if (preloadedImages.has(displayedImage.filename)) {
         setImageLoading(false);
         setImageError(false);
         setIsTransitioning(false);
@@ -145,21 +179,21 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         setIsTransitioning(false);
       }
     } else {
-      // currentImageがnullの場合はローディング状態をリセット
+      // displayedImage が null の場合はローディング状態をリセット
       setImageLoading(false);
       setImageError(false);
       setIsTransitioning(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- preloadedImagesの変更では再実行不要
-  }, [currentImage]);
+  }, [displayedImage]);
 
   // 画像要素がマウントされた後、キャッシュ済みの画像の場合はすぐに表示
   useEffect(() => {
-    if (currentImageRef.current && currentImageRef.current.complete && currentImage) {
-      // 画像が既に読み込まれている（キャッシュされている）場合
+    if (currentImageRef.current && currentImageRef.current.complete && displayedImage) {
+      // 画像が既に読み込まれている（ブラウザキャッシュ含む）場合
       handleImageLoad();
     }
-  }, [currentImage]);
+  }, [displayedImage]);
 
   // タッチ操作のハンドラー
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -252,8 +286,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         tabIndex={0}
       >
         <img
-          src={screenshotApi.getImageUrl(currentImage.filename)}
-          alt={currentImage.filename.replace(/\.[^.]*$/, '')}
+          src={screenshotApi.getImageUrl((displayedImage ?? currentImage).filename)}
+          alt={(displayedImage ?? currentImage).filename.replace(/\.[^.]*$/, '')}
           className="max-w-[95%] max-h-[95vh] w-auto h-auto object-contain cursor-zoom-out"
           onClick={(e) => {
             e.stopPropagation();
@@ -438,8 +472,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         >
           <img
             ref={currentImageRef}
-            src={screenshotApi.getImageUrl(currentImage.filename)}
-            alt={currentImage.filename.replace(/\.[^.]*$/, '')}
+            src={screenshotApi.getImageUrl((displayedImage ?? currentImage).filename)}
+            alt={(displayedImage ?? currentImage).filename.replace(/\.[^.]*$/, '')}
             className="max-w-full h-auto block mx-auto object-contain"
             style={{ touchAction: 'manipulation' }}
             onLoad={handleImageLoad}
