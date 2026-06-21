@@ -12,6 +12,7 @@ import rsudp.schema_util
 from tests.helpers import insert_screenshot_metadata
 
 _HAS_CWEBP = shutil.which("cwebp") is not None
+_HAS_ZSTD = shutil.which("zstd") is not None
 
 
 def _make_miniseed(directory, name, size=4096):
@@ -40,6 +41,7 @@ def test_compress_result_saved():
 # --- compress_miniseed ---
 
 
+@pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
 def test_compress_miniseed_past_day(tmp_path):
     """前日以前の miniSEED が zstd 圧縮されること."""
     data_dir = tmp_path / "data"
@@ -105,6 +107,7 @@ def test_compress_miniseed_dry_run(tmp_path):
     assert not (data_dir / "AM.SHAKE.00.ENZ.D.2020.001.zst").exists()
 
 
+@pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
 def test_miniseed_roundtrip(tmp_path):
     """圧縮 → 展開で元のデータが復元できること（可逆性）."""
     data_dir = tmp_path / "data"
