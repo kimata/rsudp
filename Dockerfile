@@ -67,9 +67,12 @@ RUN rm -f rsudp/__init__.py
 # rsudp のデフォルト設定ファイルを生成する（この後 jq で編集するため）
 # 本来は rs-client の初回起動時に生成されるが、ビルドの再現性のため明示的に生成する
 # （以前はキャッシュ済みレイヤーに依存しており、キャッシュ無効化時にビルドが失敗していた）
+# rsudp は実行時に pkg_resources(setuptools) を必要とするため併せて導入する
+# （Python 3.12 環境では setuptools が同梱されず ModuleNotFoundError になるため）
 RUN bash -c 'for c in miniconda3 miniforge3 anaconda3 berryconda3; do \
       if [ -f "$HOME/$c/etc/profile.d/conda.sh" ]; then \
-        . "$HOME/$c/etc/profile.d/conda.sh" && conda activate rsudp && rs-client -d default && break; \
+        . "$HOME/$c/etc/profile.d/conda.sh" && conda activate rsudp \
+          && pip install --quiet "setuptools<81" && rs-client -d default && break; \
       fi; \
     done'
 
