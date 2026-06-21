@@ -1,14 +1,18 @@
-# ruff: noqa: S101
+# ruff: noqa: S101 S603 S607
 """compress モジュールのユニットテスト."""
 
 import datetime
 import shutil
 import sqlite3
+import subprocess
 
+import numpy as np
+import obspy
 import pytest
 
 import rsudp.compress
 import rsudp.schema_util
+import rsudp.types
 from tests.helpers import insert_screenshot_metadata
 
 _HAS_CWEBP = shutil.which("cwebp") is not None
@@ -179,3 +183,144 @@ def test_convert_screenshots(tmp_path):
         row = conn.execute("SELECT filename, filepath FROM screenshot_metadata").fetchone()
     assert row[0] == "SHAKE-2025-12-12-190500.webp"
     assert row[1].endswith(".webp")
+
+
+# --- extract_earthquake_miniseed ---
+
+
+def _make_miniseed_zst(data_dir, year, yday, *, channel="EHZ", center_hour=12, dur_seconds=3600, sr=1.0):
+    """ダミーの全日 miniSEED（zstd 圧縮）を作成し、(パス, 中心時刻UTC) を返す."""
+    day = obspy.UTCDateTime(year=year, julday=yday)
+    center = day + center_hour * 3600
+    start = center - dur_seconds / 2
+    npts = int(dur_seconds * sr)
+    tr = obspy.Trace(data=np.arange(npts, dtype=np.int32))
+    tr.stats.network = "AM"
+    tr.stats.station = "SHAKE"
+    tr.stats.location = "00"
+    tr.stats.channel = channel
+    tr.stats.sampling_rate = sr
+    tr.stats.starttime = start
+    name = f"AM.SHAKE.00.{channel}.D.{year}.{yday:03d}"
+    raw = data_dir / f"{name}.mseed"
+    tr.write(str(raw), format="MSEED")
+    zst = data_dir / f"{name}.zst"
+    subprocess.run(["zstd", "-q", "-o", str(zst), str(raw)], check=True, capture_output=True)
+    raw.unlink()
+    return zst, center
+
+
+def _insert_quake(quake_path, center_utc, magnitude):
+    """extract が読む quake.db に地震を1件挿入する（detected_at は JST）."""
+    jst = center_utc.datetime.replace(tzinfo=datetime.UTC).astimezone(rsudp.types.JST)
+    with sqlite3.connect(quake_path) as conn:
+        rsudp.schema_util.init_database(conn, "earthquakes")
+        conn.execute(
+            """INSERT INTO earthquakes
+            (event_id, detected_at, latitude, longitude, magnitude, depth,
+             epicenter_name, max_intensity, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "eq1",
+                jst.isoformat(),
+                35.0,
+                139.0,
+                magnitude,
+                10,
+                "テスト",
+                "3",
+                "2025-01-01T00:00:00+00:00",
+                "2025-01-01T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+
+
+def test_after_seconds_for_magnitude():
+    assert rsudp.compress._after_seconds_for_magnitude(4.0) == 600
+    assert rsudp.compress._after_seconds_for_magnitude(5.5) == 1200
+    assert rsudp.compress._after_seconds_for_magnitude(7.0) == 1800
+
+
+@pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
+def test_extract_basic(tmp_path):
+    """地震該当日の miniSEED から区間が抽出され .eq.zst になること."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    zst, center = _make_miniseed_zst(data_dir, 2025, 300)
+    quake_path = tmp_path / "quake.db"
+    _insert_quake(quake_path, center, 4.5)
+    orig = zst.stat().st_size
+
+    result = rsudp.compress.extract_earthquake_miniseed(data_dir, quake_path)
+
+    assert result.processed == 1
+    assert not zst.exists()
+    eq = data_dir / "AM.SHAKE.00.EHZ.D.2025.300.eq.zst"
+    assert eq.exists()
+    assert eq.stat().st_size < orig
+
+
+@pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
+def test_extract_deletes_non_matching(tmp_path):
+    """地震に該当しない日のファイルは削除されること."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    zst, _ = _make_miniseed_zst(data_dir, 2025, 300)
+    quake_path = tmp_path / "quake.db"
+    # 別の日（yday=100）に地震 → yday=300 のファイルは非該当
+    other = obspy.UTCDateTime(year=2025, julday=100) + 12 * 3600
+    _insert_quake(quake_path, other, 4.5)
+
+    result = rsudp.compress.extract_earthquake_miniseed(data_dir, quake_path)
+
+    assert result.deleted == 1
+    assert not zst.exists()
+
+
+@pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
+def test_extract_idempotent(tmp_path):
+    """抽出済み（.eq.zst）は再処理しないこと."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "AM.SHAKE.00.EHZ.D.2025.300.eq.zst").write_bytes(b"already extracted")
+    quake_path = tmp_path / "quake.db"
+    _insert_quake(quake_path, obspy.UTCDateTime(year=2025, julday=300) + 43200, 4.5)
+
+    result = rsudp.compress.extract_earthquake_miniseed(data_dir, quake_path)
+
+    assert result.processed == 0
+    assert result.deleted == 0
+
+
+@pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
+def test_extract_skips_recent(tmp_path):
+    """確定待ちマージン内（最近）のファイルは対象外であること."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    today = datetime.datetime.now(datetime.UTC)
+    zst, center = _make_miniseed_zst(data_dir, today.year, today.timetuple().tm_yday)
+    quake_path = tmp_path / "quake.db"
+    _insert_quake(quake_path, center, 4.5)
+
+    result = rsudp.compress.extract_earthquake_miniseed(data_dir, quake_path)
+
+    assert result.processed == 0
+    assert result.deleted == 0
+    assert zst.exists()
+
+
+@pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
+def test_extract_dry_run(tmp_path):
+    """dry-run ではファイルを変更しないこと."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    zst, center = _make_miniseed_zst(data_dir, 2025, 300)
+    quake_path = tmp_path / "quake.db"
+    _insert_quake(quake_path, center, 4.5)
+
+    result = rsudp.compress.extract_earthquake_miniseed(data_dir, quake_path, dry_run=True)
+
+    assert result.processed == 1
+    assert zst.exists()
+    assert not (data_dir / "AM.SHAKE.00.EHZ.D.2025.300.eq.zst").exists()

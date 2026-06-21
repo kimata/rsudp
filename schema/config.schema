@@ -35,6 +35,9 @@
                 },
                 "miniseed": {
                     "type": "string"
+                },
+                "miniseed_extract_quake": {
+                    "type": "boolean"
                 }
             },
             "required": [

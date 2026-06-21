@@ -33,6 +33,8 @@ class DataConfig:
     selenium: pathlib.Path
     # miniSEED 波形アーカイブのディレクトリ（圧縮対象。未設定時は None）
     miniseed: pathlib.Path | None = None
+    # 地震前後の区間のみを残す抽出（不可逆）を有効化するか
+    miniseed_extract_quake: bool = False
 
 
 @dataclass(frozen=True)
@@ -131,6 +133,7 @@ def load_from_dict(config_dict: dict[str, Any], base_dir: pathlib.Path) -> Confi
                 if config_dict["data"].get("miniseed")
                 else None
             ),
+            miniseed_extract_quake=bool(config_dict["data"].get("miniseed_extract_quake", False)),
         ),
         webapp=WebappConfig(
             static_dir_path=_resolve_path(config_dict["webapp"]["static_dir_path"], base_dir),

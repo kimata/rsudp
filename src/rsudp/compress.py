@@ -23,14 +23,38 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import tempfile
 from pathlib import Path
+
+import rsudp.types
 
 # miniSEED ファイル名フォーマット: NET.STA.LOC.CHAN.D.YYYY.DDD
 # 例: AM.SHAKE.00.ENZ.D.2026.010
 _MINISEED_PATTERN = re.compile(r"\.D\.(\d{4})\.(\d{3})$")
+# zstd 圧縮済み（地震区間抽出前）の miniSEED。抽出済み（.eq.zst）は対象外
+_MINISEED_ZST_PATTERN = re.compile(r"\.D\.(\d{4})\.(\d{3})\.zst$")
 
 ZSTD_LEVEL = 19
 WEBP_QUALITY = 95
+
+# 地震前の保存秒数（プレイベント）
+EARTHQUAKE_BEFORE_SECONDS = 60
+# 地震確定待ちのマージン日数（quake.db のクロール完了を待ってから抽出する）
+EARTHQUAKE_MARGIN_DAYS = 2
+
+
+def _after_seconds_for_magnitude(magnitude: float) -> int:
+    """
+    マグニチュードに応じた地震後の保存秒数を返す.
+
+    地震波の継続時間は規模の対数に比例するため、規模が大きいほど後続波・表面波を
+    長く保存する。
+    """
+    if magnitude < 5.0:
+        return 10 * 60
+    if magnitude < 6.5:
+        return 20 * 60
+    return 30 * 60
 
 
 @dataclasses.dataclass
@@ -39,6 +63,7 @@ class CompressResult:
 
     processed: int = 0
     skipped: int = 0
+    deleted: int = 0
     bytes_before: int = 0
     bytes_after: int = 0
 
@@ -251,5 +276,145 @@ def convert_screenshots(
 
         if not dry_run:
             conn.commit()
+
+    return result
+
+
+def extract_earthquake_miniseed(
+    data_dir: Path,
+    quake_db_path: Path,
+    *,
+    before_seconds: int = EARTHQUAKE_BEFORE_SECONDS,
+    margin_days: int = EARTHQUAKE_MARGIN_DAYS,
+    dry_run: bool = False,
+) -> CompressResult:
+    """
+    地震前後の区間のみを残して miniSEED を間引く.
+
+    zstd 圧縮済みの全日 miniSEED（.zst）から、quake.db の各地震の前後区間
+    （前: before_seconds、後: マグニチュード依存）だけを切り出して .eq.zst として
+    保存し、元の全日ファイルを削除する。地震に該当しない日/チャンネルのファイルは
+    削除する。地震は後からクロールで追加されるため、margin_days より新しいファイルは
+    対象外とする（確定待ち）。抽出済み（.eq.zst）は再処理しない（冪等）。
+
+    Args:
+        data_dir: miniSEED アーカイブのディレクトリ
+        quake_db_path: 地震データベースのパス
+        before_seconds: 地震前の保存秒数
+        margin_days: 地震確定待ちのマージン日数
+        dry_run: True の場合、実際には変更しない
+
+    Returns:
+        処理結果（processed=抽出, deleted=削除）
+
+    """
+    import obspy
+
+    result = CompressResult()
+
+    if not data_dir.exists():
+        logging.warning("miniSEED ディレクトリが存在しません: %s", data_dir)
+        return result
+    if not quake_db_path.exists():
+        logging.warning("地震 DB が存在しません: %s", quake_db_path)
+        return result
+    if not dry_run and not _check_binary("zstd"):
+        return result
+
+    # 地震区間（UTC）を構築
+    intervals: list[tuple[obspy.UTCDateTime, obspy.UTCDateTime]] = []
+    with sqlite3.connect(quake_db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        for row in conn.execute("SELECT detected_at, magnitude FROM earthquakes"):
+            after = _after_seconds_for_magnitude(row["magnitude"])
+            start_dt, end_dt = rsudp.types.calculate_earthquake_time_range(
+                row["detected_at"], before_seconds, after
+            )
+            intervals.append((obspy.UTCDateTime(start_dt), obspy.UTCDateTime(end_dt)))
+
+    if not intervals:
+        logging.warning("地震データが無いため抽出をスキップします")
+        return result
+
+    cutoff = datetime.datetime.now(datetime.UTC).date() - datetime.timedelta(days=margin_days)
+
+    for path in sorted(data_dir.iterdir()):
+        if not path.is_file():
+            continue
+        match = _MINISEED_ZST_PATTERN.search(path.name)
+        if not match:
+            continue  # 生ファイル・抽出済み（.eq.zst）は対象外
+
+        year, yday = int(match.group(1)), int(match.group(2))
+        file_date = datetime.date(year, 1, 1) + datetime.timedelta(days=yday - 1)
+        if file_date > cutoff:
+            continue  # 地震確定待ち（マージン内）
+
+        # このファイル（UTC 日）に重なる地震区間を収集
+        day_start = obspy.UTCDateTime(year=year, julday=yday)
+        day_end = day_start + 86400
+        hits = [(qs, qe) for qs, qe in intervals if qe >= day_start and qs < day_end]
+
+        before = path.stat().st_size
+
+        if not hits:
+            # 地震に該当しない日/チャンネル → 削除
+            if dry_run:
+                logging.info("[dry-run] 削除対象（地震非該当）: %s", path.name)
+            else:
+                path.unlink()
+                logging.info("削除（地震非該当）: %s", path.name)
+            result.deleted += 1
+            result.bytes_before += before
+            continue
+
+        if dry_run:
+            logging.info("[dry-run] 地震区間抽出対象: %s (%d区間)", path.name, len(hits))
+            result.processed += 1
+            result.bytes_before += before
+            continue
+
+        eq_zst = path.parent / (path.stem + ".eq.zst")
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                raw = Path(td) / "raw.mseed"
+                subprocess.run(
+                    ["zstd", "-d", "-q", "-o", str(raw), str(path)],
+                    check=True,
+                    capture_output=True,
+                )
+                stream = obspy.read(str(raw))
+                out = obspy.Stream()
+                for qs, qe in hits:
+                    out += stream.slice(qs, qe)
+
+                if len(out) == 0 or sum(len(tr.data) for tr in out) == 0:
+                    # 地震区間にデータが無い（範囲外）→ 削除
+                    path.unlink()
+                    logging.info("削除（地震区間にデータ無し）: %s", path.name)
+                    result.deleted += 1
+                    result.bytes_before += before
+                    continue
+
+                out_mseed = Path(td) / "out.mseed"
+                out.write(str(out_mseed), format="MSEED")
+                subprocess.run(
+                    ["zstd", f"-{ZSTD_LEVEL}", "-T0", "-q", "-o", str(eq_zst), str(out_mseed)],
+                    check=True,
+                    capture_output=True,
+                )
+        except Exception:
+            logging.warning("地震区間抽出失敗: %s", path, exc_info=True)
+            if eq_zst.exists():
+                eq_zst.unlink()
+            result.skipped += 1
+            continue
+
+        after_size = eq_zst.stat().st_size
+        path.unlink()
+        logging.info("地震区間抽出: %s -> %s (%d -> %d bytes)", path.name, eq_zst.name, before, after_size)
+        result.processed += 1
+        result.bytes_before += before
+        result.bytes_after += after_size
 
     return result

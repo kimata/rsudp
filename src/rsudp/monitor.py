@@ -197,6 +197,20 @@ class BackgroundMonitor:
                         "miniSEED 圧縮: %d件, 削減 %.1f MB", result.processed, result.saved / 1024 / 1024
                     )
 
+                # 確定済みの古い miniSEED から地震前後の区間のみを抽出（不可逆）
+                # 設定で明示的に有効化されている場合のみ実行する
+                if self.config.data.miniseed_extract_quake:
+                    result = rsudp.compress.extract_earthquake_miniseed(
+                        self.config.data.miniseed, self.config.data.quake
+                    )
+                    if result.processed > 0 or result.deleted > 0:
+                        logging.info(
+                            "地震区間抽出: 抽出 %d件, 削除 %d件, 削減 %.1f MB",
+                            result.processed,
+                            result.deleted,
+                            result.saved / 1024 / 1024,
+                        )
+
             result = rsudp.compress.convert_screenshots(
                 self.config.plot.screenshot.path, self.config.data.cache
             )
