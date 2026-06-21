@@ -64,6 +64,15 @@ RUN cd rsudp && \
 # /opt/rsudp/__init__.py を削除（カレントディレクトリがパッケージとして認識されるのを防ぐ）
 RUN rm -f rsudp/__init__.py
 
+# rsudp のデフォルト設定ファイルを生成する（この後 jq で編集するため）
+# 本来は rs-client の初回起動時に生成されるが、ビルドの再現性のため明示的に生成する
+# （以前はキャッシュ済みレイヤーに依存しており、キャッシュ無効化時にビルドが失敗していた）
+RUN bash -c 'for c in miniconda3 miniforge3 anaconda3 berryconda3; do \
+      if [ -f "$HOME/$c/etc/profile.d/conda.sh" ]; then \
+        . "$HOME/$c/etc/profile.d/conda.sh" && conda activate rsudp && rs-client -d default && break; \
+      fi; \
+    done'
+
 RUN jq '.settings.station = "Shake" \
       | .settings.output_dir = "/opt/rsudp/data" \
       | .write.enabled = true \
