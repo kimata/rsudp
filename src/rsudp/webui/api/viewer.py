@@ -267,10 +267,13 @@ def get_image(filename: str):
         if file_path.stat().st_size == 0:
             return flask.jsonify({"error": "File is empty"}), 404
 
+        # 拡張子に応じて MIME タイプを決定（PNG / WebP）
+        mimetype = "image/webp" if file_path.suffix == ".webp" else "image/png"
+
         # Send file with optimal cache headers
         return flask.send_file(
             str(file_path),
-            mimetype="image/png",
+            mimetype=mimetype,
             as_attachment=False,
             download_name=None,
             # Disable Flask's built-in conditional requests since we're using ETag

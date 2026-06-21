@@ -37,11 +37,21 @@ class TestParseFilename:
         assert result.month == 8
         assert result.day == 14
 
+    def test_parse_webp_filename(self):
+        """WebP 拡張子のファイル名も正しくパースされることを確認."""
+        result = rsudp.types.parse_filename("SHAKE-2025-12-12-190542.webp")
+
+        assert result is not None
+        assert result.prefix == "SHAKE"
+        assert result.year == 2025
+        assert result.second == 42
+
     def test_parse_invalid_filename_returns_none(self):
         """無効なファイル名で None が返されることを確認."""
         assert rsudp.types.parse_filename("invalid.png") is None
         assert rsudp.types.parse_filename("no-date.png") is None
         assert rsudp.types.parse_filename("SHAKE-2025-12-12.png") is None
+        assert rsudp.types.parse_filename("SHAKE-2025-12-12-190542.jpg") is None
 
 
 class TestTimestampUTC:

@@ -18,6 +18,7 @@ import rsudp.config
 # スキャン間隔
 _SCREENSHOT_SCAN_INTERVAL = 60  # 1 分間隔でスクリーンショットをスキャン
 _QUAKE_CRAWL_INTERVAL = 3600  # 1 時間間隔で地震データを取得
+_COMPRESS_INTERVAL = 86400  # 1 日間隔でデータ圧縮（miniSEED zstd / スクリーンショット WebP）
 
 
 def _get_cache_state(db_path: pathlib.Path) -> str | None:
@@ -105,7 +106,9 @@ class BackgroundMonitor:
     def _monitor_loop(self) -> None:
         """定期実行ループ（スクリーンショット + 地震データ）."""
         quake_interval_count = _QUAKE_CRAWL_INTERVAL // _SCREENSHOT_SCAN_INTERVAL
+        compress_interval_count = _COMPRESS_INTERVAL // _SCREENSHOT_SCAN_INTERVAL
         loop_count = 0
+        compress_loop_count = 0
 
         logging.info(
             "バックグラウンド監視開始 (スクリーンショット: %d秒間隔, 地震: %d秒間隔)",
@@ -120,6 +123,7 @@ class BackgroundMonitor:
         # 定期実行ループ（増分スキャン）
         while not self._stop_event.wait(_SCREENSHOT_SCAN_INTERVAL):
             loop_count += 1
+            compress_loop_count += 1
 
             new_files = self._scan_incremental()
 
@@ -127,6 +131,10 @@ class BackgroundMonitor:
             if loop_count >= quake_interval_count:
                 loop_count = 0
                 quake_updated = self._crawl_earthquakes()
+
+            if compress_loop_count >= compress_interval_count:
+                compress_loop_count = 0
+                self._compress_data()
 
             if new_files > 0 or quake_updated:
                 logging.debug("Background monitor detected updates")
@@ -176,6 +184,30 @@ class BackgroundMonitor:
         except Exception:
             logging.exception("地震クローラーエラー")
             return False
+
+    def _compress_data(self) -> None:
+        """miniSEED と スクリーンショットを圧縮してディスク使用量を削減する."""
+        import rsudp.compress
+
+        try:
+            if self.config.data.miniseed is not None:
+                result = rsudp.compress.compress_miniseed(self.config.data.miniseed)
+                if result.processed > 0:
+                    logging.info(
+                        "miniSEED 圧縮: %d件, 削減 %.1f MB", result.processed, result.saved / 1024 / 1024
+                    )
+
+            result = rsudp.compress.convert_screenshots(
+                self.config.plot.screenshot.path, self.config.data.cache
+            )
+            if result.processed > 0:
+                logging.info(
+                    "スクリーンショット WebP 変換: %d件, 削減 %.1f MB",
+                    result.processed,
+                    result.saved / 1024 / 1024,
+                )
+        except Exception:
+            logging.exception("データ圧縮エラー")
 
     def _update_earthquake_associations(self) -> None:
         """スクリーンショットと地震の関連付けを更新する."""

@@ -45,7 +45,7 @@ class ParsedFilename:
     """
     スクリーンショットファイル名のパース結果.
 
-    ファイル名フォーマット: PREFIX-YYYY-MM-DD-HHMMSS.png
+    ファイル名フォーマット: PREFIX-YYYY-MM-DD-HHMMSS.{png,webp}
     タイムスタンプは UTC として解釈される。
     """
 
@@ -67,13 +67,13 @@ def parse_filename(filename: str) -> ParsedFilename | None:
     ファイル名のタイムスタンプは UTC として解釈される。
 
     Args:
-        filename: スクリーンショットのファイル名（例: SHAKE-2025-08-12-104039.png）
+        filename: スクリーンショットのファイル名（例: SHAKE-2025-08-12-104039.png / .webp）
 
     Returns:
         ParsedFilename または None（パース失敗時）
 
     """
-    pattern = r"^(.+?)-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})\.png$"
+    pattern = r"^(.+?)-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})\.(?:png|webp)$"
     match = re.match(pattern, filename)
 
     if not match:

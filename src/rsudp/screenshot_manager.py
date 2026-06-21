@@ -41,13 +41,20 @@ class ScreenshotManager:
         with sqlite3.connect(self.cache_path) as conn:
             rsudp.schema_util.init_database(conn, "screenshot_metadata")
 
+    @staticmethod
+    def _iter_images(directory: Path, *, recursive: bool = False):
+        """PNG/WebP のスクリーンショットファイルを列挙する."""
+        glob_fn = directory.rglob if recursive else directory.glob
+        yield from glob_fn("*.png")
+        yield from glob_fn("*.webp")
+
     def organize_files(self):
         """スクリーンショットファイルを日付ベースのサブディレクトリに整理する."""
         if not self.screenshot_path.exists():
             return
 
-        # ルートディレクトリ内のすべての PNG ファイルを取得
-        for file_path in self.screenshot_path.glob("*.png"):
+        # ルートディレクトリ内のすべての画像ファイルを取得
+        for file_path in self._iter_images(self.screenshot_path):
             if not file_path.is_file():
                 continue
 
@@ -182,8 +189,8 @@ class ScreenshotManager:
 
         new_count = 0
 
-        # すべての PNG ファイルを再帰的に取得
-        for file_path in self.screenshot_path.rglob("*.png"):
+        # すべての画像ファイルを再帰的に取得
+        for file_path in self._iter_images(self.screenshot_path, recursive=True):
             if not file_path.is_file():
                 continue
 
@@ -253,7 +260,7 @@ class ScreenshotManager:
                         continue
 
                     # この日付のディレクトリ内のファイルをスキャン
-                    for file_path in day_dir.glob("*.png"):
+                    for file_path in self._iter_images(day_dir):
                         if not file_path.is_file():
                             continue
 

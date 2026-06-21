@@ -31,6 +31,8 @@ class DataConfig:
     cache: pathlib.Path
     quake: pathlib.Path
     selenium: pathlib.Path
+    # miniSEED 波形アーカイブのディレクトリ（圧縮対象。未設定時は None）
+    miniseed: pathlib.Path | None = None
 
 
 @dataclass(frozen=True)
@@ -60,8 +62,11 @@ class Config:
             ("data.cache", self.data.cache),
             ("data.quake", self.data.quake),
             ("data.selenium", self.data.selenium),
+            ("data.miniseed", self.data.miniseed),
             ("webapp.static_dir_path", self.webapp.static_dir_path),
         ):
+            if path is None:
+                continue
             if not path.is_absolute():
                 msg = f"Config path must be absolute: {label}={path}"
                 raise ValueError(msg)
@@ -121,6 +126,11 @@ def load_from_dict(config_dict: dict[str, Any], base_dir: pathlib.Path) -> Confi
             cache=_resolve_path(config_dict["data"]["cache"], base_dir),
             quake=_resolve_path(config_dict["data"]["quake"], base_dir),
             selenium=_resolve_path(config_dict["data"]["selenium"], base_dir),
+            miniseed=(
+                _resolve_path(config_dict["data"]["miniseed"], base_dir)
+                if config_dict["data"].get("miniseed")
+                else None
+            ),
         ),
         webapp=WebappConfig(
             static_dir_path=_resolve_path(config_dict["webapp"]["static_dir_path"], base_dir),

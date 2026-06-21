@@ -25,6 +25,7 @@ dependencies = [
 rsudp-webui = "rsudp.cli.webui:main"
 rsudp-healthz = "rsudp.cli.healthz:main"
 rsudp-cleaner = "rsudp.cli.cleaner:main"
+rsudp-compress = "rsudp.cli.compress:main"
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]

@@ -22,7 +22,7 @@ RUN locale-gen ja_JP.UTF-8
 RUN --mount=type=cache,target=/var/lib/apt,sharing=locked \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install --no-install-recommends --assume-yes \
-    jq wget ffmpeg
+    jq wget ffmpeg zstd webp
 
 COPY font/FrutigerNeueLTW1G-Medium.otf /usr/share/fonts/
 RUN fc-cache -fv
