@@ -232,21 +232,41 @@ def list_by_date(year: int, month: int, day: int, query: schemas.MinMaxSignalQue
 
 
 def _get_image_file_path(filename: str):
-    """Get the actual file path for a given filename."""
+    """
+    Get the actual file path for a given filename.
+
+    ファイル名から日付ベースのサブディレクトリパスを直接構築することで、
+    全ディレクトリを再帰走査する rglob を回避する。
+    （rglob はファイル数に比例して遅くなり、コールドキャッシュ時は数秒かかる）
+    """
     screenshots_dir = _get_screenshots_path()
 
-    # First try direct path
+    # 直下を試す
     file_path = screenshots_dir / filename
+    if file_path.exists():
+        return str(file_path)
 
-    # If not found, try searching in date-based subdirectories
-    if not file_path.exists():
-        # Search recursively for the filename
-        for found_path in screenshots_dir.rglob(filename):
-            if found_path.is_file():
-                file_path = found_path
-                break
+    # ファイル名から日付を解析し、サブディレクトリパスを直接構築
+    parsed = rsudp.types.parse_filename(filename)
+    if parsed and parsed.year:
+        date_dir = screenshots_dir / f"{parsed.year:04d}" / f"{parsed.month:02d}" / f"{parsed.day:02d}"
+        # 同一波形が png / webp 双方で要求されうるため、拡張子違いも試す
+        candidates = [date_dir / filename]
+        stem = Path(filename).stem
+        for suffix in (".webp", ".png"):
+            candidate = date_dir / f"{stem}{suffix}"
+            if candidate not in candidates:
+                candidates.append(candidate)
+        for candidate in candidates:
+            if candidate.is_file():
+                return str(candidate)
 
-    return str(file_path) if file_path.exists() else None
+    # 解析できない/見つからない場合のみ、最終フォールバックとして再帰走査
+    for found_path in screenshots_dir.rglob(filename):
+        if found_path.is_file():
+            return str(found_path)
+
+    return None
 
 
 @viewer_api.route("/api/screenshot/image/<path:filename>", methods=["GET"])
