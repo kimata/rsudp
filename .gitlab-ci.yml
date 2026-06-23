@@ -34,7 +34,7 @@ build-react:
 
     needs: []
 
-    image: node:22.15@sha256:e558507eb799e3a76fcdaaee5e48dce1a00aebc85892128a9fca59f63bd49511
+    image: node:22.23@sha256:71e0deb14b3c594395538bb28c7f62edd9b1711680966ddc3cd647519de3c5bb
 
     before_script: []
 
