@@ -45,15 +45,30 @@ class WebappConfig:
 
 
 @dataclass(frozen=True)
+class StationConfig:
+    """観測局の位置設定（検出感度分析に使用する任意項目）"""
+
+    latitude: float
+    longitude: float
+
+
+# info 通知（地震検出・JMA 照合）を送るには info チャンネルを持つ設定型が必要
+SlackConfigType = (
+    my_lib.notify.slack.SlackErrorOnlyConfig
+    | my_lib.notify.slack.SlackErrorInfoConfig
+    | my_lib.notify.slack.SlackEmptyConfig
+)
+
+
+@dataclass(frozen=True)
 class Config:
     """アプリケーション全体の設定"""
 
     plot: PlotConfig
     data: DataConfig
     webapp: WebappConfig
-    slack: my_lib.notify.slack.SlackErrorOnlyConfig | my_lib.notify.slack.SlackEmptyConfig = field(
-        default_factory=my_lib.notify.slack.SlackEmptyConfig
-    )
+    slack: SlackConfigType = field(default_factory=my_lib.notify.slack.SlackEmptyConfig)
+    station: StationConfig | None = None
     base_dir: pathlib.Path = field(default_factory=pathlib.Path.cwd)
 
     def __post_init__(self) -> None:
@@ -74,30 +89,44 @@ class Config:
                 raise ValueError(msg)
 
 
-def _parse_slack_config(
-    slack_dict: dict[str, Any],
-) -> my_lib.notify.slack.SlackErrorOnlyConfig | my_lib.notify.slack.SlackEmptyConfig:
+def _parse_slack_config(slack_dict: dict[str, Any]) -> SlackConfigType:
     """
-    Slack 設定をパースして SlackErrorOnlyConfig または SlackEmptyConfig を返す.
+    Slack 設定をパースして許可された Config 型を返す.
+
+    info チャンネルがあれば SlackErrorInfoConfig を、error のみなら SlackErrorOnlyConfig を返す。
+    いずれも構築できない場合は SlackEmptyConfig を返す。
     """
     parsed = my_lib.notify.slack.SlackConfig.parse(slack_dict)
 
-    # SlackErrorOnlyConfig または SlackEmptyConfig のみを許可
-    if isinstance(parsed, my_lib.notify.slack.SlackErrorOnlyConfig | my_lib.notify.slack.SlackEmptyConfig):
+    # parse がそのまま許可型を返した場合はそれを使う
+    if isinstance(
+        parsed,
+        my_lib.notify.slack.SlackErrorInfoConfig
+        | my_lib.notify.slack.SlackErrorOnlyConfig
+        | my_lib.notify.slack.SlackEmptyConfig,
+    ):
         return parsed
 
-    # その他の設定タイプの場合、SlackErrorOnlyConfig に変換を試みる
+    # captcha を含む SlackConfig 等の場合、error(+info) を取り出して変換を試みる
     # NOTE: SafeAccess を使用して属性の存在確認と値取得を簡略化
     sa = my_lib.safe_access.safe(parsed)
     if sa.error and sa.bot_token and sa.from_name:
         bot_token = sa.bot_token.value()
         from_name = sa.from_name.value()
         error = sa.error.value()
+        info = sa.info.value() if sa.info else None
         if (
             isinstance(bot_token, str)
             and isinstance(from_name, str)
             and isinstance(error, my_lib.notify.slack.SlackErrorConfig)
         ):
+            if isinstance(info, my_lib.notify.slack.SlackInfoConfig):
+                return my_lib.notify.slack.SlackErrorInfoConfig(
+                    bot_token=bot_token,
+                    from_name=from_name,
+                    info=info,
+                    error=error,
+                )
             return my_lib.notify.slack.SlackErrorOnlyConfig(
                 bot_token=bot_token,
                 from_name=from_name,
@@ -106,6 +135,17 @@ def _parse_slack_config(
 
     # 変換できない場合は空設定を返す
     return my_lib.notify.slack.SlackEmptyConfig()
+
+
+def _parse_station_config(station_dict: dict[str, Any] | None) -> StationConfig | None:
+    """観測局の位置設定をパースする. 緯度・経度が揃っていない場合は None."""
+    if not station_dict:
+        return None
+    latitude = station_dict.get("latitude")
+    longitude = station_dict.get("longitude")
+    if latitude is None or longitude is None:
+        return None
+    return StationConfig(latitude=float(latitude), longitude=float(longitude))
 
 
 def _resolve_path(path_str: str, base_dir: pathlib.Path) -> pathlib.Path:
@@ -139,5 +179,6 @@ def load_from_dict(config_dict: dict[str, Any], base_dir: pathlib.Path) -> Confi
             static_dir_path=_resolve_path(config_dict["webapp"]["static_dir_path"], base_dir),
         ),
         slack=_parse_slack_config(config_dict.get("slack", {})),
+        station=_parse_station_config(config_dict.get("station")),
         base_dir=base_dir,
     )

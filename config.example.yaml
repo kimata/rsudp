@@ -9,3 +9,22 @@ data:
 
 webapp:
     static_dir_path: frontend/dist
+
+# 観測局の位置（任意）。設定すると統計タブで震央距離×検出強度の感度分析が有効になる。
+# station:
+#     latitude: 35.681
+#     longitude: 139.767
+
+# Slack 通知（任意）。info チャンネルに地震検出・JMA 照合を通知する。
+# slack:
+#     from: rsudp
+#     bot_token: xoxb-xxxxxxxx
+#     info:
+#         channel:
+#             name: rsudp-quake
+#             id: C0XXXXXXX
+#     error:
+#         channel:
+#             name: rsudp-error
+#             id: C0YYYYYYY
+#         interval_min: 10

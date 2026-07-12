@@ -66,6 +66,28 @@
                 "bot_token": {
                     "type": "string"
                 },
+                "info": {
+                    "type": "object",
+                    "properties": {
+                        "channel": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "id": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "channel"
+                    ]
+                },
                 "error": {
                     "type": "object",
                     "properties": {
@@ -98,6 +120,21 @@
                 "from",
                 "bot_token",
                 "error"
+            ]
+        },
+        "station": {
+            "type": "object",
+            "properties": {
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "latitude",
+                "longitude"
             ]
         }
     },

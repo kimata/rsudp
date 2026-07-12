@@ -6,14 +6,22 @@ cli/webui.py から起動される BackgroundMonitor をまとめる。
 
 from __future__ import annotations
 
+import datetime
 import logging
 import pathlib
 import sqlite3
 import threading
+import typing
 
+import my_lib.notify.slack
 import my_lib.webapp.event
+import PIL.Image
 
 import rsudp.config
+import rsudp.types
+
+if typing.TYPE_CHECKING:
+    import rsudp.screenshot_manager
 
 # スキャン間隔
 _SCREENSHOT_SCAN_INTERVAL = 60  # 1 分間隔でスクリーンショットをスキャン
@@ -35,12 +43,18 @@ def _get_cache_state(db_path: pathlib.Path) -> str | None:
 
 def _get_quake_state(db_path: pathlib.Path) -> str | None:
     """地震 DB の状態を取得する."""
+    # ファイルが存在しない場合は接続しない。
+    # sqlite3.connect() は存在しないパスに空ファイルを作成してしまい、
+    # earthquakes テーブルの無い空 DB が viewer 側の JOIN で "no such table" を招くため。
+    if not db_path.exists():
+        return None
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.execute("SELECT MAX(updated_at) FROM earthquakes")
             row = cursor.fetchone()
             return row[0] if row else None
     except sqlite3.Error:
+        # テーブル未作成（OperationalError: no such table）等も含めて None を返す。
         logging.exception("Failed to get quake db state")
         return None
 
@@ -166,6 +180,7 @@ class BackgroundMonitor:
             new_count = manager.scan_incremental()
             if new_count > 0:
                 logging.info("スクリーンショット監視（増分スキャン）: %d件の新規ファイルを検出", new_count)
+                self._notify_detection(manager)
             return new_count
         except Exception:
             logging.exception("スクリーンショットスキャンエラー")
@@ -180,6 +195,7 @@ class BackgroundMonitor:
             new_earthquakes = rsudp.quake.crawl.crawl_earthquakes(self.config, min_intensity=2)
             self._log_crawl_results(new_earthquakes)
             self._update_earthquake_associations()
+            self._notify_matched_earthquakes(new_earthquakes)
             return len(new_earthquakes) > 0
         except Exception:
             logging.exception("地震クローラーエラー")
@@ -233,6 +249,101 @@ class BackgroundMonitor:
             logging.info("地震関連付け更新完了: %d 件", updated)
         except Exception:
             logging.exception("地震関連付け更新エラー")
+
+    # --- Slack 通知 ---
+
+    def _notify_info(
+        self,
+        title: str,
+        message: str,
+        image_path: pathlib.Path | None = None,
+    ) -> None:
+        """
+        info チャンネルへ通知する.
+
+        info チャンネルを持つ設定（SlackErrorInfoConfig）のときのみ実際に送信する。
+        SlackEmptyConfig は no-op、SlackErrorOnlyConfig は info 未設定のため通知しない。
+        通知失敗が監視処理を巻き込まないよう、広く例外を捕捉する。
+        """
+        slack = self.config.slack
+        if not isinstance(
+            slack,
+            my_lib.notify.slack.SlackErrorInfoConfig | my_lib.notify.slack.SlackEmptyConfig,
+        ):
+            return
+
+        try:
+            ch_id = (
+                slack.info.channel.id if isinstance(slack, my_lib.notify.slack.SlackErrorInfoConfig) else None
+            )
+            if image_path is not None and ch_id is not None and image_path.exists():
+                with PIL.Image.open(image_path) as img:
+                    my_lib.notify.slack.upload_image(slack, ch_id, title, img, message)
+            else:
+                my_lib.notify.slack.info(slack, title, message)
+        except Exception:
+            # Slack 通知の失敗でスキャン・クロール処理を止めない
+            logging.exception("Slack 通知に失敗しました")
+
+    def _screenshot_image_path(self, meta: rsudp.types.ScreenshotMetadata) -> pathlib.Path:
+        """スクリーンショットメタデータから画像ファイルの絶対パスを解決する."""
+        return self.config.plot.screenshot.path / meta.filepath
+
+    @staticmethod
+    def _to_jst_str(timestamp: str) -> str:
+        """ISO 形式のタイムスタンプ（UTC）を JST の表示文字列に変換する."""
+        return (
+            datetime.datetime.fromisoformat(timestamp)
+            .astimezone(rsudp.types.JST)
+            .strftime("%Y-%m-%d %H:%M:%S JST")
+        )
+
+    def _notify_detection(self, manager: rsudp.screenshot_manager.ScreenshotManager) -> None:
+        """増分スキャンの新規スクリーンショットのうち代表 1 枚を地震検出候補として通知する."""
+        meta = manager.get_representative_new_screenshot()
+        if meta is None:
+            return
+
+        parts: list[str] = []
+        if meta.max_count is not None:
+            parts.append(f"MaxCount={meta.max_count:.0f}")
+        if meta.sta_lta_ratio is not None:
+            parts.append(f"STA/LTA={meta.sta_lta_ratio:.2f}")
+        detail = " ".join(parts)
+        message = f"地震かも？ {detail} {self._to_jst_str(meta.timestamp)}".strip()
+
+        self._notify_info("地震を検出したかもしれません", message, self._screenshot_image_path(meta))
+
+    def _notify_matched_earthquakes(self, new_earthquakes: list[dict]) -> None:
+        """新規地震のうち自局スクリーンショットと照合が取れたものを確定通知する."""
+        if not new_earthquakes:
+            return
+        # info チャンネルが無い設定では照合処理自体をスキップする
+        if not isinstance(
+            self.config.slack,
+            my_lib.notify.slack.SlackErrorInfoConfig | my_lib.notify.slack.SlackEmptyConfig,
+        ):
+            return
+
+        import rsudp.screenshot_manager
+
+        manager = rsudp.screenshot_manager.ScreenshotManager(self.config)
+        for eq in new_earthquakes:
+            event_id = eq.get("event_id")
+            if not event_id:
+                continue
+
+            meta = manager.get_representative_screenshot_for_earthquake(event_id)
+            if meta is None:
+                # 自局で検出していない遠地地震は通知しない
+                continue
+
+            message = (
+                f"M{eq['magnitude']:.1f} {eq['epicenter_name']} "
+                f"震度{eq['max_intensity']} 深さ{eq['depth']}km\n"
+                f"自局でも検出（{self._to_jst_str(meta.timestamp)}）"
+            )
+            self._notify_info("地震を検出しました", message, self._screenshot_image_path(meta))
 
     @staticmethod
     def _log_crawl_results(new_earthquakes: list[dict]) -> None:
