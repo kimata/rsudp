@@ -12,6 +12,7 @@ import logging
 import re
 import shutil
 import sqlite3
+import typing
 from pathlib import Path
 
 import PIL.Image
@@ -19,6 +20,68 @@ import PIL.Image
 import rsudp.config
 import rsudp.schema_util
 import rsudp.types
+
+_T = typing.TypeVar("_T")
+
+# 地震マッチング候補: (時間窓開始, 時間窓終了, 発生時刻, ペイロード)
+EarthquakeCandidate = tuple[datetime.datetime, datetime.datetime, datetime.datetime, _T]
+
+
+def _build_earthquake_candidates(
+    earthquakes: list[tuple[str, _T]],
+    before_seconds: int,
+    after_seconds: int,
+) -> list[EarthquakeCandidate[_T]]:
+    """
+    地震ごとのマッチング候補（時間窓と発生時刻）を構築する.
+
+    Args:
+        earthquakes: (detected_at 文字列, ペイロード) のリスト
+        before_seconds: 地震発生前の許容秒数
+        after_seconds: 地震発生後の許容秒数
+
+    Returns:
+        (開始時刻, 終了時刻, 発生時刻 datetime, ペイロード) のリスト
+
+    """
+    candidates: list[EarthquakeCandidate[_T]] = []
+    for detected_at_str, payload in earthquakes:
+        start_time, end_time = rsudp.types.calculate_earthquake_time_range(
+            detected_at_str, before_seconds, after_seconds
+        )
+        detected_at = datetime.datetime.fromisoformat(detected_at_str)
+        candidates.append((start_time, end_time, detected_at, payload))
+    return candidates
+
+
+def _find_closest_earthquake(
+    screenshot_ts: datetime.datetime,
+    candidates: list[EarthquakeCandidate[_T]],
+) -> _T | None:
+    """
+    時間窓内で detected_at がスクリーンショット時刻に最も近い地震のペイロードを返す.
+
+    余震などで複数の時間窓（-30〜+240秒）が重なる場合でも、常に発生時刻が
+    最も近い地震を一意に選ぶことで、関連付けの 3 経路で結果を統一する。
+
+    Args:
+        screenshot_ts: スクリーンショットのタイムスタンプ（タイムゾーン情報付き）
+        candidates: _build_earthquake_candidates() で構築したマッチング候補
+
+    Returns:
+        最も近い地震のペイロード、または該当なしの場合は None
+
+    """
+    best: _T | None = None
+    best_diff: float | None = None
+    for start_time, end_time, detected_at, payload in candidates:
+        if not (start_time <= screenshot_ts <= end_time):
+            continue
+        diff = abs((screenshot_ts - detected_at).total_seconds())
+        if best_diff is None or diff < best_diff:
+            best_diff = diff
+            best = payload
+    return best
 
 
 class ScreenshotManager:
@@ -29,6 +92,9 @@ class ScreenshotManager:
         self.config = config
         self.screenshot_path = config.plot.screenshot.path
         self.cache_path = config.data.cache
+
+        # 直近のスキャンで新規追加されたファイル名（地震検出通知の代表選出に使用）
+        self._last_scanned_files: list[str] = []
 
         # キャッシュディレクトリを作成
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -187,6 +253,7 @@ class ScreenshotManager:
         if not self.screenshot_path.exists():
             return 0
 
+        self._last_scanned_files = []
         new_count = 0
 
         # すべての画像ファイルを再帰的に取得
@@ -206,6 +273,7 @@ class ScreenshotManager:
                     continue
 
             self._cache_file_metadata(file_path)
+            self._last_scanned_files.append(file_path.name)
             new_count += 1
 
         return new_count
@@ -227,10 +295,12 @@ class ScreenshotManager:
         latest_date = self.get_latest_cached_date()
 
         # キャッシュが空の場合は完全スキャンにフォールバック
+        # （_last_scanned_files は scan_and_cache_all 側で更新される）
         if not latest_date:
             logging.info("増分スキャン: キャッシュが空のため完全スキャンを実行")
             return self.scan_and_cache_all()
 
+        self._last_scanned_files = []
         new_count = 0
 
         # 最新日付以降のディレクトリをスキャン
@@ -277,6 +347,7 @@ class ScreenshotManager:
                                 continue
 
                         self._cache_file_metadata(file_path)
+                        self._last_scanned_files.append(file_path.name)
                         new_count += 1
 
         if new_count > 0:
@@ -431,14 +502,11 @@ class ScreenshotManager:
         if not earthquakes:
             return []
 
-        # 地震ごとの時間範囲を作成（datetime オブジェクトとして保持）
+        # 地震ごとのマッチング候補を作成（時間窓が最も近い地震を一意に選ぶため）
         # detected_at は JST のタイムゾーン情報を含む ISO 形式文字列
-        time_conditions: list[tuple[datetime.datetime, datetime.datetime, rsudp.types.EarthquakeData]] = []
-        for eq in earthquakes:
-            start_time, end_time = rsudp.types.calculate_earthquake_time_range(
-                eq.detected_at, before_seconds, after_seconds
-            )
-            time_conditions.append((start_time, end_time, eq))
+        candidates = _build_earthquake_candidates(
+            [(eq.detected_at, eq) for eq in earthquakes], before_seconds, after_seconds
+        )
 
         # スクリーンショットを取得
         with sqlite3.connect(self.cache_path) as conn:
@@ -460,16 +528,10 @@ class ScreenshotManager:
             screenshots = []
             for row in cursor:
                 # スクリーンショットのタイムスタンプ（UTC、タイムゾーン情報付き）を解析
-                screenshot_ts_str = row[8]
-                screenshot_ts = datetime.datetime.fromisoformat(screenshot_ts_str)
+                screenshot_ts = datetime.datetime.fromisoformat(row[8])
 
-                # 地震の時間範囲と照合
-                # 両方ともタイムゾーン情報を持つ datetime なので正しく比較される
-                matched_earthquake: rsudp.types.EarthquakeData | None = None
-                for start_time, end_time, eq in time_conditions:
-                    if start_time <= screenshot_ts <= end_time:
-                        matched_earthquake = eq
-                        break
+                # 時間窓内で発生時刻が最も近い地震を選ぶ（3 経路で統一）
+                matched_earthquake = _find_closest_earthquake(screenshot_ts, candidates)
 
                 if matched_earthquake:
                     screenshots.append(rsudp.types.row_to_screenshot_dict(row, matched_earthquake))
@@ -508,23 +570,11 @@ class ScreenshotManager:
             cursor = quake_conn.execute("SELECT * FROM earthquakes")
             earthquakes = [rsudp.types.EarthquakeData(**dict(row)) for row in cursor.fetchall()]
 
-        # Python で時間範囲の比較を行う（タイムゾーン情報付き datetime で正しく比較）
-        best_match: rsudp.types.EarthquakeData | None = None
-        best_diff: float | None = None
-
-        for eq in earthquakes:
-            start_time, end_time = rsudp.types.calculate_earthquake_time_range(
-                eq.detected_at, before_seconds, after_seconds
-            )
-            if start_time <= screenshot_dt <= end_time:
-                # 時間差の絶対値を計算
-                detected_at = datetime.datetime.fromisoformat(eq.detected_at)
-                diff = abs((screenshot_dt - detected_at).total_seconds())
-                if best_diff is None or diff < best_diff:
-                    best_diff = diff
-                    best_match = eq
-
-        return best_match
+        # 時間窓内で発生時刻が最も近い地震を選ぶ（3 経路で統一）
+        candidates = _build_earthquake_candidates(
+            [(eq.detected_at, eq) for eq in earthquakes], before_seconds, after_seconds
+        )
+        return _find_closest_earthquake(screenshot_dt, candidates)
 
     def update_earthquake_associations(
         self,
@@ -559,13 +609,13 @@ class ScreenshotManager:
         if not earthquakes:
             return 0
 
-        # 地震ごとの時間範囲を作成
-        time_ranges = []
-        for event_id, detected_at_str in earthquakes:
-            start_time, end_time = rsudp.types.calculate_earthquake_time_range(
-                detected_at_str, before_seconds, after_seconds
-            )
-            time_ranges.append((event_id, start_time, end_time))
+        # 地震ごとのマッチング候補を作成（ペイロードは event_id）
+        # 他の 2 経路と同じく「時間窓内で発生時刻が最も近い地震」を選ぶ
+        candidates = _build_earthquake_candidates(
+            [(detected_at_str, event_id) for event_id, detected_at_str in earthquakes],
+            before_seconds,
+            after_seconds,
+        )
 
         updated_count = 0
         with sqlite3.connect(self.cache_path) as conn:
@@ -576,12 +626,8 @@ class ScreenshotManager:
             for filename, timestamp_str in rows:
                 screenshot_ts = datetime.datetime.fromisoformat(timestamp_str)
 
-                # マッチする地震を探す
-                matched_event_id = None
-                for event_id, start_time, end_time in time_ranges:
-                    if start_time <= screenshot_ts <= end_time:
-                        matched_event_id = event_id
-                        break
+                # 時間窓内で発生時刻が最も近い地震を選ぶ
+                matched_event_id = _find_closest_earthquake(screenshot_ts, candidates)
 
                 # 関連付けを更新
                 conn.execute(
@@ -659,3 +705,66 @@ class ScreenshotManager:
                 screenshots.append(rsudp.types.row_to_screenshot_dict(row[:14], earthquake))
 
             return screenshots
+
+    @staticmethod
+    def _row_to_metadata(row: tuple) -> rsudp.types.ScreenshotMetadata:
+        """14 要素の行タプルを ScreenshotMetadata に変換する."""
+        return rsudp.types.ScreenshotMetadata(
+            filename=row[0],
+            filepath=row[1],
+            year=row[2],
+            month=row[3],
+            day=row[4],
+            hour=row[5],
+            minute=row[6],
+            second=row[7],
+            timestamp=row[8],
+            sta=row[9],
+            lta=row[10],
+            sta_lta_ratio=row[11],
+            max_count=row[12],
+            metadata=row[13],
+        )
+
+    _METADATA_COLUMNS = (
+        "filename, filepath, year, month, day, hour, minute, second, "
+        "timestamp, sta_value, lta_value, sta_lta_ratio, max_count, metadata_raw"
+    )
+
+    def get_representative_new_screenshot(self) -> rsudp.types.ScreenshotMetadata | None:
+        """
+        直近のスキャンで追加されたファイルのうち max_count が最大の 1 枚を返す.
+
+        地震検出通知の代表スクリーンショットとして使用する。
+        直近のスキャンで新規追加が無かった場合は None を返す。
+        """
+        if not self._last_scanned_files:
+            return None
+
+        placeholders = ",".join("?" for _ in self._last_scanned_files)
+        query = (
+            f"SELECT {self._METADATA_COLUMNS} FROM screenshot_metadata "  # noqa: S608 - placeholders は "?" のみ
+            f"WHERE filename IN ({placeholders}) ORDER BY max_count DESC LIMIT 1"
+        )
+        with sqlite3.connect(self.cache_path) as conn:
+            row = conn.execute(query, self._last_scanned_files).fetchone()
+
+        return self._row_to_metadata(row) if row is not None else None
+
+    def get_representative_screenshot_for_earthquake(
+        self, event_id: str
+    ) -> rsudp.types.ScreenshotMetadata | None:
+        """
+        指定した地震に関連付けられたスクリーンショットのうち max_count が最大の 1 枚を返す.
+
+        事前計算済みの earthquake_event_id（update_earthquake_associations の結果）を参照する。
+        該当スクリーンショットが無い（自局で検出していない）場合は None を返す。
+        """
+        query = (
+            f"SELECT {self._METADATA_COLUMNS} FROM screenshot_metadata "  # noqa: S608 - 列名は定数
+            "WHERE earthquake_event_id = ? ORDER BY max_count DESC LIMIT 1"
+        )
+        with sqlite3.connect(self.cache_path) as conn:
+            row = conn.execute(query, (event_id,)).fetchone()
+
+        return self._row_to_metadata(row) if row is not None else None

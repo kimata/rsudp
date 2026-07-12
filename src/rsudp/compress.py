@@ -262,20 +262,35 @@ def convert_screenshots(
             new_filename = dst.name
             new_filepath = str(dst.relative_to(screenshot_dir))
 
-            # cache.db を WebP のメタデータへ更新（filename は PRIMARY KEY）
-            conn.execute(
-                "UPDATE screenshot_metadata SET filename = ?, filepath = ?, file_size = ? WHERE filename = ?",
-                (new_filename, new_filepath, after, row["filename"]),
-            )
+            # トランザクション境界を 1 ファイル単位にする。
+            # 「UPDATE → commit → unlink」の順を厳守し、commit してから PNG を削除する。
+            # commit 前に unlink すると、途中で異常終了した際に DB がロールバックされる一方
+            # PNG は戻らず、「DB に無いのに PNG も無い」不整合が生じる（STA/LTA も復元不能）。
+            try:
+                # cache.db を WebP のメタデータへ更新（filename は PRIMARY KEY）
+                conn.execute(
+                    "UPDATE screenshot_metadata "
+                    "SET filename = ?, filepath = ?, file_size = ? WHERE filename = ?",
+                    (new_filename, new_filepath, after, row["filename"]),
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                # 手動スキャンが先に .webp 行を登録済みで PRIMARY KEY が衝突した場合。
+                # .webp 行は既に正しく登録済みなので、旧 .png 行を削除して整合を回復する。
+                conn.rollback()
+                conn.execute(
+                    "DELETE FROM screenshot_metadata WHERE filename = ?",
+                    (row["filename"],),
+                )
+                conn.commit()
+
+            # commit 済みなのでここで PNG を削除しても不整合は生じない
             src.unlink()
 
             logging.info("WebP 変換: %s (%d -> %d bytes)", row["filename"], before, after)
             result.processed += 1
             result.bytes_before += before
             result.bytes_after += after
-
-        if not dry_run:
-            conn.commit()
 
     return result
 
@@ -336,6 +351,11 @@ def extract_earthquake_miniseed(
         logging.warning("地震データが無いため抽出をスキップします")
         return result
 
+    # quake.db に記録がある最古の地震時刻。これより前の期間は「地震情報が未整備」
+    # （クローラー停止・パース失敗・DB 再作成直後など）とみなし、削除・抽出せず残す。
+    # ガードが intervals 空のときだけだと、DB の穴に当たった日の波形まで消えてしまう。
+    earliest_start = min(qs for qs, _ in intervals)
+
     cutoff = datetime.datetime.now(datetime.UTC).date() - datetime.timedelta(days=margin_days)
 
     for path in sorted(data_dir.iterdir()):
@@ -353,6 +373,12 @@ def extract_earthquake_miniseed(
         # このファイル（UTC 日）に重なる地震区間を収集
         day_start = obspy.UTCDateTime(year=year, julday=yday)
         day_end = day_start + 86400
+
+        if day_end <= earliest_start:
+            # 最古の地震より前の日 = 地震情報が未整備の期間。安全側に倒してそのまま残す
+            logging.info("地震情報が未整備の期間のため保持: %s", path.name)
+            continue
+
         hits = [(qs, qe) for qs, qe in intervals if qe >= day_start and qs < day_end]
 
         before = path.stat().st_size

@@ -56,21 +56,25 @@ class TestInsertEarthquake:
         assert result is False
         assert db.count_earthquakes() == 1
 
-    def test_insert_updates_existing(self, quake_db_config, sample_earthquake_jst):
-        """既存の地震データが更新されることを確認."""
+    def test_insert_existing_is_preserved(self, quake_db_config, sample_earthquake_jst):
+        """既存 event_id は上書きされず、先に挿入した報が保持されることを確認."""
         db = QuakeDatabase(quake_db_config)
 
+        # 先に挿入した報（新報を想定）
         db.insert_earthquake(**sample_earthquake_jst)
 
-        # 同じ event_id で magnitude を変更
-        updated_data = sample_earthquake_jst.copy()
-        updated_data["magnitude"] = 5.0
+        # JMA list.json は同一 eid の古い報も含む。同じ event_id で magnitude を変更しても
+        # 上書きせず、先に挿入した値を保持する（ON CONFLICT DO NOTHING）。
+        older_report = sample_earthquake_jst.copy()
+        older_report["magnitude"] = 5.0
 
-        db.insert_earthquake(**updated_data)
+        result = db.insert_earthquake(**older_report)
 
+        assert result is False
         earthquakes = db.get_all_earthquakes()
         assert len(earthquakes) == 1
-        assert earthquakes[0].magnitude == 5.0
+        # 先に挿入した magnitude が保持される
+        assert earthquakes[0].magnitude == sample_earthquake_jst["magnitude"]
 
 
 class TestGetEarthquakeForTimestamp:

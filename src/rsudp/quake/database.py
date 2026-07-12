@@ -46,7 +46,13 @@ class QuakeDatabase:
         max_intensity: str | None = None,
     ) -> bool:
         """
-        地震データを挿入または更新する.
+        地震データを新規挿入する（既存 event_id は保持する）.
+
+        JMA の list.json は同一 event_id に対して複数の報を新しい順で含む。
+        無条件で UPDATE すると最終的に最も古い報の値が残ってしまうため、
+        既存レコードがある場合は上書きせず、そのまま保持する
+        （INSERT ... ON CONFLICT(event_id) DO NOTHING 相当）。
+        これにより check-then-insert の競合による IntegrityError も回避される。
 
         Args:
             event_id: 地震イベントの一意識別子
@@ -59,52 +65,19 @@ class QuakeDatabase:
             max_intensity: 最大震度（文字列）
 
         Returns:
-            新規レコードが挿入された場合は True、更新された場合は False
+            新規レコードが挿入された場合は True、既存レコードが保持された場合は False
 
         """
         now = datetime.datetime.now(tz=datetime.UTC).isoformat()
 
         with sqlite3.connect(self.db_path) as conn:
-            # レコードが存在するか確認
-            cursor = conn.execute("SELECT id FROM earthquakes WHERE event_id = ?", (event_id,))
-            existing = cursor.fetchone()
-
-            if existing:
-                # 既存レコードを更新
-                conn.execute(
-                    """
-                    UPDATE earthquakes SET
-                        detected_at = ?,
-                        latitude = ?,
-                        longitude = ?,
-                        magnitude = ?,
-                        depth = ?,
-                        epicenter_name = ?,
-                        max_intensity = ?,
-                        updated_at = ?
-                    WHERE event_id = ?
-                """,
-                    (
-                        detected_at.isoformat(),
-                        latitude,
-                        longitude,
-                        magnitude,
-                        depth,
-                        epicenter_name,
-                        max_intensity,
-                        now,
-                        event_id,
-                    ),
-                )
-                return False
-
-            # 新規レコードを挿入
-            conn.execute(
+            cursor = conn.execute(
                 """
                 INSERT INTO earthquakes
                 (event_id, detected_at, latitude, longitude, magnitude,
                  depth, epicenter_name, max_intensity, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(event_id) DO NOTHING
             """,
                 (
                     event_id,
@@ -119,7 +92,8 @@ class QuakeDatabase:
                     now,
                 ),
             )
-            return True
+            # ON CONFLICT DO NOTHING で無視された場合 rowcount は 0、挿入された場合は 1。
+            return cursor.rowcount > 0
 
     def get_earthquake_for_timestamp(
         self,

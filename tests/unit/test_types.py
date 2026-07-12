@@ -53,6 +53,29 @@ class TestParseFilename:
         assert rsudp.types.parse_filename("SHAKE-2025-12-12.png") is None
         assert rsudp.types.parse_filename("SHAKE-2025-12-12-190542.jpg") is None
 
+    def test_parse_invalid_datetime_returns_none(self):
+        """桁数は合うが日時として無効なファイル名で None が返ること.
+
+        正規表現は桁数しか検証しないため、これらは match は通過するが
+        datetime 構築で ValueError となる。捕捉して None を返す必要がある。
+        （捕捉漏れがあるとスキャンが恒久停止する）
+        """
+        # 月 13
+        assert rsudp.types.parse_filename("SHAKE-2025-13-01-120000.png") is None
+        # 時 25
+        assert rsudp.types.parse_filename("SHAKE-2025-12-12-256090.png") is None
+        # 分 60
+        assert rsudp.types.parse_filename("SHAKE-2025-12-12-126000.png") is None
+        # 秒 60
+        assert rsudp.types.parse_filename("SHAKE-2025-12-12-120060.png") is None
+        # 日 32
+        assert rsudp.types.parse_filename("SHAKE-2025-12-32-120000.png") is None
+        # 月 00 / 日 00
+        assert rsudp.types.parse_filename("SHAKE-2025-00-12-120000.png") is None
+        assert rsudp.types.parse_filename("SHAKE-2025-12-00-120000.png") is None
+        # webp でも同様
+        assert rsudp.types.parse_filename("SHAKE-2025-13-01-120000.webp") is None
+
 
 class TestTimestampUTC:
     """タイムスタンプの UTC 処理テスト."""

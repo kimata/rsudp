@@ -69,8 +69,11 @@ class TestParseIntensity:
         assert crawl._parse_intensity("6+") == 65
 
     def test_parse_intensity_7(self):
-        """震度 7 が正しくパースされることを確認."""
-        assert crawl._parse_intensity("7") == 7
+        """震度 7 が 70 にパースされ、震度の単調性が保たれることを確認."""
+        assert crawl._parse_intensity("7") == 70
+        # 震度7 は震度5弱(50)・6強(65)より大きい（単調性）
+        assert crawl._parse_intensity("7") > crawl._parse_intensity("6+")
+        assert crawl._parse_intensity("7") > crawl._parse_intensity("5-")
 
     def test_parse_intensity_unknown(self):
         """不明な震度で 0 が返されることを確認."""

@@ -11,6 +11,7 @@ Options:
 
 import datetime
 import logging
+import math
 import re
 
 import requests
@@ -64,7 +65,7 @@ def _parse_intensity(intensity_str: str) -> int:
     Parse JMA intensity string to numeric value.
 
     Returns:
-        Integer representation (1-7, where 5/6 weak/strong are 50/55/60/65)
+        Integer representation (震度7 は 70、5/6 弱・強 は 50/55/60/65 として単調性を保つ)
 
     """
     intensity_map = {
@@ -76,7 +77,7 @@ def _parse_intensity(intensity_str: str) -> int:
         "5+": 55,  # 震度5強
         "6-": 60,  # 震度6弱
         "6+": 65,  # 震度6強
-        "7": 7,
+        "7": 70,  # 震度7
     }
     return intensity_map.get(intensity_str, 0)
 
@@ -151,8 +152,14 @@ class QuakeCrawler:
 
             latitude, longitude, depth = _parse_coordinate(coord_str)
 
-            magnitude = earthquake_data.get("Magnitude", 0.0)
-            if magnitude is None:
+            raw_magnitude = earthquake_data.get("Magnitude", 0.0)
+            if raw_magnitude is None:
+                raw_magnitude = 0.0
+
+            # JMA が "NaN" 等を返すことがある。float("NaN") は成功するが SQLite が
+            # NaN を NULL として格納し magnitude REAL NOT NULL 制約に違反するため、0.0 に丸める。
+            magnitude = float(raw_magnitude)
+            if math.isnan(magnitude):
                 magnitude = 0.0
 
             epicenter_name = hypocenter.get("Name", "不明")
@@ -162,7 +169,7 @@ class QuakeCrawler:
                 detected_at=detected_at,
                 latitude=latitude,
                 longitude=longitude,
-                magnitude=float(magnitude),
+                magnitude=magnitude,
                 depth=depth,
                 epicenter_name=epicenter_name,
                 max_intensity=max_intensity_str,
@@ -170,9 +177,10 @@ class QuakeCrawler:
 
             if is_new:
                 return {
+                    "event_id": event_id,
                     "detected_at": detected_at,
                     "epicenter_name": epicenter_name,
-                    "magnitude": float(magnitude),
+                    "magnitude": magnitude,
                     "max_intensity": max_intensity_str,
                     "depth": depth,
                 }

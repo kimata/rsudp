@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import logging
 import re
 import zoneinfo
 
@@ -81,10 +82,17 @@ def parse_filename(filename: str) -> ParsedFilename | None:
 
     prefix, year, month, day, hour, minute, second = match.groups()
 
-    # ファイル名のタイムスタンプは UTC
-    timestamp_utc = datetime.datetime(
-        int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=datetime.UTC
-    )
+    # 正規表現は桁数しか検証しないため、月13・時25 等の無効な日時が通過し得る。
+    # datetime 構築時の ValueError をここで握り、パース失敗（None）として扱う。
+    # これを捕捉しないと呼び出し元のスキャンが恒久停止する。
+    try:
+        # ファイル名のタイムスタンプは UTC
+        timestamp_utc = datetime.datetime(
+            int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=datetime.UTC
+        )
+    except ValueError:
+        logging.warning("ファイル名の日時が不正なためスキップします: %s", filename)
+        return None
 
     return ParsedFilename(
         filename=filename,

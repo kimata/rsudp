@@ -185,6 +185,45 @@ def test_convert_screenshots(tmp_path):
     assert row[1].endswith(".webp")
 
 
+@pytest.mark.skipif(not _HAS_CWEBP, reason="cwebp が未インストール")
+def test_convert_screenshots_webp_row_already_exists(tmp_path):
+    """.webp 行が既に登録済みで PK 衝突しても整合が回復し PNG が削除されること.
+
+    手動スキャンが先に .webp 行を登録済みの状況を再現。UPDATE が IntegrityError に
+    なった場合でも、旧 .png 行を DELETE して .webp 行を正とし、PNG を削除する。
+    「DB に無いのに PNG も無い」不整合を作らないことを検証する。
+    """
+    import PIL.Image
+
+    screenshot_dir = tmp_path / "screenshots"
+    day_dir = screenshot_dir / "2025" / "12" / "12"
+    day_dir.mkdir(parents=True)
+    png_rel = "2025/12/12/SHAKE-2025-12-12-190500.png"
+    webp_rel = "2025/12/12/SHAKE-2025-12-12-190500.webp"
+    png = screenshot_dir / png_rel
+    PIL.Image.new("RGB", (200, 200), "white").save(png)
+
+    cache_path = _make_cache_db(tmp_path / "cache.db")
+    with sqlite3.connect(cache_path) as conn:
+        # 旧 .png 行と、手動スキャンが先に登録した .webp 行の両方を用意する
+        insert_screenshot_metadata(
+            conn, filename="SHAKE-2025-12-12-190500.png", filepath=png_rel, file_size=png.stat().st_size
+        )
+        insert_screenshot_metadata(
+            conn, filename="SHAKE-2025-12-12-190500.webp", filepath=webp_rel, file_size=100
+        )
+        conn.commit()
+
+    result = rsudp.compress.convert_screenshots(screenshot_dir, cache_path)
+
+    assert result.processed == 1
+    # PNG は削除され、DB には .webp 行のみが残る（.png 行は掃除される）
+    assert not png.exists()
+    with sqlite3.connect(cache_path) as conn:
+        names = [r[0] for r in conn.execute("SELECT filename FROM screenshot_metadata").fetchall()]
+    assert names == ["SHAKE-2025-12-12-190500.webp"]
+
+
 # --- extract_earthquake_miniseed ---
 
 
@@ -276,6 +315,28 @@ def test_extract_deletes_non_matching(tmp_path):
 
     assert result.deleted == 1
     assert not zst.exists()
+
+
+@pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
+def test_extract_retains_files_before_earliest_quake(tmp_path):
+    """最古の地震より前の日のファイルは削除されず残ること（地震情報未整備期間）.
+
+    quake.db に穴（クローラー停止・DB 再作成直後）があると、地震があった日の
+    波形まで消える不具合の回帰テスト。最古の地震より前は安全側に倒して残す。
+    """
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    # 地震は yday=300。それより前（yday=100）のファイルは地震情報未整備期間とみなす
+    early_zst, _ = _make_miniseed_zst(data_dir, 2025, 100)
+    quake_path = tmp_path / "quake.db"
+    _insert_quake(quake_path, obspy.UTCDateTime(year=2025, julday=300) + 43200, 4.5)
+
+    result = rsudp.compress.extract_earthquake_miniseed(data_dir, quake_path)
+
+    # 未整備期間のファイルは削除も抽出もされず、そのまま残る
+    assert result.deleted == 0
+    assert result.processed == 0
+    assert early_zst.exists()
 
 
 @pytest.mark.skipif(not _HAS_ZSTD, reason="zstd が未インストール")
