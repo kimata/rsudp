@@ -81,18 +81,19 @@
   <!-- arrows: cli -> app -->
   <path d="M110,170 L120,220" fill="none" stroke="#2f6fed" stroke-width="1.5" marker-end="url(#mb)"/>
   <path d="M175,170 C230,195 280,205 320,220" fill="none" stroke="#2f6fed" stroke-width="1.5" marker-end="url(#mb)"/>
-  <path d="M335,170 C400,240 620,290 770,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
-  <path d="M525,170 C500,300 300,380 240,500 L310,510" fill="none" stroke="#6b7280" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m)"/>
-  <text x="480" y="330" font-size="10" fill="#79808f">cleaner は cache.db /</text>
-  <text x="480" y="344" font-size="10" fill="#79808f">quake.db を直接 SQL 参照</text>
+  <!-- cli/compress -> compress.py（webui/api の上を通って右端を迂回） -->
+  <path d="M335,170 C500,184 845,188 862,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <text x="525" y="208" font-size="10" fill="#79808f" text-anchor="middle">cleaner は cache.db / quake.db を直接 SQL 参照（矢印省略）</text>
 
   <!-- arrows: app -> domain -->
   <path d="M110,296 L130,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
-  <path d="M170,296 C250,320 330,330 370,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
-  <path d="M200,290 C450,330 680,320 790,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M170,296 C250,322 330,332 370,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M215,296 C450,335 660,328 785,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
   <path d="M330,296 L200,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
   <path d="M470,296 L560,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
   <path d="M430,296 L400,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <!-- crawl -> database -->
+  <path d="M485,388 L510,388" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
 
   <!-- arrows: domain -> base -->
   <path d="M385,426 L390,482" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>

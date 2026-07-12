@@ -24,10 +24,13 @@
   <text x="765" y="156" font-size="10.5" fill="#79808f" text-anchor="middle">obspy で該当区間を切り出し → zstd</text>
   <text x="765" y="170" font-size="10.5" fill="#c9384a" text-anchor="middle">不可逆（元の全日データは削除）</text>
 
-  <path d="M260,146 L330,146" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
-  <text x="270" y="138" font-size="10" fill="#6b7280">compress_miniseed()</text>
-  <path d="M530,146 L620,146" fill="none" stroke="#c9384a" stroke-width="1.5" marker-end="url(#ar)"/>
-  <text x="536" y="138" font-size="10" fill="#c9384a">extract_earthquake_miniseed()</text>
+  <text x="295" y="128" font-size="10" fill="#6b7280" text-anchor="middle">compress_</text>
+  <text x="295" y="141" font-size="10" fill="#6b7280" text-anchor="middle">miniseed()</text>
+  <path d="M260,152 L330,152" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="575" y="115" font-size="10" fill="#c9384a" text-anchor="middle">extract_</text>
+  <text x="575" y="128" font-size="10" fill="#c9384a" text-anchor="middle">earthquake_</text>
+  <text x="575" y="141" font-size="10" fill="#c9384a" text-anchor="middle">miniseed()</text>
+  <path d="M530,152 L620,152" fill="none" stroke="#c9384a" stroke-width="1.5" marker-end="url(#ar)"/>
 
   <!-- extraction rules -->
   <rect x="30" y="204" width="880" height="130" rx="10" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.5"/>
@@ -54,9 +57,9 @@
   <text x="765" y="424" font-size="10.5" fill="#4a5160" text-anchor="middle">UPDATE（filename/filepath/file_size）</text>
   <text x="765" y="440" font-size="10.5" fill="#4a5160" text-anchor="middle">→ commit → PNG 削除 の順を厳守</text>
 
-  <path d="M260,418 L330,418" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
-  <text x="266" y="410" font-size="10" fill="#6b7280">convert_screenshots()</text>
-  <path d="M530,418 L620,418" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="295" y="378" font-size="10" fill="#6b7280" text-anchor="middle">convert_screenshots()</text>
+  <path d="M260,424 L330,424" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M530,424 L620,424" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
 
   <text x="30" y="486" font-size="11" fill="#79808f">いずれも dry-run 対応（rsudp-compress -n）。zstd / cwebp が見つからない場合は処理をスキップする。</text>
   <text x="30" y="504" font-size="11" fill="#79808f">WebP 化後の画像でも STA/LTA・MaxCount は cache.db から参照できる（PNG メタデータへの依存はスキャン時のみ）。</text>

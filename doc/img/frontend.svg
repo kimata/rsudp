@@ -58,13 +58,15 @@
   <text x="670" y="443" font-size="10" fill="#79808f" text-anchor="middle">前後移動・プリロード</text>
 
   <!-- api / utils -->
-  <rect x="30" y="494" width="420" height="52" rx="8" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
-  <text x="240" y="514" font-size="11.5" font-weight="700" fill="#1a1d24" text-anchor="middle">api.ts — axios クライアント</text>
-  <text x="240" y="532" font-size="10" fill="#4a5160" text-anchor="middle">/rsudp/api/screenshot（一覧・最新・統計・scan）· /rsudp/api/statistics（4 種）</text>
+  <rect x="30" y="490" width="420" height="62" rx="8" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
+  <text x="240" y="510" font-size="11.5" font-weight="700" fill="#1a1d24" text-anchor="middle">api.ts — axios クライアント</text>
+  <text x="240" y="528" font-size="10" fill="#4a5160" text-anchor="middle">/rsudp/api/screenshot（一覧・最新・統計・scan）</text>
+  <text x="240" y="543" font-size="10" fill="#4a5160" text-anchor="middle">/rsudp/api/statistics（統計 4 エンドポイント）</text>
 
-  <rect x="470" y="494" width="440" height="52" rx="8" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
-  <text x="690" y="514" font-size="11.5" font-weight="700" fill="#1a1d24" text-anchor="middle">utils/dateTime.ts · types.ts</text>
-  <text x="690" y="532" font-size="10" fill="#4a5160" text-anchor="middle">dayjs で JST 固定表示（formatDateTime / formatEarthquakeDateTime）· API 型は schemas.py と対応</text>
+  <rect x="470" y="490" width="440" height="62" rx="8" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
+  <text x="690" y="510" font-size="11.5" font-weight="700" fill="#1a1d24" text-anchor="middle">utils/dateTime.ts · types.ts</text>
+  <text x="690" y="528" font-size="10" fill="#4a5160" text-anchor="middle">dayjs で JST 固定表示（formatDateTime / formatEarthquakeDateTime）</text>
+  <text x="690" y="543" font-size="10" fill="#4a5160" text-anchor="middle">types.ts の API 型は schemas.py と 1:1 対応</text>
 
   <!-- arrows -->
   <path d="M380,220 L200,274" fill="none" stroke="#7a3fd0" stroke-width="1.3" marker-end="url(#ap)"/>
@@ -72,5 +74,4 @@
   <path d="M480,220 L490,274" fill="none" stroke="#7a3fd0" stroke-width="1.3" marker-end="url(#ap)"/>
   <path d="M540,220 L650,274" fill="none" stroke="#7a3fd0" stroke-width="1.3" marker-end="url(#ap)"/>
   <path d="M600,220 L810,274" fill="none" stroke="#7a3fd0" stroke-width="1.3" marker-end="url(#ap)"/>
-  <path d="M330,140 C220,160 170,300 165,404" fill="none" stroke="#6b7280" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#a)"/>
 </svg>
