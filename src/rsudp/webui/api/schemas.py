@@ -39,12 +39,6 @@ class Screenshot(BaseModel):
 
     filename: str
     prefix: str
-    year: int
-    month: int
-    day: int
-    hour: int
-    minute: int
-    second: int
     timestamp: str
     sta: float | None = None
     lta: float | None = None

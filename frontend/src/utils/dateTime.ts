@@ -32,6 +32,14 @@ export const formatScreenshotDateTime = (screenshot: Screenshot) => {
 };
 
 /**
+ * 地震発生時刻（ISO 8601、UTC）を JST の短い表示文字列に変換する。
+ * ブラウザのローカルタイムゾーンに依存させず、常に JST で表示する。
+ */
+export const formatEarthquakeDateTime = (timestamp: string): string => {
+    return dayjs.utc(timestamp).tz(JST).format("M/D HH:mm");
+};
+
+/**
  * UTC の timestamp から JST の年月日を導出する。
  * ファイル名由来の UTC year/month/day では JST 0:00〜8:59 が前日にずれるため、
  * 日付分類・フィルタはこの JST 基準の値を用いる。

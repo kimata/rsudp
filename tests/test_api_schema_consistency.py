@@ -179,12 +179,6 @@ class TestSchemaValidation:
         data = {
             "filename": "SHAKE-2025-01-15-103045.png",
             "prefix": "SHAKE",
-            "year": 2025,
-            "month": 1,
-            "day": 15,
-            "hour": 10,
-            "minute": 30,
-            "second": 45,
             "timestamp": "2025-01-15T10:30:45+00:00",
             "sta": 1.5,
             "lta": 0.8,
@@ -201,12 +195,6 @@ class TestSchemaValidation:
         data = {
             "filename": "SHAKE-2025-01-15-103045.png",
             "prefix": "SHAKE",
-            "year": 2025,
-            "month": 1,
-            "day": 15,
-            "hour": 10,
-            "minute": 30,
-            "second": 45,
             "timestamp": "2025-01-15T10:30:45+00:00",
             "max_count": 1000.0,
         }
@@ -221,14 +209,8 @@ class TestSchemaValidation:
         data = {
             "filename": "SHAKE-2025-01-15-103045.png",
             "prefix": "SHAKE",
-            "year": "not a number",  # Should be int
-            "month": 1,
-            "day": 15,
-            "hour": 10,
-            "minute": 30,
-            "second": 45,
             "timestamp": "2025-01-15T10:30:45+00:00",
-            "max_count": 1000.0,
+            "max_count": "not a number",  # Should be float
         }
         with pytest.raises(ValidationError):
             Screenshot(**data)
@@ -240,12 +222,6 @@ class TestSchemaValidation:
                 {
                     "filename": "SHAKE-2025-01-15-103045.png",
                     "prefix": "SHAKE",
-                    "year": 2025,
-                    "month": 1,
-                    "day": 15,
-                    "hour": 10,
-                    "minute": 30,
-                    "second": 45,
                     "timestamp": "2025-01-15T10:30:45+00:00",
                     "max_count": 1000.0,
                 }
@@ -321,19 +297,13 @@ class TestSchemaJsonSerialization:
         screenshot = Screenshot(
             filename="test.png",
             prefix="TEST",
-            year=2025,
-            month=1,
-            day=15,
-            hour=10,
-            minute=30,
-            second=45,
             timestamp="2025-01-15T10:30:45+00:00",
             max_count=1000.0,
         )
         json_str = screenshot.model_dump_json()
         parsed = json.loads(json_str)
         assert parsed["filename"] == "test.png"
-        assert parsed["year"] == 2025
+        assert parsed["timestamp"] == "2025-01-15T10:30:45+00:00"
 
     def test_response_to_json(self):
         """Test ScreenshotListResponse serializes to valid JSON."""
@@ -342,12 +312,6 @@ class TestSchemaJsonSerialization:
                 Screenshot(
                     filename="test.png",
                     prefix="TEST",
-                    year=2025,
-                    month=1,
-                    day=15,
-                    hour=10,
-                    minute=30,
-                    second=45,
                     timestamp="2025-01-15T10:30:45+00:00",
                     max_count=1000.0,
                 )

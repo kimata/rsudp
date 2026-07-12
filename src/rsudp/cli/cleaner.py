@@ -95,12 +95,11 @@ def get_screenshots_to_clean(
 
     for ss in screenshots:
         ss_time = datetime.datetime.fromisoformat(ss["timestamp"])
-        ss_time_jst = ss_time.astimezone(rsudp.types.JST)
 
-        # 付近に地震があるか確認
+        # 付近に地震があるか確認（aware datetime 同士の差分はタイムゾーンに依らず正しい）
         found_quake = None
         for qt, name, mag in quake_times:
-            diff = abs((ss_time_jst - qt).total_seconds())
+            diff = abs((ss_time - qt).total_seconds())
             if diff <= time_window_seconds:
                 found_quake = (qt, name, mag, diff)
                 break
@@ -110,7 +109,8 @@ def get_screenshots_to_clean(
                 {
                     "filename": ss["filename"],
                     "filepath": ss["filepath"],
-                    "timestamp": ss_time_jst,
+                    # 表示用に JST へ変換して保持する
+                    "timestamp": rsudp.types.to_jst(ss_time),
                     "max_count": ss["max_count"],
                 }
             )

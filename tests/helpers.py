@@ -48,12 +48,6 @@ def insert_screenshot_metadata(
     filename: str = "SHAKE-2025-12-12-190500.png",
     *,
     filepath: str | None = None,
-    year: int = 2025,
-    month: int = 12,
-    day: int = 12,
-    hour: int = 19,
-    minute: int = 5,
-    second: int = 0,
     timestamp: str = "2025-12-12T19:05:00+00:00",
     sta_value: float = 100.0,
     lta_value: float = 50.0,
@@ -71,26 +65,20 @@ def insert_screenshot_metadata(
     earthquake_event_id が指定された場合はそのカラムも含めて挿入.
     """
     if filepath is None:
-        filepath = f"{year}/{month:02d}/{day:02d}/{filename}"
+        ts = datetime.datetime.fromisoformat(timestamp)
+        filepath = f"{ts.year}/{ts.month:02d}/{ts.day:02d}/{filename}"
 
     if earthquake_event_id is not None:
         conn.execute(
             """
             INSERT INTO screenshot_metadata
-            (filename, filepath, year, month, day, hour, minute, second,
-             timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
+            (filename, filepath, timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
              created_at, file_size, metadata_raw, earthquake_event_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 filename,
                 filepath,
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                second,
                 timestamp,
                 sta_value,
                 lta_value,
@@ -106,20 +94,13 @@ def insert_screenshot_metadata(
         conn.execute(
             """
             INSERT INTO screenshot_metadata
-            (filename, filepath, year, month, day, hour, minute, second,
-             timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
+            (filename, filepath, timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
              created_at, file_size, metadata_raw)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 filename,
                 filepath,
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                second,
                 timestamp,
                 sta_value,
                 lta_value,

@@ -1,6 +1,7 @@
 export interface Earthquake {
     id: number;
     event_id: string;
+    // ISO 8601 (UTC)。表示時は JST に変換する
     detected_at: string;
     latitude: number;
     longitude: number;
@@ -13,12 +14,7 @@ export interface Earthquake {
 export interface Screenshot {
     filename: string;
     prefix: string;
-    year: number;
-    month: number;
-    day: number;
-    hour: number;
-    minute: number;
-    second: number;
+    // ISO 8601 (UTC)。日付分類・表示は utils/dateTime.ts で JST に変換する
     timestamp: string;
     // バックエンドは「キーあり + null」を返すため number | null で表現する
     sta: number | null;

@@ -203,22 +203,18 @@ data/                               # ランタイムデータ
 
 Blueprint: `viewer_api` (URL prefix: `/rsudp`)
 
-| メソッド | パス                                    | 説明                          |
-| -------- | --------------------------------------- | ----------------------------- |
-| GET      | `/api/screenshot/`                      | スクリーンショット一覧        |
-| GET      | `/api/screenshot/years/`                | 利用可能な年一覧              |
-| GET      | `/api/screenshot/<year>/months/`        | 月一覧                        |
-| GET      | `/api/screenshot/<year>/<month>/days/`  | 日一覧                        |
-| GET      | `/api/screenshot/<year>/<month>/<day>/` | 指定日のスクリーンショット    |
-| GET      | `/api/screenshot/image/<filename>`      | 画像ファイル配信              |
-| GET      | `/api/screenshot/latest/`               | 最新スクリーンショット        |
-| GET      | `/api/screenshot/statistics/`           | 統計情報                      |
-| POST     | `/api/earthquake/crawl/`                | 地震データのクロール実行      |
-| GET      | `/api/earthquake/list/`                 | 地震データ一覧                |
-| GET      | `/api/statistics/daily`                 | 日別検出数（JST）             |
-| GET      | `/api/statistics/distribution`          | MaxCount 分布（ヒストグラム） |
-| GET      | `/api/statistics/association`           | 日別 JMA 照合数（総数/照合）  |
-| GET      | `/api/statistics/sensitivity`           | 検出感度（震央距離×MaxCount） |
+| メソッド | パス                               | 説明                          |
+| -------- | ---------------------------------- | ----------------------------- |
+| GET      | `/api/screenshot/`                 | スクリーンショット一覧        |
+| GET      | `/api/screenshot/image/<filename>` | 画像ファイル配信              |
+| GET      | `/api/screenshot/latest/`          | 最新スクリーンショット        |
+| GET      | `/api/screenshot/statistics/`      | 統計情報                      |
+| POST     | `/api/earthquake/crawl/`           | 地震データのクロール実行      |
+| GET      | `/api/earthquake/list/`            | 地震データ一覧                |
+| GET      | `/api/statistics/daily`            | 日別検出数（JST）             |
+| GET      | `/api/statistics/distribution`     | MaxCount 分布（ヒストグラム） |
+| GET      | `/api/statistics/association`      | 日別 JMA 照合数（総数/照合）  |
+| GET      | `/api/statistics/sensitivity`      | 検出感度（震央距離×MaxCount） |
 
 クエリパラメータ:
 
@@ -228,6 +224,8 @@ Blueprint: `viewer_api` (URL prefix: `/rsudp`)
 - `days`: 集計の遡り日数（`/api/statistics/daily`・`/api/statistics/association`、デフォルト 90）
 
 `/api/statistics/sensitivity` は `config.station`（観測局座標）が設定されている場合のみ点データを返す（未設定時は `station: null`）。統計集計ロジックは `webui/api/statistics.py` に集約されている。
+
+日付（年/月/日）による絞り込みはフロントエンドが `timestamp` から JST 基準でクライアント側集計する（サーバー側の日付階層 API は廃止済み）。
 
 ## 設定ファイル
 
@@ -276,7 +274,7 @@ slack:
 CREATE TABLE earthquakes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id TEXT UNIQUE NOT NULL,
-    detected_at TEXT NOT NULL,       -- JST タイムスタンプ
+    detected_at TEXT NOT NULL,       -- UTC（気象庁 API の JST から正規化）
     latitude REAL NOT NULL,
     longitude REAL NOT NULL,
     magnitude REAL NOT NULL,
@@ -290,30 +288,37 @@ CREATE TABLE earthquakes (
 
 ## タイムゾーンの扱い
 
-このプロジェクトでは2種類のタイムゾーンが混在するため、特に注意が必要です。
-
 ### タイムゾーン規約
 
-| データ                       | タイムゾーン | 備考                            |
-| ---------------------------- | ------------ | ------------------------------- |
-| スクリーンショットファイル名 | UTC          | `SHAKE-2025-12-12-190542.png`   |
-| 地震データ（detected_at）    | JST (+09:00) | 気象庁 API から取得したまま保存 |
-| created_at / updated_at      | UTC          | システム管理用                  |
+**DB・ファイル名のタイムスタンプはすべて UTC、表示はすべて JST** に統一されています。
 
-### 比較時の注意
+| データ                       | タイムゾーン | 備考                                  |
+| ---------------------------- | ------------ | ------------------------------------- |
+| スクリーンショットファイル名 | UTC          | `SHAKE-2025-12-12-190542.png`         |
+| cache.db（timestamp）        | UTC          | ISO 8601（タイムゾーン情報付き）      |
+| quake.db（detected_at）      | UTC          | 気象庁 API の JST から挿入時に正規化  |
+| created_at / updated_at      | UTC          | システム管理用                        |
+| UI・通知・ログの日時表示     | JST          | `rsudp.types.to_jst()` / dayjs で変換 |
+
+旧バージョンでは `detected_at` が JST (+09:00) で保存されていた。`QuakeDatabase` の
+初期化時に UTC へ正規化する冪等マイグレーションが走る（cache.db の旧日付列
+`year`〜`second` の削除も同様に `ScreenshotManager` 初期化時に実施）。
+
+### 比較・表示時の注意
 
 - 必ず `datetime` オブジェクト（タイムゾーン情報付き）として比較する
-- 文字列での比較は**絶対に行わない**（9時間のずれが発生する）
+- 文字列での比較は**絶対に行わない**
 - `datetime.fromisoformat()` でパースすればタイムゾーン情報が保持される
+- JST での表示が必要な場合は `rsudp.types.to_jst()` を使用する（`strftime` を
+  格納オフセットに暗黙依存させない）
 
 ```python
 # 正しい比較方法
-screenshot_ts = datetime.fromisoformat("2025-12-12T19:05:42+00:00")  # UTC
-earthquake_ts = datetime.fromisoformat("2025-12-13T04:05:42+09:00")  # JST
-# これらは同じ瞬間を指すので、比較すると等しい
+screenshot_ts = datetime.fromisoformat("2025-12-12T19:05:42+00:00")
+earthquake_ts = datetime.fromisoformat("2025-12-12T19:05:42+00:00")
 
-# 誤った比較（文字列比較）
-"2025-12-12T19:05:42" == "2025-12-13T04:05:42"  # False になってしまう
+# 表示は JST に明示変換
+rsudp.types.to_jst(screenshot_ts).strftime("%Y-%m-%d %H:%M:%S JST")
 ```
 
 ## コーディング規約
@@ -529,12 +534,11 @@ with sqlite3.connect(manager.cache_path) as conn:
 ### タイムゾーン変換
 
 - 手動オフセット追加 (`+ timedelta(hours=9)`) は使用しない
-- 常に `astimezone(rsudp.types.JST)` を使用する
+- JST への変換は `rsudp.types.to_jst()` を使用する（ISO 文字列・datetime の両方を受け付ける）
 
 ```python
-# 推奨: astimezone() で変換
-ts = datetime.datetime.fromisoformat(timestamp)
-jst = ts.astimezone(rsudp.types.JST)
+# 推奨: to_jst() で変換
+jst = rsudp.types.to_jst(timestamp)
 
 # 非推奨: 手動でオフセット追加
 ts = datetime.datetime.fromisoformat(timestamp)

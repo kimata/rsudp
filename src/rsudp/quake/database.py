@@ -2,12 +2,13 @@
 地震データの SQLite データベース管理モジュール.
 
 タイムゾーンの扱い:
-    - detected_at (発生時刻): 気象庁 API から取得した JST (+09:00) で保存
+    - detected_at (発生時刻): UTC に正規化して保存（気象庁 API の JST から変換）
     - created_at, updated_at: UTC で保存
     - 検索時は Python の datetime オブジェクト（タイムゾーン情報付き）で比較
 """
 
 import datetime
+import logging
 import sqlite3
 
 import rsudp.config
@@ -33,6 +34,31 @@ class QuakeDatabase:
         """地震データ用の SQLite データベースを初期化する."""
         with sqlite3.connect(self.db_path) as conn:
             rsudp.schema_util.init_database(conn, "earthquakes")
+            self._migrate_detected_at_to_utc(conn)
+
+    @staticmethod
+    def _migrate_detected_at_to_utc(conn: sqlite3.Connection) -> None:
+        """
+        JST (+09:00) 等で保存された既存の detected_at を UTC に正規化するマイグレーション.
+
+        旧実装は気象庁 API の JST タイムスタンプをそのまま保存していた。
+        オフセット付き ISO 文字列なので情報は失われず、UTC への変換は可逆。
+        すでに UTC (+00:00) の行は対象外なので冪等。
+        """
+        rows = conn.execute(
+            "SELECT id, detected_at FROM earthquakes WHERE detected_at NOT LIKE '%+00:00'"
+        ).fetchall()
+        if not rows:
+            return
+
+        for row_id, detected_at_str in rows:
+            detected_at_utc = datetime.datetime.fromisoformat(detected_at_str).astimezone(datetime.UTC)
+            conn.execute(
+                "UPDATE earthquakes SET detected_at = ? WHERE id = ?",
+                (detected_at_utc.isoformat(), row_id),
+            )
+        conn.commit()
+        logging.info("quake.db マイグレーション: %d 件の detected_at を UTC に正規化しました", len(rows))
 
     def insert_earthquake(
         self,
@@ -53,6 +79,8 @@ class QuakeDatabase:
         既存レコードがある場合は上書きせず、そのまま保持する
         （INSERT ... ON CONFLICT(event_id) DO NOTHING 相当）。
         これにより check-then-insert の競合による IntegrityError も回避される。
+
+        detected_at は UTC に変換して保存する（DB 内のタイムスタンプ規約を UTC に統一）。
 
         Args:
             event_id: 地震イベントの一意識別子
@@ -81,7 +109,7 @@ class QuakeDatabase:
             """,
                 (
                     event_id,
-                    detected_at.isoformat(),
+                    detected_at.astimezone(datetime.UTC).isoformat(),
                     latitude,
                     longitude,
                     magnitude,

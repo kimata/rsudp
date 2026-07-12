@@ -76,6 +76,66 @@ class TestInsertEarthquake:
         # 先に挿入した magnitude が保持される
         assert earthquakes[0].magnitude == sample_earthquake_jst["magnitude"]
 
+    def test_insert_stores_detected_at_as_utc(self, quake_db_config, sample_earthquake_jst):
+        """JST の detected_at が UTC に正規化されて保存されることを確認."""
+        db = QuakeDatabase(quake_db_config)
+
+        db.insert_earthquake(**sample_earthquake_jst)
+
+        eq = db.get_all_earthquakes()[0]
+        assert eq.detected_at.endswith("+00:00")
+        # 同じ瞬間を指す（オフセット変換のみで情報は失われない）
+        assert datetime.fromisoformat(eq.detected_at) == sample_earthquake_jst["detected_at"]
+
+
+class TestDetectedAtMigration:
+    """detected_at の UTC 正規化マイグレーションのテスト."""
+
+    def test_migrate_jst_rows_to_utc(self, quake_db_config):
+        """旧形式（JST +09:00）で保存された行が初期化時に UTC へ変換されることを確認."""
+        import sqlite3
+
+        db = QuakeDatabase(quake_db_config)
+
+        # 旧実装と同じ JST 形式で直接挿入
+        with sqlite3.connect(db.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO earthquakes
+                (event_id, detected_at, latitude, longitude, magnitude,
+                 depth, epicenter_name, max_intensity, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "legacy-jst-001",
+                    "2025-12-13T04:05:00+09:00",
+                    35.6,
+                    139.7,
+                    4.5,
+                    50,
+                    "茨城県南部",
+                    "4",
+                    "2025-12-12T19:10:00+00:00",
+                    "2025-12-12T19:10:00+00:00",
+                ),
+            )
+
+        # 再初期化でマイグレーションが走る
+        db = QuakeDatabase(quake_db_config)
+
+        eq = db.get_all_earthquakes()[0]
+        assert eq.detected_at == "2025-12-12T19:05:00+00:00"
+
+    def test_migrate_idempotent(self, quake_db_config, sample_earthquake_jst):
+        """UTC 保存済みの行は再初期化しても変化しないことを確認."""
+        db = QuakeDatabase(quake_db_config)
+        db.insert_earthquake(**sample_earthquake_jst)
+        before = db.get_all_earthquakes()[0].detected_at
+
+        db = QuakeDatabase(quake_db_config)
+
+        assert db.get_all_earthquakes()[0].detected_at == before
+
 
 class TestGetEarthquakeForTimestamp:
     """タイムスタンプによる地震検索のテスト."""

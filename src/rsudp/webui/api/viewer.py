@@ -1,7 +1,6 @@
 """Screenshot viewer API endpoints for rsudp web interface."""
 
 import dataclasses
-import datetime
 import functools
 import html
 import sqlite3
@@ -157,93 +156,6 @@ def list_screenshots(query: schemas.ScreenshotListQuery):
 
     except Exception as e:
         return flask.jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
-
-
-@viewer_api.route("/api/screenshot/years/", methods=["GET"])
-@no_cache
-@validate()
-def list_years(query: schemas.MinMaxSignalQuery):
-    """
-    Get list of available years.
-
-    Query parameters:
-    - min_max_signal: Minimum maximum signal value to filter years
-    """
-    try:
-        years = _get_screenshot_manager().get_available_years(query.min_max_signal)
-        return flask.jsonify({"years": years})
-
-    except Exception as e:
-        return flask.jsonify({"error": str(e)}), 500
-
-
-@viewer_api.route("/api/screenshot/<int:year>/months/", methods=["GET"])
-@no_cache
-@validate()
-def list_months(year: int, query: schemas.MinMaxSignalQuery):
-    """
-    Get list of available months for a specific year.
-
-    Query parameters:
-    - min_max_signal: Minimum maximum signal value to filter months
-    """
-    try:
-        months = _get_screenshot_manager().get_available_months(year, query.min_max_signal)
-        return flask.jsonify({"months": months})
-
-    except Exception as e:
-        return flask.jsonify({"error": str(e)}), 500
-
-
-@viewer_api.route("/api/screenshot/<int:year>/<int:month>/days/", methods=["GET"])
-@no_cache
-@validate()
-def list_days(year: int, month: int, query: schemas.MinMaxSignalQuery):
-    """
-    Get list of available days for a specific year and month.
-
-    Query parameters:
-    - min_max_signal: Minimum maximum signal value to filter days
-    """
-    try:
-        days = _get_screenshot_manager().get_available_days(year, month, query.min_max_signal)
-        return flask.jsonify({"days": days})
-
-    except Exception as e:
-        return flask.jsonify({"error": str(e)}), 500
-
-
-@viewer_api.route("/api/screenshot/<int:year>/<int:month>/<int:day>/", methods=["GET"])
-@my_lib.flask_util.gzipped
-@no_cache
-@validate()
-def list_by_date(year: int, month: int, day: int, query: schemas.MinMaxSignalQuery):
-    """
-    Get screenshots for a specific date.
-
-    Query parameters:
-    - min_max_signal: Minimum maximum signal value to filter screenshots
-    """
-    # gzipped デコレータによる no-store の上書きを防ぐ
-    flask.g.disable_cache = True
-    try:
-        manager = _get_screenshot_manager()
-        min_max_signal = query.min_max_signal
-
-        # Get screenshots with optional maximum signal filter
-        screenshots = manager.get_screenshots_with_signal_filter(min_max_signal)
-
-        # Filter by date and format
-        files = [
-            rsudp.types.screenshot_dict_to_response(s)
-            for s in screenshots
-            if s["year"] == year and s["month"] == month and s["day"] == day
-        ]
-
-        return flask.jsonify({"screenshots": files, "total": len(files)})
-
-    except Exception as e:
-        return flask.jsonify({"error": str(e)}), 500
 
 
 def _is_within_directory(base_dir: Path, candidate: Path) -> bool:
@@ -709,16 +621,13 @@ def _get_ogp_content_for_screenshot(
         return ("", "", "", "")
 
     # 日時をフォーマット（JSTに変換）
-    ts = datetime.datetime.fromisoformat(screenshot["timestamp"])
-    jst = ts.astimezone(rsudp.types.JST)
-    date_str = jst.strftime("%-m/%-d %H:%M")
+    date_str = rsudp.types.to_jst(screenshot["timestamp"]).strftime("%-m/%-d %H:%M")
 
     # 地震情報を取得
     earthquake = manager.get_earthquake_for_screenshot(screenshot["timestamp"], quake_db_path)
 
     if earthquake:
-        eq_ts = datetime.datetime.fromisoformat(earthquake.detected_at)
-        eq_date_str = eq_ts.strftime("%-m/%-d %H:%M")
+        eq_date_str = rsudp.types.to_jst(earthquake.detected_at).strftime("%-m/%-d %H:%M")
         title = f"{eq_date_str} {earthquake.epicenter_name} M{earthquake.magnitude}"
         description = (
             f"震度{earthquake.max_intensity} | 深さ{earthquake.depth}km | Raspberry Shake 地震計記録"

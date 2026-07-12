@@ -14,22 +14,6 @@ from tests.helpers import insert_screenshot_metadata
 class TestApiEndpoints:
     """API エンドポイントのテスト."""
 
-    def test_years_endpoint(self, flask_client, screenshot_config, temp_dir):
-        """年一覧 API が動作することを確認."""
-        # キャッシュにデータを追加
-        from rsudp.screenshot_manager import ScreenshotManager
-
-        manager = ScreenshotManager(screenshot_config)
-
-        with sqlite3.connect(manager.cache_path) as conn:
-            insert_screenshot_metadata(conn)
-
-        response = flask_client.get("/rsudp/api/screenshot/years/")
-
-        assert response.status_code == 200
-        data = response.get_json()
-        assert "years" in data
-
     def test_statistics_endpoint(self, flask_client):
         """統計情報 API が動作することを確認."""
         response = flask_client.get("/rsudp/api/screenshot/statistics/")
@@ -317,55 +301,6 @@ class TestCleanEndpoint:
             assert data["dry_run"] is False
 
 
-class TestDateEndpoints:
-    """日付エンドポイントのテスト."""
-
-    def test_months_endpoint(self, flask_client, config):
-        """月一覧エンドポイント"""
-        from rsudp.screenshot_manager import ScreenshotManager
-
-        manager = ScreenshotManager(config)
-
-        with sqlite3.connect(manager.cache_path) as conn:
-            insert_screenshot_metadata(conn)
-
-        response = flask_client.get("/rsudp/api/screenshot/2025/months/")
-
-        assert response.status_code == 200
-        data = response.get_json()
-        assert "months" in data
-
-    def test_days_endpoint(self, flask_client, config):
-        """日一覧エンドポイント"""
-        from rsudp.screenshot_manager import ScreenshotManager
-
-        manager = ScreenshotManager(config)
-
-        with sqlite3.connect(manager.cache_path) as conn:
-            insert_screenshot_metadata(conn)
-
-        response = flask_client.get("/rsudp/api/screenshot/2025/12/days/")
-
-        assert response.status_code == 200
-        data = response.get_json()
-        assert "days" in data
-
-    def test_by_date_endpoint(self, flask_client, config):
-        """日付別スクリーンショットエンドポイント"""
-        from rsudp.screenshot_manager import ScreenshotManager
-
-        manager = ScreenshotManager(config)
-
-        with sqlite3.connect(manager.cache_path) as conn:
-            insert_screenshot_metadata(conn)
-
-        response = flask_client.get("/rsudp/api/screenshot/2025/12/12/")
-
-        assert response.status_code == 200
-        data = response.get_json()
-        assert "screenshots" in data
-
-
 class TestOgpFunctions:
     """OGP関連関数のテスト."""
 
@@ -544,7 +479,6 @@ class TestStatisticsApi:
         self._seed_cache(
             config,
             filename="SHAKE-2025-12-12-190600.png",
-            second=6,
             timestamp="2025-12-12T19:06:00+00:00",
         )
 

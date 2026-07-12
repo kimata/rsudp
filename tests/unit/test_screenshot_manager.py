@@ -399,54 +399,83 @@ class TestGetScreenshotsWithEarthquakeFilterFast:
         assert result[0]["earthquake"]["event_id"] == "test-quake-001"
 
 
-class TestGetAvailableDates:
-    """get_available_years / months / days のテスト."""
+class TestDateColumnMigration:
+    """旧スキーマの日付列（year〜second）削除マイグレーションのテスト."""
 
-    def test_get_available_years(self, screenshot_config):
-        """利用可能な年を取得"""
+    def test_migrate_drops_legacy_columns(self, screenshot_config):
+        """旧スキーマの cache.db から日付列が削除され、既存データは保持される"""
+        cache_path = screenshot_config.data.cache
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 旧スキーマの DB を手動で作成
+        with sqlite3.connect(cache_path) as conn:
+            conn.execute("""
+                CREATE TABLE screenshot_metadata (
+                    filename TEXT PRIMARY KEY,
+                    filepath TEXT NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    day INTEGER NOT NULL,
+                    hour INTEGER NOT NULL,
+                    minute INTEGER NOT NULL,
+                    second INTEGER NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    sta_value REAL,
+                    lta_value REAL,
+                    sta_lta_ratio REAL,
+                    max_count REAL,
+                    created_at REAL NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    metadata_raw TEXT,
+                    earthquake_event_id TEXT
+                )
+            """)
+            conn.execute("CREATE INDEX idx_screenshot_date ON screenshot_metadata(year, month, day)")
+            conn.execute(
+                """
+                INSERT INTO screenshot_metadata
+                (filename, filepath, year, month, day, hour, minute, second,
+                 timestamp, max_count, created_at, file_size)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "SHAKE-2025-12-12-190500.png",
+                    "2025/12/12/SHAKE-2025-12-12-190500.png",
+                    2025,
+                    12,
+                    12,
+                    19,
+                    5,
+                    0,
+                    "2025-12-12T19:05:00+00:00",
+                    1000.0,
+                    1234567890.0,
+                    12345,
+                ),
+            )
+
+        # ScreenshotManager の初期化でマイグレーションが走る
+        manager = ScreenshotManager(screenshot_config)
+
+        with sqlite3.connect(manager.cache_path) as conn:
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(screenshot_metadata)")}
+            assert columns.isdisjoint({"year", "month", "day", "hour", "minute", "second"})
+
+            row = conn.execute("SELECT filename, timestamp, max_count FROM screenshot_metadata").fetchone()
+            assert row == ("SHAKE-2025-12-12-190500.png", "2025-12-12T19:05:00+00:00", 1000.0)
+
+    def test_migrate_idempotent(self, screenshot_config):
+        """新スキーマの DB では 2 回目以降の初期化でも何も起きない"""
         manager = ScreenshotManager(screenshot_config)
 
         with sqlite3.connect(manager.cache_path) as conn:
             insert_screenshot_metadata(conn)
 
-        assert manager.get_available_years() == [2025]
-
-    def test_get_available_months(self, screenshot_config):
-        """指定年の月を取得"""
+        # 再初期化してもエラーにならず、データが保持される
         manager = ScreenshotManager(screenshot_config)
-
         with sqlite3.connect(manager.cache_path) as conn:
-            insert_screenshot_metadata(conn)
-
-        assert manager.get_available_months(2025) == [12]
-        assert manager.get_available_months(2024) == []
-
-    def test_get_available_days(self, screenshot_config):
-        """指定年月の日を取得"""
-        manager = ScreenshotManager(screenshot_config)
-
-        with sqlite3.connect(manager.cache_path) as conn:
-            insert_screenshot_metadata(conn)
-
-        assert manager.get_available_days(2025, 12) == [12]
-        assert manager.get_available_days(2025, 11) == []
-
-    def test_get_available_with_filter(self, screenshot_config):
-        """最小信号値でフィルタリング"""
-        manager = ScreenshotManager(screenshot_config)
-
-        with sqlite3.connect(manager.cache_path) as conn:
-            insert_screenshot_metadata(conn, max_count=500.0)
-
-        # 高い閾値: 全て除外
-        assert manager.get_available_years(min_max_signal=1000.0) == []
-        assert manager.get_available_months(2025, min_max_signal=1000.0) == []
-        assert manager.get_available_days(2025, 12, min_max_signal=1000.0) == []
-
-        # 低い閾値: 通過
-        assert manager.get_available_years(min_max_signal=100.0) == [2025]
-        assert manager.get_available_months(2025, min_max_signal=100.0) == [12]
-        assert manager.get_available_days(2025, 12, min_max_signal=100.0) == [12]
+            count = conn.execute("SELECT COUNT(*) FROM screenshot_metadata").fetchone()[0]
+            assert count == 1
 
 
 class TestGetLatestCachedDate:

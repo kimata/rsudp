@@ -17,6 +17,25 @@ import zoneinfo
 JST = zoneinfo.ZoneInfo("Asia/Tokyo")
 
 
+def to_jst(value: str | datetime.datetime) -> datetime.datetime:
+    """
+    ISO 形式文字列または aware datetime を JST の datetime に変換する.
+
+    表示用の JST 変換はこの関数に集約する（手動オフセット加算や
+    「格納オフセット = JST」への暗黙依存を避けるため）。
+
+    Args:
+        value: ISO 8601 形式のタイムスタンプ文字列（タイムゾーン情報付き）または aware datetime
+
+    Returns:
+        JST タイムゾーンの datetime
+
+    """
+    if isinstance(value, str):
+        value = datetime.datetime.fromisoformat(value)
+    return value.astimezone(JST)
+
+
 def calculate_earthquake_time_range(
     detected_at_str: str,
     before_seconds: int = 30,
@@ -113,12 +132,12 @@ class EarthquakeData:
     地震データ.
 
     気象庁 API から取得した地震情報を表す。
-    detected_at は JST (+09:00) で保存される。
+    detected_at は UTC に正規化して保存される（表示時に to_jst() で変換する）。
     """
 
     id: int
     event_id: str
-    detected_at: str  # ISO 8601 形式 (JST)
+    detected_at: str  # ISO 8601 形式 (UTC)
     latitude: float
     longitude: float
     magnitude: float
@@ -139,12 +158,6 @@ class ScreenshotMetadata:
 
     filename: str
     filepath: str
-    year: int
-    month: int
-    day: int
-    hour: int
-    minute: int
-    second: int
     timestamp: str  # ISO 8601 形式 (UTC)
     sta: float | None = None
     lta: float | None = None
@@ -180,31 +193,6 @@ class SignalStatistics:
     earthquake_count: int = 0
 
 
-@dataclasses.dataclass
-class ScreenshotRow:
-    """
-    SQLite から取得したスクリーンショット行データ.
-
-    データベースの行から ScreenshotMetadata へ変換する際の中間表現。
-    """
-
-    filename: str
-    filepath: str
-    year: int
-    month: int
-    day: int
-    hour: int
-    minute: int
-    second: int
-    timestamp: str
-    sta_value: float | None
-    lta_value: float | None
-    sta_lta_ratio: float | None
-    max_count: float | None
-    metadata_raw: str | None
-    earthquake_event_id: str | None = None
-
-
 def _earthquake_to_dict(earthquake: EarthquakeData | dict | None) -> dict | None:
     """EarthquakeData または辞書を辞書に変換する."""
     if earthquake is None:
@@ -219,7 +207,8 @@ def row_to_screenshot_dict(row: tuple, earthquake: EarthquakeData | dict | None 
     SQLite の行データをスクリーンショット辞書に変換する.
 
     Args:
-        row: SQLite から取得した行タプル（14要素または15要素）
+        row: SQLite から取得した行タプル（8要素: filename, filepath, timestamp,
+             sta_value, lta_value, sta_lta_ratio, max_count, metadata_raw）
         earthquake: 関連する地震情報（EarthquakeData または辞書、オプション）
 
     Returns:
@@ -229,18 +218,12 @@ def row_to_screenshot_dict(row: tuple, earthquake: EarthquakeData | dict | None 
     result: dict = {
         "filename": row[0],
         "filepath": row[1],
-        "year": row[2],
-        "month": row[3],
-        "day": row[4],
-        "hour": row[5],
-        "minute": row[6],
-        "second": row[7],
-        "timestamp": row[8],
-        "sta": row[9],
-        "lta": row[10],
-        "sta_lta_ratio": row[11],
-        "max_count": row[12],
-        "metadata": row[13],
+        "timestamp": row[2],
+        "sta": row[3],
+        "lta": row[4],
+        "sta_lta_ratio": row[5],
+        "max_count": row[6],
+        "metadata": row[7],
     }
     eq_dict = _earthquake_to_dict(earthquake)
     if eq_dict is not None:
@@ -266,12 +249,6 @@ def screenshot_dict_to_response(
     result: dict = {
         "filename": screenshot["filename"],
         "prefix": screenshot["filename"].split("-")[0],
-        "year": screenshot["year"],
-        "month": screenshot["month"],
-        "day": screenshot["day"],
-        "hour": screenshot["hour"],
-        "minute": screenshot["minute"],
-        "second": screenshot["second"],
         "timestamp": screenshot["timestamp"],
         "sta": screenshot.get("sta"),
         "lta": screenshot.get("lta"),

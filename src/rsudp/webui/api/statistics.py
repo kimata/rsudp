@@ -108,9 +108,14 @@ def _to_jst_date(timestamp_str: str) -> str:
 
 
 def _utc_cutoff_iso(days: int) -> str:
-    """現在時刻から days 日遡った UTC の ISO 文字列を返す（timestamp 列との比較用）."""
+    """
+    現在時刻から days 日遡った UTC の ISO 文字列を返す（timestamp 列との比較用）.
+
+    timestamp 列は秒精度（マイクロ秒なし）の固定フォーマットで格納されているため、
+    文字列比較が正しく機能するよう cutoff も同じ秒精度に丸める。
+    """
     cutoff = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
-    return cutoff.isoformat()
+    return cutoff.replace(microsecond=0).isoformat()
 
 
 def get_daily_counts(cache_path: Path, days: int = 90) -> list[DailyCount]:

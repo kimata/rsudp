@@ -6,13 +6,14 @@ Flask アプリケーションの統合テストを実行します。
 """
 
 import sqlite3
-import zoneinfo
 from datetime import datetime
 
+import rsudp.types
 from rsudp.quake.database import QuakeDatabase
 from rsudp.screenshot_manager import ScreenshotManager
+from tests.helpers import insert_screenshot_metadata
 
-JST = zoneinfo.ZoneInfo("Asia/Tokyo")
+JST = rsudp.types.JST
 
 
 class TestFlaskAppIntegration:
@@ -50,35 +51,9 @@ class TestScreenshotAndEarthquakeIntegration:
         # スクリーンショットマネージャーを作成
         manager = ScreenshotManager(config)
 
-        # キャッシュにスクリーンショットを追加（地震と同じ時刻）
+        # キャッシュにスクリーンショットを追加（地震と同じ瞬間の UTC 時刻）
         with sqlite3.connect(manager.cache_path) as conn:
-            conn.execute(
-                """
-                INSERT INTO screenshot_metadata
-                (filename, filepath, year, month, day, hour, minute, second,
-                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
-                 created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    "SHAKE-2025-12-12-190500.png",
-                    "2025/12/12/SHAKE-2025-12-12-190500.png",
-                    2025,
-                    12,
-                    12,
-                    19,
-                    5,
-                    0,
-                    "2025-12-12T19:05:00+00:00",  # 地震と同じ瞬間（UTC）
-                    100.0,
-                    50.0,
-                    2.0,
-                    1000.0,
-                    1234567890.0,
-                    12345,
-                    "STA=100.0, LTA=50.0",
-                ),
-            )
+            insert_screenshot_metadata(conn, metadata_raw="STA=100.0, LTA=50.0")
 
         # 地震フィルタでスクリーンショットを取得
         quake_db_path = config.data.quake
@@ -94,33 +69,7 @@ class TestScreenshotAndEarthquakeIntegration:
 
         # キャッシュにスクリーンショットを追加
         with sqlite3.connect(manager.cache_path) as conn:
-            conn.execute(
-                """
-                INSERT INTO screenshot_metadata
-                (filename, filepath, year, month, day, hour, minute, second,
-                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
-                 created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    "SHAKE-2025-12-12-190500.png",
-                    "2025/12/12/SHAKE-2025-12-12-190500.png",
-                    2025,
-                    12,
-                    12,
-                    19,
-                    5,
-                    0,
-                    "2025-12-12T19:05:00+00:00",
-                    100.0,
-                    50.0,
-                    2.0,
-                    1000.0,
-                    1234567890.0,
-                    12345,
-                    None,
-                ),
-            )
+            insert_screenshot_metadata(conn)
 
         # 全スクリーンショットを取得（フィルタなし）
         result = manager.get_screenshots_with_signal_filter()
@@ -145,13 +94,7 @@ class TestApiFlowIntegration:
         screenshots = response.get_json()
         assert "screenshots" in screenshots
 
-        # 3. 年一覧を取得
-        response = flask_client.get("/rsudp/api/screenshot/years/")
-        assert response.status_code == 200
-        years = response.get_json()
-        assert "years" in years
-
-        # 4. 地震一覧を取得
+        # 3. 地震一覧を取得
         response = flask_client.get("/rsudp/api/earthquake/list/")
         assert response.status_code == 200
         earthquakes = response.get_json()

@@ -2,8 +2,7 @@
 スクリーンショットファイルの管理とメタデータキャッシュ機能を提供する.
 
 タイムゾーンの扱い:
-    - スクリーンショットのファイル名に含まれるタイムスタンプ: UTC
-    - 地震データ（気象庁API由来）のタイムスタンプ: JST (+09:00)
+    - DB 内のタイムスタンプはすべて UTC（ISO 8601、タイムゾーン情報付き）
     - 比較時は datetime オブジェクト同士で比較し、タイムゾーンを正しく考慮する
 """
 
@@ -106,6 +105,28 @@ class ScreenshotManager:
         """メタデータキャッシュ用の SQLite データベースを初期化する."""
         with sqlite3.connect(self.cache_path) as conn:
             rsudp.schema_util.init_database(conn, "screenshot_metadata")
+            self._migrate_drop_date_columns(conn)
+
+    @staticmethod
+    def _migrate_drop_date_columns(conn: sqlite3.Connection) -> None:
+        """
+        旧スキーマの日付列（year〜second）を削除するマイグレーション.
+
+        これらの列は timestamp（UTC）から導出可能な重複データで、
+        かつ UTC 由来のため JST 基準の UI と不整合だったので廃止した。
+        列が存在しない新スキーマでは何もしない（冪等）。
+        """
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(screenshot_metadata)")}
+        legacy_columns = [c for c in ("year", "month", "day", "hour", "minute", "second") if c in columns]
+        if not legacy_columns:
+            return
+
+        # 列を参照するインデックスを先に削除しないと DROP COLUMN が失敗する
+        conn.execute("DROP INDEX IF EXISTS idx_screenshot_date")
+        for column in legacy_columns:
+            conn.execute(f"ALTER TABLE screenshot_metadata DROP COLUMN {column}")
+        conn.commit()
+        logging.info("cache.db マイグレーション: 日付列 %s を削除しました", legacy_columns)
 
     @staticmethod
     def _iter_images(directory: Path, *, recursive: bool = False):
@@ -197,20 +218,13 @@ class ScreenshotManager:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO screenshot_metadata
-                (filename, filepath, year, month, day, hour, minute, second,
-                 timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
+                (filename, filepath, timestamp, sta_value, lta_value, sta_lta_ratio, max_count,
                  created_at, file_size, metadata_raw)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     file_path.name,
                     str(file_path.relative_to(self.screenshot_path)),
-                    parsed.year,
-                    parsed.month,
-                    parsed.day,
-                    parsed.hour,
-                    parsed.minute,
-                    parsed.second,
                     parsed.timestamp,
                     metadata.get("sta"),
                     metadata.get("lta"),
@@ -224,7 +238,10 @@ class ScreenshotManager:
 
     def get_latest_cached_date(self) -> rsudp.types.DateInfo | None:
         """
-        キャッシュ内の最新のスクリーンショットの日付を取得する.
+        キャッシュ内の最新のスクリーンショットの日付（UTC）を取得する.
+
+        ディレクトリ構造（YYYY/MM/DD）はファイル名の UTC 日付に基づくため、
+        増分スキャンの起点として使うこの日付も UTC の年月日を返す。
 
         Returns:
             最新の日付情報、またはキャッシュが空の場合は None
@@ -232,14 +249,15 @@ class ScreenshotManager:
         """
         with sqlite3.connect(self.cache_path) as conn:
             cursor = conn.execute("""
-                SELECT year, month, day
+                SELECT timestamp
                 FROM screenshot_metadata
                 ORDER BY timestamp DESC
                 LIMIT 1
             """)
             row = cursor.fetchone()
             if row:
-                return rsudp.types.DateInfo(year=row[0], month=row[1], day=row[2])
+                ts = datetime.datetime.fromisoformat(row[0])
+                return rsudp.types.DateInfo(year=ts.year, month=ts.month, day=ts.day)
             return None
 
     def scan_and_cache_all(self) -> int:
@@ -358,11 +376,7 @@ class ScreenshotManager:
     def get_screenshots_with_signal_filter(self, min_max_signal: float | None = None):
         """最小信号値（max_count）でフィルタリングしたスクリーンショットを取得する."""
         with sqlite3.connect(self.cache_path) as conn:
-            query = """
-                SELECT filename, filepath, year, month, day, hour, minute, second,
-                       timestamp, sta_value, lta_value, sta_lta_ratio, max_count, metadata_raw
-                FROM screenshot_metadata
-            """
+            query = f"SELECT {self._METADATA_COLUMNS} FROM screenshot_metadata"  # noqa: S608 - 列名は定数
             params = []
 
             if min_max_signal is not None:
@@ -374,42 +388,6 @@ class ScreenshotManager:
             cursor = conn.execute(query, params)
 
             return [rsudp.types.row_to_screenshot_dict(row) for row in cursor]
-
-    def get_available_years(self, min_max_signal: float | None = None) -> list[int]:
-        """最小信号値を満たすスクリーンショットが存在する年のリストを取得する."""
-        query = "SELECT DISTINCT year FROM screenshot_metadata"
-        params: list = []
-        if min_max_signal is not None:
-            query += " WHERE max_count >= ?"
-            params.append(min_max_signal)
-        query += " ORDER BY year DESC"
-
-        with sqlite3.connect(self.cache_path) as conn:
-            return [row[0] for row in conn.execute(query, params)]
-
-    def get_available_months(self, year: int, min_max_signal: float | None = None) -> list[int]:
-        """指定年で利用可能な月のリストを取得する."""
-        query = "SELECT DISTINCT month FROM screenshot_metadata WHERE year = ?"
-        params: list = [year]
-        if min_max_signal is not None:
-            query += " AND max_count >= ?"
-            params.append(min_max_signal)
-        query += " ORDER BY month DESC"
-
-        with sqlite3.connect(self.cache_path) as conn:
-            return [row[0] for row in conn.execute(query, params)]
-
-    def get_available_days(self, year: int, month: int, min_max_signal: float | None = None) -> list[int]:
-        """指定年月で利用可能な日のリストを取得する."""
-        query = "SELECT DISTINCT day FROM screenshot_metadata WHERE year = ? AND month = ?"
-        params: list = [year, month]
-        if min_max_signal is not None:
-            query += " AND max_count >= ?"
-            params.append(min_max_signal)
-        query += " ORDER BY day DESC"
-
-        with sqlite3.connect(self.cache_path) as conn:
-            return [row[0] for row in conn.execute(query, params)]
 
     @staticmethod
     def _attach_quake_db(conn: sqlite3.Connection, quake_db_path: Path) -> None:
@@ -493,7 +471,7 @@ class ScreenshotManager:
         if not quake_db_path or not quake_db_path.exists():
             return []
 
-        # 地震データを取得（タイムスタンプは JST）
+        # 地震データを取得
         with sqlite3.connect(quake_db_path) as quake_conn:
             quake_conn.row_factory = sqlite3.Row
             quake_cursor = quake_conn.execute("SELECT * FROM earthquakes ORDER BY detected_at DESC")
@@ -503,18 +481,14 @@ class ScreenshotManager:
             return []
 
         # 地震ごとのマッチング候補を作成（時間窓が最も近い地震を一意に選ぶため）
-        # detected_at は JST のタイムゾーン情報を含む ISO 形式文字列
+        # detected_at はタイムゾーン情報を含む ISO 形式文字列（UTC）
         candidates = _build_earthquake_candidates(
             [(eq.detected_at, eq) for eq in earthquakes], before_seconds, after_seconds
         )
 
         # スクリーンショットを取得
         with sqlite3.connect(self.cache_path) as conn:
-            query = """
-                SELECT filename, filepath, year, month, day, hour, minute, second,
-                       timestamp, sta_value, lta_value, sta_lta_ratio, max_count, metadata_raw
-                FROM screenshot_metadata
-            """
+            query = f"SELECT {self._METADATA_COLUMNS} FROM screenshot_metadata"  # noqa: S608 - 列名は定数
             params: list = []
 
             if min_max_signal is not None:
@@ -528,7 +502,7 @@ class ScreenshotManager:
             screenshots = []
             for row in cursor:
                 # スクリーンショットのタイムスタンプ（UTC、タイムゾーン情報付き）を解析
-                screenshot_ts = datetime.datetime.fromisoformat(row[8])
+                screenshot_ts = datetime.datetime.fromisoformat(row[2])
 
                 # 時間窓内で発生時刻が最も近い地震を選ぶ（3 経路で統一）
                 matched_earthquake = _find_closest_earthquake(screenshot_ts, candidates)
@@ -664,8 +638,8 @@ class ScreenshotManager:
             return []
 
         query = """
-            SELECT s.filename, s.filepath, s.year, s.month, s.day, s.hour, s.minute, s.second,
-                   s.timestamp, s.sta_value, s.lta_value, s.sta_lta_ratio, s.max_count, s.metadata_raw,
+            SELECT s.filename, s.filepath, s.timestamp,
+                   s.sta_value, s.lta_value, s.sta_lta_ratio, s.max_count, s.metadata_raw,
                    q.id, q.event_id, q.detected_at, q.latitude, q.longitude, q.magnitude,
                    q.depth, q.epicenter_name, q.max_intensity, q.created_at, q.updated_at
             FROM screenshot_metadata s
@@ -690,45 +664,38 @@ class ScreenshotManager:
             screenshots = []
             for row in cursor:
                 earthquake = rsudp.types.EarthquakeData(
-                    id=row[14],
-                    event_id=row[15],
-                    detected_at=row[16],
-                    latitude=row[17],
-                    longitude=row[18],
-                    magnitude=row[19],
-                    depth=row[20],
-                    epicenter_name=row[21],
-                    max_intensity=row[22],
-                    created_at=row[23],
-                    updated_at=row[24],
+                    id=row[8],
+                    event_id=row[9],
+                    detected_at=row[10],
+                    latitude=row[11],
+                    longitude=row[12],
+                    magnitude=row[13],
+                    depth=row[14],
+                    epicenter_name=row[15],
+                    max_intensity=row[16],
+                    created_at=row[17],
+                    updated_at=row[18],
                 )
-                screenshots.append(rsudp.types.row_to_screenshot_dict(row[:14], earthquake))
+                screenshots.append(rsudp.types.row_to_screenshot_dict(row[:8], earthquake))
 
             return screenshots
 
     @staticmethod
     def _row_to_metadata(row: tuple) -> rsudp.types.ScreenshotMetadata:
-        """14 要素の行タプルを ScreenshotMetadata に変換する."""
+        """_METADATA_COLUMNS 順の行タプルを ScreenshotMetadata に変換する."""
         return rsudp.types.ScreenshotMetadata(
             filename=row[0],
             filepath=row[1],
-            year=row[2],
-            month=row[3],
-            day=row[4],
-            hour=row[5],
-            minute=row[6],
-            second=row[7],
-            timestamp=row[8],
-            sta=row[9],
-            lta=row[10],
-            sta_lta_ratio=row[11],
-            max_count=row[12],
-            metadata=row[13],
+            timestamp=row[2],
+            sta=row[3],
+            lta=row[4],
+            sta_lta_ratio=row[5],
+            max_count=row[6],
+            metadata=row[7],
         )
 
     _METADATA_COLUMNS = (
-        "filename, filepath, year, month, day, hour, minute, second, "
-        "timestamp, sta_value, lta_value, sta_lta_ratio, max_count, metadata_raw"
+        "filename, filepath, timestamp, sta_value, lta_value, sta_lta_ratio, max_count, metadata_raw"
     )
 
     def get_representative_new_screenshot(self) -> rsudp.types.ScreenshotMetadata | None:

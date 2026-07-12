@@ -31,12 +31,6 @@ ON earthquakes(event_id);
 CREATE TABLE IF NOT EXISTS screenshot_metadata (
     filename TEXT PRIMARY KEY,
     filepath TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    month INTEGER NOT NULL,
-    day INTEGER NOT NULL,
-    hour INTEGER NOT NULL,
-    minute INTEGER NOT NULL,
-    second INTEGER NOT NULL,
     timestamp TEXT NOT NULL,
     sta_value REAL,
     lta_value REAL,
@@ -47,9 +41,6 @@ CREATE TABLE IF NOT EXISTS screenshot_metadata (
     metadata_raw TEXT,
     earthquake_event_id TEXT
 );
-
-CREATE INDEX IF NOT EXISTS idx_screenshot_date
-ON screenshot_metadata(year, month, day);
 
 CREATE INDEX IF NOT EXISTS idx_screenshot_sta
 ON screenshot_metadata(sta_value);

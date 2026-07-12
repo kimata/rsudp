@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Screenshot } from '../types';
 import { screenshotApi } from '../api';
-import { formatScreenshotDateTime } from '../utils/dateTime';
+import { formatScreenshotDateTime, formatEarthquakeDateTime } from '../utils/dateTime';
 import { useScreenshotNavigation } from '../hooks/useScreenshotNavigation';
 import { UI_CONSTANTS } from '../utils/constants';
 import { Icon } from './Icon';
@@ -306,16 +306,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       </div>
     );
   }
-
-  // Format earthquake datetime
-  const formatEarthquakeDateTime = (isoString: string): string => {
-    const date = new Date(isoString);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${month}/${day} ${hours}:${minutes}`;
-  };
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-5 min-h-[600px]" onKeyDown={handleKeyDown} tabIndex={0}>

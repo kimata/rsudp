@@ -6,7 +6,6 @@ cli/webui.py から起動される BackgroundMonitor をまとめる。
 
 from __future__ import annotations
 
-import datetime
 import logging
 import pathlib
 import sqlite3
@@ -73,6 +72,15 @@ class BackgroundMonitor:
 
     def start(self) -> None:
         """全てのバックグラウンドスレッドを起動する."""
+        # DB スキーマの初期化・マイグレーションをリクエスト受付前に確定させる。
+        # statistics API は cache.db / quake.db を生 SQL で参照するため、
+        # 監視スレッドの初回処理任せにすると移行前の形式を読む可能性がある。
+        import rsudp.quake.database
+        import rsudp.screenshot_manager
+
+        rsudp.screenshot_manager.ScreenshotManager(self.config)
+        rsudp.quake.database.QuakeDatabase(self.config)
+
         self._stop_event.clear()
         self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self._monitor_thread.start()
@@ -292,11 +300,7 @@ class BackgroundMonitor:
     @staticmethod
     def _to_jst_str(timestamp: str) -> str:
         """ISO 形式のタイムスタンプ（UTC）を JST の表示文字列に変換する."""
-        return (
-            datetime.datetime.fromisoformat(timestamp)
-            .astimezone(rsudp.types.JST)
-            .strftime("%Y-%m-%d %H:%M:%S JST")
-        )
+        return rsudp.types.to_jst(timestamp).strftime("%Y-%m-%d %H:%M:%S JST")
 
     def _notify_detection(self, manager: rsudp.screenshot_manager.ScreenshotManager) -> None:
         """増分スキャンの新規スクリーンショットのうち代表 1 枚を地震検出候補として通知する."""
@@ -356,7 +360,7 @@ class BackgroundMonitor:
         for eq in new_earthquakes:
             logging.info(
                 "  - %s %s M%.1f 震度%s 深さ%dkm",
-                eq["detected_at"].strftime("%Y-%m-%d %H:%M"),
+                rsudp.types.to_jst(eq["detected_at"]).strftime("%Y-%m-%d %H:%M"),
                 eq["epicenter_name"],
                 eq["magnitude"],
                 eq["max_intensity"],
