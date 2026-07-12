@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 520" font-family="'Segoe UI',system-ui,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6b7280"/></marker>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#c9384a"/></marker>
+  </defs>
+  <rect x="0" y="0" width="940" height="520" fill="#f6f7f9"/>
+  <text x="30" y="40" font-size="21" font-weight="700" fill="#1a1d24">圧縮パイプライン（compress.py）</text>
+  <text x="30" y="62" font-size="13" fill="#79808f">日次の _compress_data() または rsudp-compress CLI から実行。外部バイナリ zstd / cwebp を subprocess で利用</text>
+
+  <!-- miniSEED flow -->
+  <text x="30" y="102" font-size="13" font-weight="700" fill="#2f6fed">① miniSEED（data.miniseed 設定時）</text>
+  <rect x="30" y="114" width="230" height="64" rx="9" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.4"/>
+  <text x="145" y="138" font-size="12" font-weight="700" fill="#1a1d24" text-anchor="middle">NET.STA.LOC.CHAN.D.YYYY.DDD</text>
+  <text x="145" y="156" font-size="10.5" fill="#79808f" text-anchor="middle">rsudp Writer が日単位で出力</text>
+  <text x="145" y="170" font-size="10.5" fill="#79808f" text-anchor="middle">（当日分は対象外）</text>
+
+  <rect x="330" y="114" width="200" height="64" rx="9" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.4"/>
+  <text x="430" y="138" font-size="12" font-weight="700" fill="#1a1d24" text-anchor="middle">*.zst</text>
+  <text x="430" y="156" font-size="10.5" fill="#79808f" text-anchor="middle">zstd -19 -T0 --rm</text>
+  <text x="430" y="170" font-size="10.5" fill="#79808f" text-anchor="middle">可逆圧縮（復元可能）</text>
+
+  <rect x="620" y="114" width="290" height="64" rx="9" fill="#fdecec" stroke="#c9384a" stroke-width="1.4"/>
+  <text x="765" y="138" font-size="12" font-weight="700" fill="#1a1d24" text-anchor="middle">*.eq.zst（地震区間のみ）</text>
+  <text x="765" y="156" font-size="10.5" fill="#79808f" text-anchor="middle">obspy で該当区間を切り出し → zstd</text>
+  <text x="765" y="170" font-size="10.5" fill="#c9384a" text-anchor="middle">不可逆（元の全日データは削除）</text>
+
+  <path d="M260,146 L330,146" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="270" y="138" font-size="10" fill="#6b7280">compress_miniseed()</text>
+  <path d="M530,146 L620,146" fill="none" stroke="#c9384a" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="536" y="138" font-size="10" fill="#c9384a">extract_earthquake_miniseed()</text>
+
+  <!-- extraction rules -->
+  <rect x="30" y="204" width="880" height="130" rx="10" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.5"/>
+  <text x="46" y="228" font-size="12.5" font-weight="700" fill="#c9384a">地震区間抽出の安全条件（data.miniseed_extract_quake: true のときのみ）</text>
+  <text x="46" y="252" font-size="11" fill="#4a5160">・保存区間 = 発生 60 秒前 〜 マグニチュード依存の秒数後（M&lt;5.0: 10 分 / M&lt;6.5: 20 分 / それ以上: 30 分）</text>
+  <text x="46" y="271" font-size="11" fill="#4a5160">・直近 2 日（EARTHQUAKE_MARGIN_DAYS）は quake.db のクロール確定を待つため対象外</text>
+  <text x="46" y="290" font-size="11" fill="#4a5160">・quake.db の最古の地震より前の日は「地震情報が未整備の期間」とみなし削除しない</text>
+  <text x="46" y="309" font-size="11" fill="#4a5160">・抽出済み（.eq.zst）は再処理しない（冪等）。地震データが 1 件も無ければ抽出自体をスキップ</text>
+
+  <!-- screenshot flow -->
+  <text x="30" y="374" font-size="13" font-weight="700" fill="#2f6fed">② スクリーンショット</text>
+  <rect x="30" y="386" width="230" height="64" rx="9" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.4"/>
+  <text x="145" y="410" font-size="12" font-weight="700" fill="#1a1d24" text-anchor="middle">*.png</text>
+  <text x="145" y="428" font-size="10.5" fill="#79808f" text-anchor="middle">cache.db 登録済みのものが対象</text>
+  <text x="145" y="442" font-size="10.5" fill="#79808f" text-anchor="middle">（STA/LTA は DB に保存済み）</text>
+
+  <rect x="330" y="386" width="200" height="64" rx="9" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.4"/>
+  <text x="430" y="410" font-size="12" font-weight="700" fill="#1a1d24" text-anchor="middle">*.webp</text>
+  <text x="430" y="428" font-size="10.5" fill="#79808f" text-anchor="middle">cwebp -q 95（lossy）</text>
+  <text x="430" y="442" font-size="10.5" fill="#79808f" text-anchor="middle">PNG メタデータは持たない</text>
+
+  <rect x="620" y="386" width="290" height="64" rx="9" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
+  <text x="765" y="406" font-size="12" font-weight="700" fill="#1a1d24" text-anchor="middle">cache.db 更新（1 ファイル単位）</text>
+  <text x="765" y="424" font-size="10.5" fill="#4a5160" text-anchor="middle">UPDATE（filename/filepath/file_size）</text>
+  <text x="765" y="440" font-size="10.5" fill="#4a5160" text-anchor="middle">→ commit → PNG 削除 の順を厳守</text>
+
+  <path d="M260,418 L330,418" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="266" y="410" font-size="10" fill="#6b7280">convert_screenshots()</text>
+  <path d="M530,418 L620,418" fill="none" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <text x="30" y="486" font-size="11" fill="#79808f">いずれも dry-run 対応（rsudp-compress -n）。zstd / cwebp が見つからない場合は処理をスキップする。</text>
+  <text x="30" y="504" font-size="11" fill="#79808f">WebP 化後の画像でも STA/LTA・MaxCount は cache.db から参照できる（PNG メタデータへの依存はスキャン時のみ）。</text>
+</svg>

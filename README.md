@@ -63,6 +63,9 @@ _Raspberry Shake 4Dで記録された地震波形の例_
 
 ## 🏗️ システム構成
 
+> [!TIP]
+> コードのアーキテクチャ（モジュール構成・データモデル・バックグラウンド監視・圧縮パイプライン等）の詳細は [doc/architecture.md](doc/architecture.md) を参照してください。
+
 ```mermaid
 flowchart TD
     RS[🌍 Raspberry Shake<br/>地震計] --> UDP[📡 UDP Stream<br/>Port: 8888]

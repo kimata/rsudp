@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 600" font-family="'Segoe UI',system-ui,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+  <defs>
+    <marker id="m" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6b7280"/></marker>
+    <marker id="mb" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#2f6fed"/></marker>
+  </defs>
+  <rect x="0" y="0" width="940" height="600" fill="#f6f7f9"/>
+  <text x="30" y="40" font-size="21" font-weight="700" fill="#1a1d24">モジュール構成と依存関係（src/rsudp）</text>
+  <text x="30" y="62" font-size="13" fill="#79808f">矢印 = import。上位（エントリーポイント）から下位（共通基盤）への一方向依存</text>
+
+  <!-- Layer: CLI -->
+  <text x="30" y="102" font-size="12" font-weight="700" fill="#2f6fed">cli/ — エントリーポイント（pyproject.toml [project.scripts]）</text>
+  <rect x="30" y="112" width="200" height="58" rx="9" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
+  <text x="130" y="136" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">cli/webui.py</text>
+  <text x="130" y="154" font-size="10.5" fill="#79808f" text-anchor="middle">rsudp-webui（Flask 起動）</text>
+
+  <rect x="250" y="112" width="170" height="58" rx="9" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
+  <text x="335" y="136" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">cli/compress.py</text>
+  <text x="335" y="154" font-size="10.5" fill="#79808f" text-anchor="middle">rsudp-compress</text>
+
+  <rect x="440" y="112" width="170" height="58" rx="9" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
+  <text x="525" y="136" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">cli/cleaner.py</text>
+  <text x="525" y="154" font-size="10.5" fill="#79808f" text-anchor="middle">rsudp-cleaner</text>
+
+  <rect x="630" y="112" width="170" height="58" rx="9" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.4"/>
+  <text x="715" y="136" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">cli/healthz.py</text>
+  <text x="715" y="154" font-size="10.5" fill="#79808f" text-anchor="middle">rsudp-healthz</text>
+
+  <!-- Layer: app -->
+  <rect x="30" y="220" width="200" height="76" rx="9" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.4"/>
+  <text x="130" y="244" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">monitor.py</text>
+  <text x="130" y="262" font-size="10.5" fill="#79808f" text-anchor="middle">BackgroundMonitor</text>
+  <text x="130" y="278" font-size="10.5" fill="#79808f" text-anchor="middle">定期スキャン・クロール・圧縮</text>
+
+  <rect x="250" y="220" width="360" height="76" rx="9" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.4"/>
+  <text x="430" y="242" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">webui/api/</text>
+  <text x="430" y="261" font-size="10.5" fill="#4a5160" text-anchor="middle">viewer.py（REST + OGP） · statistics.py（集計）</text>
+  <text x="430" y="278" font-size="10.5" fill="#4a5160" text-anchor="middle">schemas.py（Pydantic、types.ts と対応）</text>
+
+  <!-- Layer: domain -->
+  <rect x="30" y="350" width="230" height="76" rx="9" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.4"/>
+  <text x="145" y="374" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">screenshot_manager.py</text>
+  <text x="145" y="392" font-size="10.5" fill="#79808f" text-anchor="middle">整理・スキャン・cache.db 管理</text>
+  <text x="145" y="408" font-size="10.5" fill="#79808f" text-anchor="middle">地震照合・マイグレーション</text>
+
+  <rect x="285" y="350" width="200" height="76" rx="9" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.4"/>
+  <text x="385" y="374" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">quake/crawl.py</text>
+  <text x="385" y="392" font-size="10.5" fill="#79808f" text-anchor="middle">JMA API クローラー</text>
+  <text x="385" y="408" font-size="10.5" fill="#79808f" text-anchor="middle">座標・震度・時刻パース</text>
+
+  <rect x="510" y="350" width="200" height="76" rx="9" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.4"/>
+  <text x="610" y="374" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">quake/database.py</text>
+  <text x="610" y="392" font-size="10.5" fill="#79808f" text-anchor="middle">quake.db 管理（UTC 正規化）</text>
+  <text x="610" y="408" font-size="10.5" fill="#79808f" text-anchor="middle">マイグレーション</text>
+
+  <rect x="735" y="350" width="175" height="76" rx="9" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.4"/>
+  <text x="822" y="374" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">compress.py</text>
+  <text x="822" y="392" font-size="10.5" fill="#79808f" text-anchor="middle">zstd / WebP / 地震区間抽出</text>
+  <text x="822" y="408" font-size="10.5" fill="#79808f" text-anchor="middle">（zstd·cwebp を subprocess）</text>
+
+  <!-- Layer: base -->
+  <rect x="30" y="482" width="280" height="66" rx="9" fill="#fff3e0" stroke="#e07b00" stroke-width="1.4"/>
+  <text x="170" y="506" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">types.py</text>
+  <text x="170" y="524" font-size="10.5" fill="#79808f" text-anchor="middle">dataclass 群 · JST/to_jst() · ファイル名パース</text>
+  <text x="170" y="539" font-size="10.5" fill="#79808f" text-anchor="middle">calculate_earthquake_time_range()</text>
+
+  <rect x="335" y="482" width="240" height="66" rx="9" fill="#fff3e0" stroke="#e07b00" stroke-width="1.4"/>
+  <text x="455" y="506" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">config.py</text>
+  <text x="455" y="524" font-size="10.5" fill="#79808f" text-anchor="middle">Config dataclass（frozen）</text>
+  <text x="455" y="539" font-size="10.5" fill="#79808f" text-anchor="middle">slack / station パース</text>
+
+  <rect x="600" y="482" width="160" height="66" rx="9" fill="#fff3e0" stroke="#e07b00" stroke-width="1.4"/>
+  <text x="680" y="506" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">schema_util.py</text>
+  <text x="680" y="524" font-size="10.5" fill="#79808f" text-anchor="middle">schema/sqlite.schema</text>
+  <text x="680" y="539" font-size="10.5" fill="#79808f" text-anchor="middle">からテーブル初期化</text>
+
+  <rect x="785" y="482" width="125" height="66" rx="9" fill="#f2f3f6" stroke="#cfd4dc" stroke-width="1.4"/>
+  <text x="847" y="506" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">my_lib</text>
+  <text x="847" y="524" font-size="10.5" fill="#79808f" text-anchor="middle">webapp / notify.slack</text>
+  <text x="847" y="539" font-size="10.5" fill="#79808f" text-anchor="middle">外部共通ライブラリ</text>
+
+  <!-- arrows: cli -> app -->
+  <path d="M110,170 L120,220" fill="none" stroke="#2f6fed" stroke-width="1.5" marker-end="url(#mb)"/>
+  <path d="M175,170 C230,195 280,205 320,220" fill="none" stroke="#2f6fed" stroke-width="1.5" marker-end="url(#mb)"/>
+  <path d="M335,170 C400,240 620,290 770,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M525,170 C500,300 300,380 240,500 L310,510" fill="none" stroke="#6b7280" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m)"/>
+  <text x="480" y="330" font-size="10" fill="#79808f">cleaner は cache.db /</text>
+  <text x="480" y="344" font-size="10" fill="#79808f">quake.db を直接 SQL 参照</text>
+
+  <!-- arrows: app -> domain -->
+  <path d="M110,296 L130,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M170,296 C250,320 330,330 370,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M200,290 C450,330 680,320 790,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M330,296 L200,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M470,296 L560,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M430,296 L400,350" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+
+  <!-- arrows: domain -> base -->
+  <path d="M385,426 L390,482" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M145,426 L160,482" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M610,426 L660,482" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+  <path d="M822,426 C822,450 400,450 250,482" fill="none" stroke="#6b7280" stroke-width="1.3" marker-end="url(#m)"/>
+
+  <text x="30" y="580" font-size="11" fill="#79808f">※ 図の簡略化のため config.py / types.py への依存矢印は代表のみ。実際はほぼ全モジュールが両者に依存する。</text>
+</svg>

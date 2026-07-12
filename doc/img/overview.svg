@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 620" font-family="'Segoe UI',system-ui,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6b7280"/></marker>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#2f7d5b"/></marker>
+    <marker id="ao" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#e07b00"/></marker>
+  </defs>
+  <rect x="0" y="0" width="940" height="620" fill="#f6f7f9"/>
+  <text x="30" y="40" font-size="21" font-weight="700" fill="#1a1d24">rsudp システム全体構成</text>
+  <text x="30" y="62" font-size="13" fill="#79808f">Raspberry Shake の地震データ受信 → 保存 → 監視 → 配信</text>
+
+  <!-- 外部アクター -->
+  <rect x="30" y="90" width="150" height="66" rx="10" fill="#fff3e0" stroke="#e07b00" stroke-width="1.5"/>
+  <text x="105" y="120" font-size="13" font-weight="700" fill="#1a1d24" text-anchor="middle">Raspberry Shake</text>
+  <text x="105" y="140" font-size="11" fill="#79808f" text-anchor="middle">UDP :8888</text>
+
+  <rect x="30" y="300" width="150" height="66" rx="10" fill="#fff3e0" stroke="#e07b00" stroke-width="1.5"/>
+  <text x="105" y="330" font-size="13" font-weight="700" fill="#1a1d24" text-anchor="middle">気象庁 API</text>
+  <text x="105" y="350" font-size="11" fill="#79808f" text-anchor="middle">JMA list / detail JSON</text>
+
+  <rect x="30" y="470" width="150" height="66" rx="10" fill="#f2ebfc" stroke="#7a3fd0" stroke-width="1.5"/>
+  <text x="105" y="500" font-size="13" font-weight="700" fill="#1a1d24" text-anchor="middle">ブラウザ / SNS</text>
+  <text x="105" y="520" font-size="11" fill="#79808f" text-anchor="middle">React UI · OGP</text>
+
+  <!-- rsudp 本体 -->
+  <rect x="245" y="90" width="200" height="90" rx="10" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.5"/>
+  <text x="345" y="116" font-size="13" font-weight="700" fill="#1a1d24" text-anchor="middle">rsudp 本体 (Docker)</text>
+  <text x="345" y="137" font-size="11" fill="#4a5160" text-anchor="middle">STA/LTA 検出・波形プロット</text>
+  <text x="345" y="154" font-size="11" fill="#4a5160" text-anchor="middle">patch/ 適用済み</text>
+  <text x="345" y="171" font-size="11" fill="#79808f" text-anchor="middle">unix-start-rsudp.sh</text>
+
+  <!-- 永続データ -->
+  <rect x="245" y="230" width="200" height="70" rx="10" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.5"/>
+  <text x="345" y="257" font-size="13" font-weight="700" fill="#1a1d24" text-anchor="middle">スクリーンショット PNG</text>
+  <text x="345" y="277" font-size="11" fill="#79808f" text-anchor="middle">data/screenshots/YYYY/MM/DD/</text>
+  <text x="345" y="293" font-size="11" fill="#79808f" text-anchor="middle">PREFIX-UTC.png（tEXt: MaxCount 他）</text>
+
+  <rect x="245" y="330" width="200" height="56" rx="10" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.5"/>
+  <text x="345" y="355" font-size="13" font-weight="700" fill="#1a1d24" text-anchor="middle">miniSEED 波形</text>
+  <text x="345" y="374" font-size="11" fill="#79808f" text-anchor="middle">data/data/（zstd 圧縮対象）</text>
+
+  <!-- rsudp-webui プロセス -->
+  <rect x="510" y="86" width="290" height="300" rx="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.5"/>
+  <text x="524" y="110" font-size="12" font-weight="700" fill="#2f6fed" letter-spacing="0.5">rsudp-webui プロセス</text>
+
+  <rect x="528" y="124" width="254" height="118" rx="9" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.2"/>
+  <text x="542" y="146" font-size="12.5" font-weight="700" fill="#1a1d24">BackgroundMonitor</text>
+  <text x="542" y="167" font-size="11" fill="#4a5160">・_scan_incremental … 60 秒毎</text>
+  <text x="542" y="185" font-size="11" fill="#4a5160">・_crawl_earthquakes … 1 時間毎</text>
+  <text x="542" y="203" font-size="11" fill="#4a5160">・_compress_data … 1 日毎</text>
+  <text x="542" y="221" font-size="11" fill="#4a5160">・DB state watcher → SSE</text>
+  <text x="542" y="236" font-size="10.5" fill="#79808f">monitor.py</text>
+
+  <rect x="528" y="256" width="254" height="114" rx="9" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.2"/>
+  <text x="542" y="278" font-size="12.5" font-weight="700" fill="#1a1d24">Flask app（Blueprint: viewer_api）</text>
+  <text x="542" y="299" font-size="11" fill="#4a5160">・/rsudp/api/screenshot · earthquake</text>
+  <text x="542" y="317" font-size="11" fill="#4a5160">・/rsudp/api/statistics（4 種）</text>
+  <text x="542" y="335" font-size="11" fill="#4a5160">・SSE event · 静的配信（dist）</text>
+  <text x="542" y="353" font-size="11" fill="#4a5160">viewer.py / statistics.py / schemas.py</text>
+
+  <!-- DB -->
+  <rect x="510" y="430" width="140" height="66" rx="10" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.5"/>
+  <text x="580" y="458" font-size="13" font-weight="700" fill="#1a1d24" text-anchor="middle">cache.db</text>
+  <text x="580" y="478" font-size="10.5" fill="#79808f" text-anchor="middle">screenshot_metadata</text>
+
+  <rect x="662" y="430" width="138" height="66" rx="10" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.5"/>
+  <text x="731" y="458" font-size="13" font-weight="700" fill="#1a1d24" text-anchor="middle">quake.db</text>
+  <text x="731" y="478" font-size="10.5" fill="#79808f" text-anchor="middle">earthquakes</text>
+
+  <!-- Slack -->
+  <rect x="840" y="150" width="80" height="90" rx="10" fill="#fff3e0" stroke="#e07b00" stroke-width="1.5"/>
+  <text x="880" y="188" font-size="12.5" font-weight="700" fill="#1a1d24" text-anchor="middle">Slack</text>
+  <text x="880" y="207" font-size="10" fill="#79808f" text-anchor="middle">info:</text>
+  <text x="880" y="221" font-size="10" fill="#79808f" text-anchor="middle">検出/照合</text>
+
+  <!-- flows -->
+  <path d="M180,123 L245,130" fill="none" stroke="#e07b00" stroke-width="1.6" marker-end="url(#ao)"/>
+  <text x="192" y="116" font-size="10" fill="#e07b00">UDP</text>
+  <path d="M345,180 L345,230" fill="none" stroke="#2f7d5b" stroke-width="1.6" marker-end="url(#ag)"/>
+  <path d="M445,255 C480,255 495,200 528,185" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#a)"/>
+  <text x="452" y="230" font-size="10" fill="#6b7280">scan</text>
+  <path d="M180,333 C400,333 360,200 528,175" fill="none" stroke="#e07b00" stroke-width="1.4" marker-end="url(#a)"/>
+  <text x="300" y="318" font-size="10" fill="#e07b00">crawl（毎時取得）</text>
+  <!-- monitor -> DB -->
+  <path d="M600,242 L590,430" fill="none" stroke="#2f7d5b" stroke-width="1.4" marker-end="url(#ag)"/>
+  <path d="M660,242 C700,320 720,360 725,430" fill="none" stroke="#2f7d5b" stroke-width="1.4" marker-end="url(#ag)"/>
+  <text x="606" y="410" font-size="10" fill="#2f7d5b">write</text>
+  <!-- Flask <- DB read -->
+  <path d="M600,430 L610,370" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#a)"/>
+  <text x="612" y="410" font-size="10" fill="#6b7280">read</text>
+  <!-- Flask -> UI -->
+  <path d="M528,320 C300,470 220,480 180,495" fill="none" stroke="#7a3fd0" stroke-width="1.4" marker-end="url(#a)"/>
+  <text x="300" y="470" font-size="10" fill="#7a3fd0">REST / SSE / OGP</text>
+  <!-- monitor -> slack -->
+  <path d="M782,175 L840,185" fill="none" stroke="#e07b00" stroke-width="1.4" marker-end="url(#ao)"/>
+
+  <!-- CLI note -->
+  <rect x="245" y="430" width="200" height="66" rx="10" fill="#f2f3f6" stroke="#cfd4dc" stroke-width="1.2"/>
+  <text x="345" y="453" font-size="12" font-weight="700" fill="#1a1d24" text-anchor="middle">CLI（同一パッケージ）</text>
+  <text x="345" y="472" font-size="10.5" fill="#79808f" text-anchor="middle">rsudp-healthz / -cleaner</text>
+  <text x="345" y="487" font-size="10.5" fill="#79808f" text-anchor="middle">rsudp-compress</text>
+  <path d="M345,430 L345,392" fill="none" stroke="#6b7280" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#a)"/>
+</svg>

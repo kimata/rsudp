@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 540" font-family="'Segoe UI',system-ui,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#c9384a"/></marker>
+  </defs>
+  <rect x="0" y="0" width="940" height="540" fill="#f6f7f9"/>
+  <text x="30" y="40" font-size="21" font-weight="700" fill="#1a1d24">データモデル（schema/sqlite.schema）</text>
+  <text x="30" y="62" font-size="13" fill="#79808f">2 つの独立した SQLite DB。タイムスタンプはすべて UTC で保存し、表示時のみ JST へ変換する</text>
+
+  <!-- cache.db -->
+  <rect x="30" y="90" width="400" height="330" rx="10" fill="#ffffff" stroke="#2f7d5b" stroke-width="1.6"/>
+  <rect x="30" y="90" width="400" height="40" rx="10" fill="#e7f5ee"/>
+  <rect x="30" y="112" width="400" height="18" fill="#e7f5ee"/>
+  <text x="46" y="116" font-size="13.5" font-weight="700" fill="#1a1d24">cache.db — screenshot_metadata</text>
+
+  <g font-size="11.5" fill="#1a1d24">
+    <text x="46" y="152" font-weight="700">filename</text><text x="230" y="152" fill="#79808f">TEXT PK（例: SHAKE-…-190542.webp）</text>
+    <text x="46" y="174">filepath</text><text x="230" y="174" fill="#79808f">TEXT（screenshots からの相対パス）</text>
+    <text x="46" y="196" font-weight="700" fill="#2f6fed">timestamp</text><text x="230" y="196" fill="#79808f">TEXT（ISO 8601、UTC）</text>
+    <text x="46" y="218">sta_value / lta_value</text><text x="230" y="218" fill="#79808f">REAL（PNG メタデータ由来）</text>
+    <text x="46" y="240">sta_lta_ratio / max_count</text><text x="230" y="240" fill="#79808f">REAL（NULL 許容）</text>
+    <text x="46" y="262">created_at</text><text x="230" y="262" fill="#79808f">REAL（ファイル ctime）</text>
+    <text x="46" y="284">file_size</text><text x="230" y="284" fill="#79808f">INTEGER（再スキャン判定に使用）</text>
+    <text x="46" y="306">metadata_raw</text><text x="230" y="306" fill="#79808f">TEXT（PNG Description 原文）</text>
+    <text x="46" y="328" font-weight="700" fill="#c9384a">earthquake_event_id</text><text x="230" y="328" fill="#79808f">TEXT（事前計算した照合結果）</text>
+  </g>
+  <line x1="30" y1="344" x2="430" y2="344" stroke="#e3e5ea" stroke-width="1"/>
+  <text x="46" y="366" font-size="10.5" fill="#79808f">INDEX: sta_value / timestamp / earthquake_event_id</text>
+  <text x="46" y="386" font-size="10.5" fill="#79808f">書き込み: ScreenshotManager（INSERT OR REPLACE）</text>
+  <text x="46" y="402" font-size="10.5" fill="#79808f">更新: update_earthquake_associations() / compress.py（WebP 変換）</text>
+
+  <!-- quake.db -->
+  <rect x="510" y="90" width="400" height="330" rx="10" fill="#ffffff" stroke="#2f7d5b" stroke-width="1.6"/>
+  <rect x="510" y="90" width="400" height="40" rx="10" fill="#e7f5ee"/>
+  <rect x="510" y="112" width="400" height="18" fill="#e7f5ee"/>
+  <text x="526" y="116" font-size="13.5" font-weight="700" fill="#1a1d24">quake.db — earthquakes</text>
+
+  <g font-size="11.5" fill="#1a1d24">
+    <text x="526" y="152">id</text><text x="700" y="152" fill="#79808f">INTEGER PK AUTOINCREMENT</text>
+    <text x="526" y="174" font-weight="700" fill="#c9384a">event_id</text><text x="700" y="174" fill="#79808f">TEXT UNIQUE（JMA の eid）</text>
+    <text x="526" y="196" font-weight="700" fill="#2f6fed">detected_at</text><text x="700" y="196" fill="#79808f">TEXT（ISO 8601、UTC）</text>
+    <text x="526" y="218">latitude / longitude</text><text x="700" y="218" fill="#79808f">REAL（震源座標）</text>
+    <text x="526" y="240">magnitude</text><text x="700" y="240" fill="#79808f">REAL（NaN は 0.0 に丸め）</text>
+    <text x="526" y="262">depth</text><text x="700" y="262" fill="#79808f">INTEGER（km）</text>
+    <text x="526" y="284">epicenter_name</text><text x="700" y="284" fill="#79808f">TEXT（震央地名）</text>
+    <text x="526" y="306">max_intensity</text><text x="700" y="306" fill="#79808f">TEXT（"5+" 等の JMA 表記）</text>
+    <text x="526" y="328">created_at / updated_at</text><text x="700" y="328" fill="#79808f">TEXT（UTC、システム管理用）</text>
+  </g>
+  <line x1="510" y1="344" x2="910" y2="344" stroke="#e3e5ea" stroke-width="1"/>
+  <text x="526" y="366" font-size="10.5" fill="#79808f">INDEX: detected_at / event_id</text>
+  <text x="526" y="386" font-size="10.5" fill="#79808f">書き込み: QuakeDatabase.insert_earthquake()</text>
+  <text x="526" y="402" font-size="10.5" fill="#79808f">（ON CONFLICT(event_id) DO NOTHING — 最初に取り込んだ報を保持）</text>
+
+  <!-- association link -->
+  <path d="M430,328 C470,328 470,174 510,174" fill="none" stroke="#c9384a" stroke-width="1.8" marker-end="url(#a)"/>
+  <text x="470" y="240" font-size="10.5" font-weight="700" fill="#c9384a" text-anchor="middle">論理参照</text>
+  <text x="470" y="255" font-size="9.5" fill="#c9384a" text-anchor="middle">（別 DB のため</text>
+  <text x="470" y="268" font-size="9.5" fill="#c9384a" text-anchor="middle">FK ではない）</text>
+
+  <!-- TZ rule -->
+  <rect x="30" y="446" width="880" height="70" rx="10" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.5"/>
+  <text x="46" y="470" font-size="12.5" font-weight="700" fill="#2f6fed">タイムゾーン規約: DB は UTC、表示は JST</text>
+  <text x="46" y="490" font-size="11" fill="#4a5160">・detected_at は挿入時に astimezone(UTC) で正規化（JMA の JST から変換）。旧 JST 行は QuakeDatabase 初期化時の冪等マイグレーションで変換</text>
+  <text x="46" y="507" font-size="11" fill="#4a5160">・JST への変換は表示層のみ: Python は rsudp.types.to_jst()、フロントエンドは utils/dateTime.ts（dayjs + Asia/Tokyo 固定）</text>
+
+  <!-- ATTACH note -->
+  <text x="470" y="435" font-size="10.5" fill="#79808f" text-anchor="middle">一覧 API は cache.db に quake.db を ATTACH して JOIN（get_screenshots_with_earthquake_filter_fast）</text>
+</svg>

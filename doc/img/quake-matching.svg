@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 460" font-family="'Segoe UI',system-ui,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6b7280"/></marker>
+  </defs>
+  <rect x="0" y="0" width="940" height="460" fill="#f6f7f9"/>
+  <text x="30" y="40" font-size="21" font-weight="700" fill="#1a1d24">スクリーンショットと地震の照合（screenshot_manager.py）</text>
+  <text x="30" y="62" font-size="13" fill="#79808f">時間窓 [発生 −30 秒, 発生 +240 秒] に入るスクリーンショットを、発生時刻が最も近い地震へ関連付ける</text>
+
+  <!-- timeline -->
+  <line x1="60" y1="150" x2="880" y2="150" stroke="#4a5160" stroke-width="1.6"/>
+  <text x="885" y="154" font-size="11" fill="#79808f">t</text>
+
+  <!-- window for EQ1 -->
+  <rect x="180" y="110" width="270" height="80" rx="6" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.2" opacity="0.85"/>
+  <line x1="270" y1="96" x2="270" y2="204" stroke="#c9384a" stroke-width="2"/>
+  <text x="270" y="88" font-size="11.5" font-weight="700" fill="#c9384a" text-anchor="middle">地震 A 発生（detected_at）</text>
+  <text x="188" y="204" font-size="10" fill="#2f6fed">−30s</text>
+  <text x="418" y="204" font-size="10" fill="#2f6fed">+240s</text>
+
+  <!-- window for EQ2 (overlapping aftershock) -->
+  <rect x="360" y="120" width="270" height="60" rx="6" fill="#fff3e0" stroke="#e07b00" stroke-width="1.2" opacity="0.85"/>
+  <line x1="450" y1="104" x2="450" y2="196" stroke="#e07b00" stroke-width="2"/>
+  <text x="452" y="100" font-size="11.5" font-weight="700" fill="#e07b00">地震 B 発生（余震などで窓が重複）</text>
+
+  <!-- screenshots -->
+  <circle cx="240" cy="150" r="7" fill="#2f7d5b"/>
+  <text x="240" y="230" font-size="10.5" fill="#2f7d5b" text-anchor="middle">SS1 → A</text>
+  <circle cx="400" cy="150" r="7" fill="#2f7d5b"/>
+  <text x="400" y="230" font-size="10.5" fill="#2f7d5b" text-anchor="middle">SS2 → |t−A| と |t−B| の小さい方</text>
+  <circle cx="560" cy="150" r="7" fill="#2f7d5b"/>
+  <text x="560" y="230" font-size="10.5" fill="#2f7d5b" text-anchor="middle">SS3 → B</text>
+  <circle cx="760" cy="150" r="7" fill="#9aa1ad"/>
+  <text x="760" y="230" font-size="10.5" fill="#9aa1ad" text-anchor="middle">窓の外 → 関連付けなし</text>
+
+  <!-- rule box -->
+  <rect x="30" y="270" width="430" height="150" rx="10" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.5"/>
+  <text x="46" y="296" font-size="12.5" font-weight="700" fill="#2f6fed">共通ロジック（3 経路で同一実装を共有）</text>
+  <text x="46" y="320" font-size="11" fill="#4a5160">_build_earthquake_candidates() で全地震の時間窓を構築し、</text>
+  <text x="46" y="337" font-size="11" fill="#4a5160">_find_closest_earthquake() が「窓内で発生時刻が最も近い地震」を返す。</text>
+  <text x="46" y="361" font-size="11" fill="#4a5160">① update_earthquake_associations() — 事前計算して</text>
+  <text x="46" y="378" font-size="11" fill="#4a5160">　 earthquake_event_id 列へ保存（毎時のクロール後に更新）</text>
+  <text x="46" y="395" font-size="11" fill="#4a5160">② get_screenshots_with_earthquake_filter() — その場で照合</text>
+  <text x="46" y="412" font-size="11" fill="#4a5160">③ get_earthquake_for_screenshot() — 単一画像用（OGP など）</text>
+
+  <!-- fast path box -->
+  <rect x="480" y="270" width="430" height="150" rx="10" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.5"/>
+  <text x="496" y="296" font-size="12.5" font-weight="700" fill="#2f7d5b">高速パス（earthquake_only=true の一覧 API）</text>
+  <text x="496" y="320" font-size="11" fill="#4a5160">get_screenshots_with_earthquake_filter_fast() は照合計算をせず、</text>
+  <text x="496" y="337" font-size="11" fill="#4a5160">事前計算済みの earthquake_event_id を使って</text>
+  <text x="496" y="354" font-size="11" fill="#4a5160">cache.db に quake.db を ATTACH → JOIN で 1 クエリ取得。</text>
+  <text x="496" y="378" font-size="11" fill="#4a5160">min_max_signal（MaxCount 下限）と min_magnitude（M 下限）を</text>
+  <text x="496" y="395" font-size="11" fill="#4a5160">SQL の WHERE 句でそのまま絞り込む。</text>
+
+  <text x="30" y="445" font-size="11" fill="#79808f">窓幅の既定値は types.calculate_earthquake_time_range()（before_seconds=30 / after_seconds=240）。比較はタイムゾーン付き datetime 同士で行う。</text>
+</svg>

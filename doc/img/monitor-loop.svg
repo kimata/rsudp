@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 560" font-family="'Segoe UI',system-ui,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6b7280"/></marker>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#2f7d5b"/></marker>
+    <marker id="ao" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#e07b00"/></marker>
+  </defs>
+  <rect x="0" y="0" width="940" height="560" fill="#f6f7f9"/>
+  <text x="30" y="40" font-size="21" font-weight="700" fill="#1a1d24">BackgroundMonitor の実行モデル（monitor.py）</text>
+  <text x="30" y="62" font-size="13" fill="#79808f">rsudp-webui 起動時に start() され、1 本の監視スレッド + 2 本の DB watcher スレッドが動く</text>
+
+  <!-- start() sequence -->
+  <rect x="30" y="90" width="880" height="86" rx="10" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.5"/>
+  <text x="46" y="114" font-size="12.5" font-weight="700" fill="#2f6fed">start() — リクエスト受付前に同期実行</text>
+  <rect x="46" y="126" width="270" height="38" rx="7" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.2"/>
+  <text x="181" y="144" font-size="11" font-weight="600" fill="#1a1d24" text-anchor="middle">ScreenshotManager 初期化</text>
+  <text x="181" y="158" font-size="10" fill="#79808f" text-anchor="middle">cache.db スキーマ + 旧日付列 DROP 移行</text>
+  <rect x="336" y="126" width="270" height="38" rx="7" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.2"/>
+  <text x="471" y="144" font-size="11" font-weight="600" fill="#1a1d24" text-anchor="middle">QuakeDatabase 初期化</text>
+  <text x="471" y="158" font-size="10" fill="#79808f" text-anchor="middle">quake.db スキーマ + detected_at UTC 移行</text>
+  <rect x="626" y="126" width="270" height="38" rx="7" fill="#eaf1ff" stroke="#2f6fed" stroke-width="1.2"/>
+  <text x="761" y="144" font-size="11" font-weight="600" fill="#1a1d24" text-anchor="middle">3 スレッド起動</text>
+  <text x="761" y="158" font-size="10" fill="#79808f" text-anchor="middle">_monitor_loop + DB watcher ×2</text>
+  <path d="M316,145 L336,145" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#a)"/>
+  <path d="M606,145 L626,145" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#a)"/>
+
+  <!-- monitor loop -->
+  <rect x="30" y="206" width="600" height="310" rx="10" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.5"/>
+  <text x="46" y="230" font-size="12.5" font-weight="700" fill="#2f6fed">_monitor_loop スレッド（60 秒周期の単一ループ）</text>
+
+  <rect x="46" y="244" width="568" height="40" rx="7" fill="#f2f3f6" stroke="#cfd4dc" stroke-width="1.2"/>
+  <text x="60" y="262" font-size="11" font-weight="600" fill="#1a1d24">起動直後 1 回: _scan_full()（organize + 全件スキャン） → _crawl_earthquakes()</text>
+  <text x="60" y="277" font-size="10" fill="#79808f">キャッシュが空なら増分スキャンも完全スキャンにフォールバック</text>
+
+  <rect x="46" y="296" width="568" height="56" rx="7" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.2"/>
+  <text x="60" y="316" font-size="11.5" font-weight="700" fill="#1a1d24">毎 60 秒 — _scan_incremental()</text>
+  <text x="60" y="333" font-size="10.5" fill="#4a5160">organize_files() → 最新キャッシュ日付以降の YYYY/MM/DD ディレクトリのみスキャン</text>
+  <text x="60" y="347" font-size="10.5" fill="#4a5160">新規ファイルあり → _notify_detection()（代表 1 枚を Slack info へ）</text>
+
+  <rect x="46" y="362" width="568" height="56" rx="7" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.2"/>
+  <text x="60" y="382" font-size="11.5" font-weight="700" fill="#1a1d24">毎 3,600 秒 — _crawl_earthquakes()</text>
+  <text x="60" y="399" font-size="10.5" fill="#4a5160">JMA クロール（震度 2 以上） → _update_earthquake_associations()（事前計算）</text>
+  <text x="60" y="413" font-size="10.5" fill="#4a5160">→ _notify_matched_earthquakes()（自局照合が取れた新規地震を Slack info へ）</text>
+
+  <rect x="46" y="428" width="568" height="42" rx="7" fill="#e7f5ee" stroke="#2f7d5b" stroke-width="1.2"/>
+  <text x="60" y="448" font-size="11.5" font-weight="700" fill="#1a1d24">毎 86,400 秒 — _compress_data()</text>
+  <text x="60" y="463" font-size="10.5" fill="#4a5160">miniSEED zstd 圧縮 → （設定時）地震区間抽出 → スクリーンショット WebP 変換</text>
+
+  <text x="46" y="498" font-size="10.5" fill="#79808f">※ 例外は各処理内で捕捉してログに記録し、ループは止めない。Slack 通知の失敗も監視処理を巻き込まない。</text>
+
+  <!-- watchers -->
+  <rect x="660" y="206" width="250" height="200" rx="10" fill="#ffffff" stroke="#cfd4dc" stroke-width="1.5"/>
+  <text x="676" y="230" font-size="12.5" font-weight="700" fill="#2f6fed">DB state watcher ×2</text>
+  <text x="676" y="250" font-size="10.5" fill="#4a5160">my_lib.webapp.event の</text>
+  <text x="676" y="264" font-size="10.5" fill="#4a5160">start_db_state_watcher()</text>
+  <rect x="676" y="276" width="218" height="50" rx="7" fill="#f2f3f6" stroke="#cfd4dc" stroke-width="1.2"/>
+  <text x="785" y="296" font-size="11" font-weight="600" fill="#1a1d24" text-anchor="middle">cache.db 状態監視</text>
+  <text x="785" y="312" font-size="10" fill="#79808f" text-anchor="middle">MAX(created_at) の変化を検知</text>
+  <rect x="676" y="336" width="218" height="50" rx="7" fill="#f2f3f6" stroke="#cfd4dc" stroke-width="1.2"/>
+  <text x="785" y="356" font-size="11" font-weight="600" fill="#1a1d24" text-anchor="middle">quake.db 状態監視</text>
+  <text x="785" y="372" font-size="10" fill="#79808f" text-anchor="middle">MAX(updated_at) の変化を検知</text>
+
+  <rect x="660" y="436" width="250" height="80" rx="10" fill="#f2ebfc" stroke="#7a3fd0" stroke-width="1.5"/>
+  <text x="785" y="462" font-size="12" font-weight="700" fill="#1a1d24" text-anchor="middle">SSE（/rsudp/api/event）</text>
+  <text x="785" y="481" font-size="10.5" fill="#4a5160" text-anchor="middle">変化イベントをブラウザへ push し</text>
+  <text x="785" y="496" font-size="10.5" fill="#4a5160" text-anchor="middle">React 側が一覧を自動リフレッシュ</text>
+
+  <path d="M785,406 L785,436" fill="none" stroke="#7a3fd0" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M614,324 C640,324 650,300 676,300" fill="none" stroke="#2f7d5b" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ag)"/>
+  <path d="M614,390 C645,390 650,362 676,360" fill="none" stroke="#2f7d5b" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ag)"/>
+  <text x="622" y="345" font-size="9.5" fill="#2f7d5b">DB 更新</text>
+
+  <text x="30" y="545" font-size="11" fill="#79808f">周期は monitor.py の定数: _SCREENSHOT_SCAN_INTERVAL=60 / _QUAKE_CRAWL_INTERVAL=3600 / _COMPRESS_INTERVAL=86400</text>
+</svg>
