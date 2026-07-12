@@ -27,6 +27,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
   // currentImage の変更を 100ms debounce してから反映する
   // （プリロード済みの場合は debounce せず即座に反映）。
   const [displayedImage, setDisplayedImage] = useState<Screenshot | null>(currentImage);
+  // 再試行時に <img src> を変化させて再リクエストさせるためのキャッシュバスター
+  const [retryVersion, setRetryVersion] = useState(0);
   const currentImageRef = useRef<HTMLImageElement>(null);
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
@@ -166,6 +168,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   // 表示画像（debounce 後）が変更された時の処理
   useEffect(() => {
+    // 画像が切り替わったらキャッシュバスターをリセット
+    setRetryVersion(0);
     if (displayedImage) {
       // 事前読み込み済みの場合は即座に表示
       if (preloadedImages.has(displayedImage.filename)) {
@@ -271,6 +275,11 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   const dateTime = formatScreenshotDateTime(currentImage);
 
+  // 表示中の画像 URL（再試行時はキャッシュバスターを付与して再リクエストさせる）
+  const activeFilename = (displayedImage ?? currentImage).filename;
+  const imageSrc =
+    screenshotApi.getImageUrl(activeFilename) + (retryVersion > 0 ? `?retry=${retryVersion}` : "");
+
   // 全画面表示時は別の構造で表示
   if (isFullscreen) {
     return (
@@ -286,8 +295,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         tabIndex={0}
       >
         <img
-          src={screenshotApi.getImageUrl((displayedImage ?? currentImage).filename)}
-          alt={(displayedImage ?? currentImage).filename.replace(/\.[^.]*$/, '')}
+          src={imageSrc}
+          alt={activeFilename.replace(/\.[^.]*$/, '')}
           className="max-w-[95%] max-h-[95vh] w-auto h-auto object-contain cursor-zoom-out"
           onClick={(e) => {
             e.stopPropagation();
@@ -346,7 +355,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
               >
                 <Icon name="chart-bar" className="size-5" />
                 <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-50 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200">
-                  最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
+                  最大振幅: {currentImage.max_count != null ? Math.round(currentImage.max_count).toLocaleString() : "-"}
                 </span>
                 <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-sky-50 dark:bg-sky-900/60 text-sky-700 dark:text-sky-200">
                   STA: {Math.round(currentImage.sta).toLocaleString()}
@@ -398,7 +407,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
               <>
                 <Icon name="chart-bar" className="size-5" />
                 <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-blue-50 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200">
-                  最大振幅: {Math.round(currentImage.max_count).toLocaleString()}
+                  最大振幅: {currentImage.max_count != null ? Math.round(currentImage.max_count).toLocaleString() : "-"}
                 </span>
                 <span className="inline-flex items-center px-2 py-1 text-sm rounded bg-sky-50 dark:bg-sky-900/60 text-sky-700 dark:text-sky-200">
                   STA: {Math.round(currentImage.sta).toLocaleString()}
@@ -454,6 +463,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                     setImageLoading(true);
                     setImageError(false);
                     setIsTransitioning(true);
+                    // src にキャッシュバスターを付けて <img> を再リクエストさせる
+                    setRetryVersion((v) => v + 1);
                   }}
                 >
                   <Icon name="arrow-path" className="size-4" />
@@ -472,8 +483,8 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         >
           <img
             ref={currentImageRef}
-            src={screenshotApi.getImageUrl((displayedImage ?? currentImage).filename)}
-            alt={(displayedImage ?? currentImage).filename.replace(/\.[^.]*$/, '')}
+            src={imageSrc}
+            alt={activeFilename.replace(/\.[^.]*$/, '')}
             className="max-w-full h-auto block mx-auto object-contain"
             style={{ touchAction: 'manipulation' }}
             onLoad={handleImageLoad}

@@ -11,7 +11,9 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            "/rsudp/api/screenshot": {
+            // SSE (/rsudp/api/event)・sysinfo・earthquake・statistics API も含めて
+            // dev サーバーからバックエンドへプロキシする
+            "/rsudp/api": {
                 target: "http://localhost:5000",
                 changeOrigin: true,
             },

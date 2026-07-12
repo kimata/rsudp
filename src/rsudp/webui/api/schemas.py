@@ -162,3 +162,100 @@ class IndexQuery(BaseModel):
     """Query parameters for GET / (index with OGP)."""
 
     file: str | None = None
+
+
+class DaysQuery(BaseModel):
+    """Query parameters for statistics endpoints that accept a days range."""
+
+    days: int = 90
+
+
+# ============================================================================
+# Statistics Response Schemas
+# ============================================================================
+
+
+class DailyCount(BaseModel):
+    """Daily screenshot count (JST date)."""
+
+    model_config = ConfigDict(strict=True)
+
+    date: str
+    count: int
+
+
+class DailyStatisticsResponse(BaseModel):
+    """Response schema for GET /api/statistics/daily."""
+
+    model_config = ConfigDict(strict=True)
+
+    data: list[DailyCount]
+
+
+class DistributionBin(BaseModel):
+    """A single histogram bin for max_count distribution."""
+
+    model_config = ConfigDict(strict=True)
+
+    label: str
+    min: float
+    max: float | None = None
+    count: int
+
+
+class DistributionResponse(BaseModel):
+    """Response schema for GET /api/statistics/distribution."""
+
+    model_config = ConfigDict(strict=True)
+
+    bins: list[DistributionBin]
+
+
+class AssociationCount(BaseModel):
+    """Daily total and earthquake-matched counts (JST date)."""
+
+    model_config = ConfigDict(strict=True)
+
+    date: str
+    total: int
+    matched: int
+
+
+class AssociationResponse(BaseModel):
+    """Response schema for GET /api/statistics/association."""
+
+    model_config = ConfigDict(strict=True)
+
+    data: list[AssociationCount]
+
+
+class StationLocation(BaseModel):
+    """Observation station location."""
+
+    model_config = ConfigDict(strict=True)
+
+    latitude: float
+    longitude: float
+
+
+class SensitivityPoint(BaseModel):
+    """A single detection-sensitivity data point (one earthquake)."""
+
+    model_config = ConfigDict(strict=True)
+
+    event_id: str
+    epicenter_name: str
+    distance_km: float
+    magnitude: float
+    depth: int
+    max_count: float
+    detected_at: str
+
+
+class SensitivityResponse(BaseModel):
+    """Response schema for GET /api/statistics/sensitivity."""
+
+    model_config = ConfigDict(strict=True)
+
+    station: StationLocation | None = None
+    points: list[SensitivityPoint]

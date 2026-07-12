@@ -33,20 +33,27 @@ export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshRe
     const isRefreshingRef = useRef(false);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // onRefresh を ref に保持し、フィルタ変更で executeRefresh/connect が
+    // 再生成されて EventSource が張り直されるのを防ぐ
+    const onRefreshRef = useRef(onRefresh);
+    useEffect(() => {
+        onRefreshRef.current = onRefresh;
+    }, [onRefresh]);
+
     // 更新を実行
     const executeRefresh = useCallback(async () => {
         if (isRefreshingRef.current) return;
 
         isRefreshingRef.current = true;
         try {
-            await onRefresh();
+            await onRefreshRef.current();
             setLastRefreshed(new Date());
         } catch (e) {
             console.error("Auto-refresh failed:", e);
         } finally {
             isRefreshingRef.current = false;
         }
-    }, [onRefresh]);
+    }, []);
 
     // SSE 接続を開始
     const connect = useCallback(() => {
@@ -55,19 +62,16 @@ export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshRe
             return;
         }
 
-        console.log("SSE: Connecting to", SSE_ENDPOINT);
         const eventSource = new EventSource(SSE_ENDPOINT);
         eventSourceRef.current = eventSource;
 
         eventSource.onopen = () => {
-            console.log("SSE: Connected");
             setIsConnected(true);
             setConnectionError(null);
         };
 
         eventSource.onmessage = (event) => {
             const eventType = event.data;
-            console.log("SSE: Received event:", eventType);
 
             // DATA イベントを受信したら更新を実行
             if (eventType === "data") {
@@ -77,7 +81,6 @@ export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshRe
         };
 
         eventSource.onerror = () => {
-            console.error("SSE: Connection error");
             setIsConnected(false);
             setConnectionError("サーバーとの接続が切断されました");
 
@@ -100,7 +103,6 @@ export function useAutoRefresh(options: UseAutoRefreshOptions): UseAutoRefreshRe
     // SSE 接続を切断
     const disconnect = useCallback(() => {
         if (eventSourceRef.current) {
-            console.log("SSE: Disconnecting");
             eventSourceRef.current.close();
             eventSourceRef.current = null;
             setIsConnected(false);

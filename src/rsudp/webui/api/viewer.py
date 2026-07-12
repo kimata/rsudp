@@ -4,6 +4,7 @@ import dataclasses
 import datetime
 import functools
 import html
+import sqlite3
 import threading
 import traceback
 from pathlib import Path
@@ -18,6 +19,7 @@ import rsudp.quake.database
 import rsudp.screenshot_manager
 import rsudp.types
 import rsudp.webui.api.schemas as schemas
+import rsudp.webui.api.statistics as statistics
 
 viewer_api = flask.Blueprint("viewer_api", __name__, url_prefix="/rsudp")
 blueprint = viewer_api  # Alias for compatibility with webui.py
@@ -109,6 +111,9 @@ def list_screenshots(query: schemas.ScreenshotListQuery):
     - earthquake_only: If true, only return screenshots during earthquake windows
     - min_magnitude: Minimum earthquake magnitude (only effective when earthquake_only=true)
     """
+    # gzipped デコレータが disable_cache 未設定時に no-store を max-age で上書きするため、
+    # 動的レスポンスがキャッシュされないよう明示的にフラグを立てる。
+    flask.g.disable_cache = True
     try:
         manager = _get_screenshot_manager()
 
@@ -119,13 +124,21 @@ def list_screenshots(query: schemas.ScreenshotListQuery):
 
         quake_db_path = _get_quake_db_path()
 
-        if earthquake_only and quake_db_path.exists():
-            # 事前計算された地震関連付けを使って高速にフィルタリング
-            screenshots = manager.get_screenshots_with_earthquake_filter_fast(
-                quake_db_path=quake_db_path,
-                min_max_signal=min_max_signal,
-                min_magnitude=min_magnitude,
-            )
+        if earthquake_only:
+            # 地震のみ要求時に quake.db / earthquakes テーブルが無ければ空配列を返す。
+            # （全件を地震扱いで返さない）
+            if not quake_db_path.exists():
+                screenshots = []
+            else:
+                try:
+                    # 事前計算された地震関連付けを使って高速にフィルタリング
+                    screenshots = manager.get_screenshots_with_earthquake_filter_fast(
+                        quake_db_path=quake_db_path,
+                        min_max_signal=min_max_signal,
+                        min_magnitude=min_magnitude,
+                    )
+                except sqlite3.Error:
+                    screenshots = []
             # すでに earthquake キーが含まれているのでそのまま使用
             formatted_screenshots = [_format_screenshot_with_earthquake(s, None) for s in screenshots]
         else:
@@ -211,6 +224,8 @@ def list_by_date(year: int, month: int, day: int, query: schemas.MinMaxSignalQue
     Query parameters:
     - min_max_signal: Minimum maximum signal value to filter screenshots
     """
+    # gzipped デコレータによる no-store の上書きを防ぐ
+    flask.g.disable_cache = True
     try:
         manager = _get_screenshot_manager()
         min_max_signal = query.min_max_signal
@@ -231,6 +246,21 @@ def list_by_date(year: int, month: int, day: int, query: schemas.MinMaxSignalQue
         return flask.jsonify({"error": str(e)}), 500
 
 
+def _is_within_directory(base_dir: Path, candidate: Path) -> bool:
+    """
+    candidate が base_dir 配下（または base_dir 自身）に収まるか検証する.
+
+    パストラバーサル（例: ../../etc/passwd）で screenshots ディレクトリ外の
+    ファイルが配信されるのを防ぐため、resolve() 後の実パスで包含関係を確認する。
+    """
+    base = base_dir.resolve()
+    try:
+        resolved = candidate.resolve()
+    except OSError:
+        return False
+    return resolved == base or base in resolved.parents
+
+
 def _get_image_file_path(filename: str):
     """
     Get the actual file path for a given filename.
@@ -238,12 +268,19 @@ def _get_image_file_path(filename: str):
     ファイル名から日付ベースのサブディレクトリパスを直接構築することで、
     全ディレクトリを再帰走査する rglob を回避する。
     （rglob はファイル数に比例して遅くなり、コールドキャッシュ時は数秒かかる）
+
+    返却するパスは必ず screenshots ディレクトリ配下であることを検証し、
+    パストラバーサルによる任意ファイル配信を防ぐ。
     """
     screenshots_dir = _get_screenshots_path()
 
+    # パス区切り・親参照を含むファイル名は早期に拒否（防御の第一段）
+    if ".." in filename or filename.startswith("/"):
+        return None
+
     # 直下を試す
     file_path = screenshots_dir / filename
-    if file_path.exists():
+    if file_path.is_file() and _is_within_directory(screenshots_dir, file_path):
         return str(file_path)
 
     # ファイル名から日付を解析し、サブディレクトリパスを直接構築
@@ -258,12 +295,12 @@ def _get_image_file_path(filename: str):
             if candidate not in candidates:
                 candidates.append(candidate)
         for candidate in candidates:
-            if candidate.is_file():
+            if candidate.is_file() and _is_within_directory(screenshots_dir, candidate):
                 return str(candidate)
 
     # 解析できない/見つからない場合のみ、最終フォールバックとして再帰走査
     for found_path in screenshots_dir.rglob(filename):
-        if found_path.is_file():
+        if found_path.is_file() and _is_within_directory(screenshots_dir, found_path):
             return str(found_path)
 
     return None
@@ -432,6 +469,78 @@ def get_statistics(query: schemas.EarthquakeOnlyQuery):
         return flask.jsonify({"error": str(e)}), 500
 
 
+@viewer_api.route("/api/statistics/daily", methods=["GET"])
+@my_lib.flask_util.gzipped
+@no_cache
+@validate()
+def statistics_daily(query: schemas.DaysQuery):
+    """
+    JST 日付ごとのスクリーンショット件数を返す.
+
+    Query parameters:
+    - days: 遡る日数（デフォルト 90）
+    """
+    flask.g.disable_cache = True
+    try:
+        cache_path = _get_config().data.cache
+        data = statistics.get_daily_counts(cache_path, query.days)
+        return flask.jsonify({"data": [dataclasses.asdict(d) for d in data]})
+    except (sqlite3.Error, OSError) as e:
+        return flask.jsonify({"error": str(e)}), 500
+
+
+@viewer_api.route("/api/statistics/distribution", methods=["GET"])
+@my_lib.flask_util.gzipped
+@no_cache
+def statistics_distribution():
+    """max_count のヒストグラム分布を返す."""
+    flask.g.disable_cache = True
+    try:
+        cache_path = _get_config().data.cache
+        bins = statistics.get_distribution(cache_path)
+        return flask.jsonify({"bins": [dataclasses.asdict(b) for b in bins]})
+    except (sqlite3.Error, OSError) as e:
+        return flask.jsonify({"error": str(e)}), 500
+
+
+@viewer_api.route("/api/statistics/association", methods=["GET"])
+@my_lib.flask_util.gzipped
+@no_cache
+@validate()
+def statistics_association(query: schemas.DaysQuery):
+    """
+    JST 日付ごとの全件数と地震照合件数を返す.
+
+    Query parameters:
+    - days: 遡る日数（デフォルト 90）
+    """
+    flask.g.disable_cache = True
+    try:
+        cache_path = _get_config().data.cache
+        data = statistics.get_association(cache_path, query.days)
+        return flask.jsonify({"data": [dataclasses.asdict(d) for d in data]})
+    except (sqlite3.Error, OSError) as e:
+        return flask.jsonify({"error": str(e)}), 500
+
+
+@viewer_api.route("/api/statistics/sensitivity", methods=["GET"])
+@my_lib.flask_util.gzipped
+@no_cache
+def statistics_sensitivity():
+    """
+    各地震の時間窓内 max_count 最大値と震央距離から検出感度を返す.
+
+    config.station が未設定の場合は station: null, points: [] を返す。
+    """
+    flask.g.disable_cache = True
+    try:
+        config = _get_config()
+        result = statistics.get_sensitivity(config.data.cache, config.data.quake, config.station)
+        return flask.jsonify(dataclasses.asdict(result))
+    except (sqlite3.Error, OSError) as e:
+        return flask.jsonify({"error": str(e)}), 500
+
+
 @viewer_api.route("/api/screenshot/scan/", methods=["POST"])
 @no_cache
 def scan_screenshots():
@@ -503,6 +612,8 @@ def crawl_earthquake_data():
 @no_cache
 def list_earthquakes():
     """List all stored earthquakes."""
+    # gzipped デコレータによる no-store の上書きを防ぐ
+    flask.g.disable_cache = True
     try:
         config = _get_config()
         quake_db = rsudp.quake.database.QuakeDatabase(config)

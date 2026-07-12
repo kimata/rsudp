@@ -22,7 +22,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
 
   // 統計情報が読み込まれた時に閾値を初期化（1000 単位に丸める）
   useEffect(() => {
-    if (statistics?.min_signal !== undefined && minMaxSignalThreshold === undefined) {
+    if (statistics?.min_signal != null && minMaxSignalThreshold === undefined) {
       const initialValue = Math.floor(statistics.min_signal / 1000) * 1000;
       setInputValue(initialValue.toString());
       onThresholdChange(initialValue);
@@ -53,7 +53,16 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
   const handleSliderEnd = useCallback(() => {
     setIsDragging(false);
     const intValue = parseInt(inputValue, 10);
-    if (!isNaN(intValue)) {
+    if (!Number.isNaN(intValue)) {
+      onThresholdChange(intValue);
+    }
+  }, [inputValue, onThresholdChange]);
+
+  // キーボード操作（矢印キー等）でも閾値を確定する
+  const handleSliderKeyUp = useCallback(() => {
+    setIsDragging(false);
+    const intValue = parseInt(inputValue, 10);
+    if (!Number.isNaN(intValue)) {
       onThresholdChange(intValue);
     }
   }, [inputValue, onThresholdChange]);
@@ -134,6 +143,7 @@ const SignalFilter: React.FC<SignalFilterProps> = memo(({ statistics, minMaxSign
             onMouseUp={handleSliderEnd}
             onTouchStart={handleSliderStart}
             onTouchEnd={handleSliderEnd}
+            onKeyUp={handleSliderKeyUp}
             min={minValue}
             max={maxValue}
             step={step}

@@ -20,10 +20,11 @@ export interface Screenshot {
     minute: number;
     second: number;
     timestamp: string;
-    sta?: number;
-    lta?: number;
-    sta_lta_ratio?: number;
-    max_count: number;
+    // バックエンドは「キーあり + null」を返すため number | null で表現する
+    sta: number | null;
+    lta: number | null;
+    sta_lta_ratio: number | null;
+    max_count: number | null;
     metadata?: string;
     earthquake?: Earthquake;
 }
@@ -36,11 +37,64 @@ export interface ScreenshotListResponse {
 export interface StatisticsResponse {
     total: number;
     absolute_total: number;
-    min_signal?: number;
-    max_signal?: number;
-    avg_signal?: number;
+    // バックエンドは「キーあり + null」を返すため number | null で表現する
+    min_signal: number | null;
+    max_signal: number | null;
+    avg_signal: number | null;
     with_signal: number;
     earthquake_count?: number;
+}
+
+// --- 統計タブ用の型定義 ---
+
+export interface DailyDetection {
+    date: string;
+    count: number;
+}
+
+export interface DailyDetectionResponse {
+    data: DailyDetection[];
+}
+
+export interface DistributionBin {
+    label: string;
+    min: number;
+    max: number;
+    count: number;
+}
+
+export interface DistributionResponse {
+    bins: DistributionBin[];
+}
+
+export interface AssociationPoint {
+    date: string;
+    total: number;
+    matched: number;
+}
+
+export interface AssociationResponse {
+    data: AssociationPoint[];
+}
+
+export interface SensitivityPoint {
+    event_id: string;
+    epicenter_name: string;
+    distance_km: number;
+    magnitude: number;
+    depth: number;
+    max_count: number;
+    detected_at: string;
+}
+
+export interface StationLocation {
+    latitude: number;
+    longitude: number;
+}
+
+export interface SensitivityResponse {
+    station: StationLocation | null;
+    points: SensitivityPoint[];
 }
 
 export interface SysInfo {

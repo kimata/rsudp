@@ -441,3 +441,179 @@ class TestIndexWithOgp:
         response = flask_client.get("/rsudp/")
         assert response.status_code == 200
         assert b"og:title" in response.data
+
+
+class TestPathTraversal:
+    """画像配信のパストラバーサル対策テスト."""
+
+    def test_get_image_file_path_rejects_traversal(self, flask_app, config, temp_dir):
+        """screenshots ディレクトリ外を指すパスは None を返す."""
+        # screenshots ディレクトリの外にファイルを作成
+        secret = temp_dir / "secret.png"
+        secret.write_text("secret")
+
+        with flask_app.app_context():
+            assert viewer._get_image_file_path("../secret.png") is None
+            assert viewer._get_image_file_path("../../etc/passwd") is None
+            assert viewer._get_image_file_path("/etc/passwd") is None
+
+    def test_get_image_file_path_allows_legitimate(self, flask_app, config):
+        """日付サブディレクトリ配下の正規ファイルは従来どおり配信できる."""
+        screenshot_dir = config.plot.screenshot.path
+        date_dir = screenshot_dir / "2025" / "12" / "12"
+        date_dir.mkdir(parents=True, exist_ok=True)
+        target = date_dir / "SHAKE-2025-12-12-190500.png"
+        target.write_text("x")
+
+        with flask_app.app_context():
+            resolved = viewer._get_image_file_path("SHAKE-2025-12-12-190500.png")
+            assert resolved is not None
+            assert resolved.endswith("SHAKE-2025-12-12-190500.png")
+
+    def test_get_image_endpoint_traversal_not_served(self, flask_client, temp_dir):
+        """配信エンドポイント経由でも外部ファイルは 200 で返さない."""
+        secret = temp_dir / "secret.png"
+        secret.write_text("secret")
+
+        response = flask_client.get("/rsudp/api/screenshot/image/..%2f..%2fsecret.png")
+        assert response.status_code != 200
+
+
+class TestEarthquakeOnlyWithoutDb:
+    """quake.db 不在時の earthquake_only 挙動テスト."""
+
+    def test_earthquake_only_empty_when_db_missing(self, flask_client, config):
+        """quake.db が無いのに earthquake_only=true なら空配列を返す."""
+        from rsudp.screenshot_manager import ScreenshotManager
+
+        manager = ScreenshotManager(config)
+        with sqlite3.connect(manager.cache_path) as conn:
+            insert_screenshot_metadata(conn)
+
+        # quake.db は作成しない
+        assert not config.data.quake.exists()
+
+        response = flask_client.get("/rsudp/api/screenshot/?earthquake_only=true")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["screenshots"] == []
+        assert data["total"] == 0
+
+
+class TestStatisticsApi:
+    """統計 API のテスト."""
+
+    def _seed_cache(self, config, **kwargs):
+        from rsudp.screenshot_manager import ScreenshotManager
+
+        manager = ScreenshotManager(config)
+        with sqlite3.connect(manager.cache_path) as conn:
+            insert_screenshot_metadata(conn, **kwargs)
+        return manager
+
+    def test_daily(self, flask_client, config):
+        """日次件数集計が JST 日付で返る."""
+        # 2025-12-12T19:05:00Z = 2025-12-13 JST
+        self._seed_cache(config, filename="SHAKE-2025-12-12-190500.png")
+
+        response = flask_client.get("/rsudp/api/statistics/daily?days=100000")
+        assert response.status_code == 200
+        data = response.get_json()["data"]
+        assert {"date": "2025-12-13", "count": 1} in data
+
+    def test_distribution(self, flask_client, config):
+        """max_count のヒストグラムが返る."""
+        self._seed_cache(config, filename="SHAKE-2025-12-12-190500.png", max_count=1500.0)
+
+        response = flask_client.get("/rsudp/api/statistics/distribution")
+        assert response.status_code == 200
+        bins = response.get_json()["bins"]
+        assert isinstance(bins, list)
+        # 1500 は 1000–2000 ビンに入る
+        target = next(b for b in bins if b["label"] == "1000–2000")
+        assert target["count"] == 1
+        assert sum(b["count"] for b in bins) == 1
+
+    def test_association(self, flask_client, config):
+        """照合済み・全件が JST 日付で返る."""
+        self._seed_cache(
+            config,
+            filename="SHAKE-2025-12-12-190500.png",
+            earthquake_event_id="ev-1",
+        )
+        self._seed_cache(
+            config,
+            filename="SHAKE-2025-12-12-190600.png",
+            second=6,
+            timestamp="2025-12-12T19:06:00+00:00",
+        )
+
+        response = flask_client.get("/rsudp/api/statistics/association?days=100000")
+        assert response.status_code == 200
+        data = response.get_json()["data"]
+        entry = next(d for d in data if d["date"] == "2025-12-13")
+        assert entry["total"] == 2
+        assert entry["matched"] == 1
+
+    def test_sensitivity_no_station(self, flask_client, config):
+        """station 未設定なら station:null, points:[] を返す."""
+        response = flask_client.get("/rsudp/api/statistics/sensitivity")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["station"] is None
+        assert data["points"] == []
+
+    def test_sensitivity_with_station(self, config, temp_dir):
+        """station 設定時、地震窓内スクショの max_count 最大値が 1 点として返る."""
+        import dataclasses as _dc
+        import datetime
+
+        import flask
+        import flask_cors
+
+        import rsudp.config
+        import rsudp.quake.database
+        import rsudp.types
+        from rsudp.screenshot_manager import ScreenshotManager
+        from rsudp.webui.api import viewer as viewer_mod
+        from tests.helpers import insert_test_earthquake
+
+        station_config = _dc.replace(
+            config, station=rsudp.config.StationConfig(latitude=35.0, longitude=139.0)
+        )
+
+        # 地震データを投入（detected_at = 2025-12-13 04:05:00 JST = 2025-12-12 19:05:00 UTC）
+        # スクショのデフォルト timestamp（19:05:00 UTC）が地震窓内に入るよう合わせる
+        quake_db = rsudp.quake.database.QuakeDatabase(station_config)
+        insert_test_earthquake(
+            quake_db,
+            event_id="ev-1",
+            detected_at=datetime.datetime(2025, 12, 13, 4, 5, 0, tzinfo=rsudp.types.JST),
+            latitude=36.0,
+            longitude=140.0,
+        )
+
+        # スクショを窓内に投入（UTC 19:05:00 は detected_at JST 19:05:00 の窓内）
+        manager = ScreenshotManager(station_config)
+        with sqlite3.connect(manager.cache_path) as conn:
+            insert_screenshot_metadata(conn, max_count=2222.0)
+
+        viewer_mod._screenshot_manager = None
+        app = flask.Flask(__name__)
+        flask_cors.CORS(app)
+        app.config["CONFIG"] = station_config
+        app.config["TESTING"] = True
+        app.register_blueprint(viewer_mod.blueprint)
+        client = app.test_client()
+
+        response = client.get("/rsudp/api/statistics/sensitivity")
+        viewer_mod._screenshot_manager = None
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["station"] == {"latitude": 35.0, "longitude": 139.0}
+        assert len(data["points"]) == 1
+        point = data["points"][0]
+        assert point["event_id"] == "ev-1"
+        assert point["max_count"] == 2222.0
+        assert point["distance_km"] > 0

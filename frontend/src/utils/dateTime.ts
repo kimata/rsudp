@@ -13,20 +13,32 @@ dayjs.extend(timezone);
 dayjs.extend(localizedFormat);
 dayjs.locale("ja");
 
+// スクリーンショットの timestamp は UTC。表示・日付分類はすべて JST に統一する。
+const JST = "Asia/Tokyo";
+
 export const formatDateTime = (timestamp: string) => {
-    const utcDate = dayjs.utc(timestamp);
-    const localDate = utcDate.local();
+    const jstDate = dayjs.utc(timestamp).tz(JST);
     const now = dayjs();
 
     return {
-        formatted: localDate.format("YYYY年M月D日 HH時mm分ss秒"),
-        compact: localDate.format("MM/DD HH:mm:ss"),
-        relative: localDate.from(now),
+        formatted: jstDate.format("YYYY年M月D日 HH時mm分ss秒"),
+        compact: jstDate.format("MM/DD HH:mm:ss"),
+        relative: jstDate.from(now),
     };
 };
 
 export const formatScreenshotDateTime = (screenshot: Screenshot) => {
     return formatDateTime(screenshot.timestamp);
+};
+
+/**
+ * UTC の timestamp から JST の年月日を導出する。
+ * ファイル名由来の UTC year/month/day では JST 0:00〜8:59 が前日にずれるため、
+ * 日付分類・フィルタはこの JST 基準の値を用いる。
+ */
+export const getJstDateParts = (timestamp: string): { year: number; month: number; day: number } => {
+    const jst = dayjs.utc(timestamp).tz(JST);
+    return { year: jst.year(), month: jst.month() + 1, day: jst.date() };
 };
 
 export { dayjs };

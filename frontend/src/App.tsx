@@ -6,8 +6,16 @@ import ImageViewer from "./components/ImageViewer";
 import FileList from "./components/FileList";
 import Footer from "./components/Footer";
 import SignalFilter from "./components/SignalFilter";
+import StatisticsPage from "./components/StatisticsPage";
 import { useAutoRefresh } from "./hooks/useAutoRefresh";
+import { getJstDateParts } from "./utils/dateTime";
 import { Icon } from "./components/Icon";
+
+type TabId = "list" | "stats";
+
+// 現在のタブを URL から取得
+const getTabFromUrl = (): TabId =>
+    new URLSearchParams(window.location.search).get("tab") === "stats" ? "stats" : "list";
 
 // URLパラメータの型定義
 interface UrlParams {
@@ -25,11 +33,15 @@ const getUrlParams = (): UrlParams => {
     const signalStr = params.get("signal");
     const magnitudeStr = params.get("magnitude");
 
+    // 不正な値（?signal=abc など）で NaN にならないようガードする
+    const signal = signalStr !== null ? parseInt(signalStr, 10) : null;
+    const magnitude = magnitudeStr !== null ? parseFloat(magnitudeStr) : null;
+
     return {
         file,
         earthquake: earthquakeStr !== null ? earthquakeStr === "true" : null,
-        signal: signalStr !== null ? parseInt(signalStr, 10) : null,
-        magnitude: magnitudeStr !== null ? parseFloat(magnitudeStr) : null,
+        signal: signal !== null && !Number.isNaN(signal) ? signal : null,
+        magnitude: magnitude !== null && !Number.isNaN(magnitude) ? magnitude : null,
     };
 };
 
@@ -102,8 +114,14 @@ const App: React.FC = () => {
     // URL連携用
     const initialUrlParams = useRef<UrlParams>(getUrlParams());
     const hasProcessedInitialUrl = useRef(false); // 初回URL処理済みフラグ
-    const isHandlingPopstate = useRef(false);
     const wasInitialLoad = useRef(true); // 前回のisInitialLoad値を追跡
+    // 最新リクエストのみを反映するための連番（フェッチ競合対策）
+    const requestSeqRef = useRef(0);
+    // popstate（戻る/進む）で復元すべきファイル名。フェッチ完了後もこれを尊重する
+    const pendingRestoreFileRef = useRef<string | null>(null);
+
+    // タブ（一覧 / 統計）
+    const [activeTab, setActiveTab] = useState<TabId>(getTabFromUrl());
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -146,46 +164,60 @@ const App: React.FC = () => {
         return allScreenshots.filter((s) => s.max_count === null || s.max_count >= minMaxSignalThreshold);
     }, [allScreenshots, minMaxSignalThreshold]);
 
-    // クライアント側で年リストを計算
-    const years = useMemo(() => {
-        const yearSet = new Set(signalFilteredScreenshots.map((s) => s.year));
-        return Array.from(yearSet).sort((a, b) => b - a);
-    }, [signalFilteredScreenshots]);
+    // 各スクショの JST 年月日を timestamp（UTC）から導出してキャッシュする。
+    // バックエンドが返すファイル名由来の UTC year/month/day には依存しない
+    // （JST 0:00〜8:59 が前日にずれて日付分類と表示（JST）が食い違うのを防ぐ）。
+    const jstPartsByFilename = useMemo(() => {
+        const map = new Map<string, { year: number; month: number; day: number }>();
+        for (const s of allScreenshots) {
+            map.set(s.filename, getJstDateParts(s.timestamp));
+        }
+        return map;
+    }, [allScreenshots]);
 
-    // クライアント側で月リストを計算
+    // クライアント側で年リストを計算（JST 基準）
+    const years = useMemo(() => {
+        const yearSet = new Set(
+            signalFilteredScreenshots.map((s) => jstPartsByFilename.get(s.filename)!.year),
+        );
+        return Array.from(yearSet).sort((a, b) => b - a);
+    }, [signalFilteredScreenshots, jstPartsByFilename]);
+
+    // クライアント側で月リストを計算（JST 基準）
     const months = useMemo(() => {
         if (!selectedYear) return [];
         const monthSet = new Set(
-            signalFilteredScreenshots.filter((s) => s.year === selectedYear).map((s) => s.month),
+            signalFilteredScreenshots
+                .filter((s) => jstPartsByFilename.get(s.filename)!.year === selectedYear)
+                .map((s) => jstPartsByFilename.get(s.filename)!.month),
         );
         return Array.from(monthSet).sort((a, b) => b - a);
-    }, [signalFilteredScreenshots, selectedYear]);
+    }, [signalFilteredScreenshots, selectedYear, jstPartsByFilename]);
 
-    // クライアント側で日リストを計算
+    // クライアント側で日リストを計算（JST 基準）
     const days = useMemo(() => {
         if (!selectedYear || !selectedMonth) return [];
         const daySet = new Set(
             signalFilteredScreenshots
-                .filter((s) => s.year === selectedYear && s.month === selectedMonth)
-                .map((s) => s.day),
+                .filter((s) => {
+                    const p = jstPartsByFilename.get(s.filename)!;
+                    return p.year === selectedYear && p.month === selectedMonth;
+                })
+                .map((s) => jstPartsByFilename.get(s.filename)!.day),
         );
         return Array.from(daySet).sort((a, b) => b - a);
-    }, [signalFilteredScreenshots, selectedYear, selectedMonth]);
+    }, [signalFilteredScreenshots, selectedYear, selectedMonth, jstPartsByFilename]);
 
-    // 日付フィルタ適用後のスクリーンショット
+    // 日付フィルタ適用後のスクリーンショット（JST 基準）
     const filteredScreenshots = useMemo(() => {
-        let filtered = signalFilteredScreenshots;
-        if (selectedYear) {
-            filtered = filtered.filter((s) => s.year === selectedYear);
-        }
-        if (selectedMonth) {
-            filtered = filtered.filter((s) => s.month === selectedMonth);
-        }
-        if (selectedDay) {
-            filtered = filtered.filter((s) => s.day === selectedDay);
-        }
-        return filtered;
-    }, [signalFilteredScreenshots, selectedYear, selectedMonth, selectedDay]);
+        return signalFilteredScreenshots.filter((s) => {
+            const p = jstPartsByFilename.get(s.filename)!;
+            if (selectedYear && p.year !== selectedYear) return false;
+            if (selectedMonth && p.month !== selectedMonth) return false;
+            if (selectedDay && p.day !== selectedDay) return false;
+            return true;
+        });
+    }, [signalFilteredScreenshots, selectedYear, selectedMonth, selectedDay, jstPartsByFilename]);
 
     // 統計情報とスクリーンショット一覧を並列取得する共通ヘルパー
     const fetchScreenshotData = useCallback(async () => {
@@ -200,11 +232,14 @@ const App: React.FC = () => {
 
     // データ読み込み関数（useCallbackでメモ化）
     const loadInitialData = useCallback(async () => {
+        const seq = ++requestSeqRef.current;
         setLoading(true);
         setError(null);
         try {
-            console.log("Loading initial data from API...");
             const { stats, screenshotsData } = await fetchScreenshotData();
+
+            // 後着の古いレスポンスは破棄（最新リクエストのみ反映）
+            if (seq !== requestSeqRef.current) return;
 
             setStatistics(stats);
             setAllScreenshots(screenshotsData);
@@ -212,12 +247,10 @@ const App: React.FC = () => {
             // Set initial minimum maximum signal threshold to the actual minimum value
             // URLパラメータで指定されていなければ、統計情報の最小値を使用
             const initialMinMaxSignal =
-                stats.min_signal !== undefined ? Math.floor(stats.min_signal) : undefined;
+                stats.min_signal != null ? Math.floor(stats.min_signal) : undefined;
             if (initialUrlParams.current.signal === null && initialMinMaxSignal !== undefined) {
                 setMinMaxSignalThreshold(initialMinMaxSignal);
             }
-
-            console.log("API Response - Screenshots:", screenshotsData.length);
 
             // URLにファイル名が指定されている場合はそれを選択、なければ最新を選択
             if (screenshotsData.length > 0) {
@@ -241,7 +274,11 @@ const App: React.FC = () => {
                         setCurrentScreenshot(targetScreenshot);
                         // URLで指定されたファイルがシグナル閾値より低い場合、閾値を調整
                         let adjustedSignalThreshold = signalThreshold;
-                        if (signalThreshold !== undefined && targetScreenshot.max_count < signalThreshold) {
+                        if (
+                            signalThreshold !== undefined &&
+                            targetScreenshot.max_count != null &&
+                            targetScreenshot.max_count < signalThreshold
+                        ) {
                             adjustedSignalThreshold = Math.floor(targetScreenshot.max_count);
                             setMinMaxSignalThreshold(adjustedSignalThreshold);
                             // シグナル閾値を調整した場合、ユーザーが変更したとみなす
@@ -311,44 +348,58 @@ const App: React.FC = () => {
 
             setIsInitialLoad(false);
         } catch (err) {
+            if (seq !== requestSeqRef.current) return;
             const errorMessage = err instanceof Error ? err.message : "Unknown error";
             setError(`Failed to load screenshots: ${errorMessage}`);
             console.error("API Error:", err);
         } finally {
-            setLoading(false);
+            if (seq === requestSeqRef.current) {
+                setLoading(false);
+            }
         }
     }, [fetchScreenshotData, earthquakeOnly, minMagnitude]);
 
     // 地震フィルタ変更時に呼ばれる（振幅フィルタ変更時はAPIを呼ばない）
     const loadDataWithFilter = useCallback(async () => {
+        const seq = ++requestSeqRef.current;
         setIsFiltering(true);
         setLoading(true);
         setError(null);
         try {
             const { stats, screenshotsData } = await fetchScreenshotData();
 
+            // 後着の古いレスポンスは破棄（フィルタ高速切替時の競合対策）
+            if (seq !== requestSeqRef.current) return;
+
             setStatistics(stats);
             setAllScreenshots(screenshotsData);
 
             // Update threshold to be within new range if needed
-            if (stats.min_signal !== undefined) {
+            if (stats.min_signal != null) {
                 const newMin = Math.floor(stats.min_signal);
                 setMinMaxSignalThreshold((prev) => (prev === undefined || prev < newMin ? newMin : prev));
             }
 
-            // Set the latest screenshot as current (フィルタ変更時はスクロールしない)
-            if (screenshotsData.length > 0) {
-                setCurrentScreenshot(screenshotsData[0]);
-            } else {
-                setCurrentScreenshot(null);
+            // 選択画像を決定。popstate（戻る/進む）で復元指定があればそれを優先し、
+            // 新リストに含まれればそれを維持する（無条件に最新へ飛ばさない）。
+            const pendingFile = pendingRestoreFileRef.current;
+            let next: Screenshot | null = screenshotsData.length > 0 ? screenshotsData[0] : null;
+            if (pendingFile) {
+                const found = screenshotsData.find((s) => s.filename === pendingFile);
+                if (found) next = found;
+                pendingRestoreFileRef.current = null;
             }
+            setCurrentScreenshot(next);
         } catch (err) {
+            if (seq !== requestSeqRef.current) return;
             const errorMessage = err instanceof Error ? err.message : "Unknown error";
             setError(`Failed to load screenshots: ${errorMessage}`);
             console.error("API Error:", err);
         } finally {
-            setLoading(false);
-            setIsFiltering(false);
+            if (seq === requestSeqRef.current) {
+                setLoading(false);
+                setIsFiltering(false);
+            }
         }
     }, [fetchScreenshotData]);
 
@@ -371,9 +422,10 @@ const App: React.FC = () => {
         wasInitialLoad.current = isInitialLoad;
     }, [earthquakeOnly, minMagnitude, loadDataWithFilter, isInitialLoad]);
 
-    // フィルタ変更時にURLを更新（popstate処理中は除く）
+    // フィルタ変更時にURLを更新（replaceState なので popstate 中でも安全に同期する。
+    // currentScreenshot は復元/pending 機構で正しい値になるため上書き競合は起きない）
     useEffect(() => {
-        if (!isInitialLoad && !isHandlingPopstate.current && currentScreenshot) {
+        if (!isInitialLoad && currentScreenshot) {
             updateUrl(
                 {
                     file: currentScreenshot.filename,
@@ -417,6 +469,19 @@ const App: React.FC = () => {
     // ただし初回ロード中はスキップ（URLからの指定を優先するため）
     useEffect(() => {
         if (isInitialLoad) return;
+
+        // popstate（戻る/進む）での復元指定があり、リストに含まれていればそれを優先維持する
+        const pendingFile = pendingRestoreFileRef.current;
+        if (pendingFile) {
+            const restored =
+                filteredScreenshots.find((s) => s.filename === pendingFile) ||
+                signalFilteredScreenshots.find((s) => s.filename === pendingFile);
+            if (restored) {
+                pendingRestoreFileRef.current = null;
+                setCurrentScreenshot(restored);
+                return;
+            }
+        }
 
         setCurrentScreenshot((prev) => {
             if (filteredScreenshots.length > 0) {
@@ -471,23 +536,21 @@ const App: React.FC = () => {
             setCurrentScreenshot(screenshot);
             // ユーザーがファイルを明示的に選択したことを記録
             userSelectedFile.current = true;
-            // popstate処理中でなければURLを更新
-            if (!isHandlingPopstate.current) {
-                updateUrl(
-                    {
-                        file: screenshot.filename,
-                        earthquake: earthquakeOnly,
-                        signal: minMaxSignalThreshold,
-                        magnitude: minMagnitude,
-                    },
-                    {
-                        includeFile: true,
-                        includeEarthquake: userChangedEarthquake.current,
-                        includeSignal: userChangedSignal.current,
-                        includeMagnitude: userChangedMagnitude.current,
-                    },
-                );
-            }
+            // ユーザー操作なので新しい履歴エントリを追加（pushState）
+            updateUrl(
+                {
+                    file: screenshot.filename,
+                    earthquake: earthquakeOnly,
+                    signal: minMaxSignalThreshold,
+                    magnitude: minMagnitude,
+                },
+                {
+                    includeFile: true,
+                    includeEarthquake: userChangedEarthquake.current,
+                    includeSignal: userChangedSignal.current,
+                    includeMagnitude: userChangedMagnitude.current,
+                },
+            );
             // スクロール後にフラグをリセット
             setTimeout(() => setShouldScrollToCurrentImage(false), 100);
         },
@@ -576,13 +639,19 @@ const App: React.FC = () => {
     useEffect(() => {
         const handlePopstate = () => {
             const urlParams = getUrlParams();
-            isHandlingPopstate.current = true;
+
+            // タブを復元
+            setActiveTab(getTabFromUrl());
 
             // フラグを復元（URLにパラメータがあればそのパラメータは明示的に設定されたとみなす）
             userSelectedFile.current = urlParams.file !== null;
             userChangedEarthquake.current = urlParams.earthquake !== null;
             userChangedSignal.current = urlParams.signal !== null;
             userChangedMagnitude.current = urlParams.magnitude !== null;
+
+            // 復元すべきファイルを記録しておく。フィルタ変更でフェッチが走る場合でも
+            // フェッチ完了後にこのファイルを尊重して選択する（無条件に最新へ飛ばさない）。
+            pendingRestoreFileRef.current = urlParams.file;
 
             // フィルタ状態を復元
             if (urlParams.earthquake !== null) {
@@ -595,10 +664,12 @@ const App: React.FC = () => {
                 setMinMagnitude(urlParams.magnitude);
             }
 
-            // ファイル選択を復元
+            // 現在のリストに復元対象があれば即座に選択（フィルタ未変更のケースをカバー）。
+            // 見つからない場合は pendingRestoreFileRef に委ね、フェッチ完了後に復元する。
             if (urlParams.file && allScreenshots.length > 0) {
                 const targetScreenshot = allScreenshots.find((s) => s.filename === urlParams.file);
                 if (targetScreenshot) {
+                    pendingRestoreFileRef.current = null;
                     setShouldScrollToCurrentImage(true);
                     setCurrentScreenshot(targetScreenshot);
                     setTimeout(() => {
@@ -606,10 +677,6 @@ const App: React.FC = () => {
                     }, 100);
                 }
             }
-
-            setTimeout(() => {
-                isHandlingPopstate.current = false;
-            }, 100);
         };
 
         window.addEventListener("popstate", handlePopstate);
@@ -617,6 +684,18 @@ const App: React.FC = () => {
             window.removeEventListener("popstate", handlePopstate);
         };
     }, [allScreenshots]);
+
+    // タブ切り替え（URL の ?tab と同期）
+    const handleTabChange = useCallback((tab: TabId) => {
+        setActiveTab(tab);
+        const url = new URL(window.location.href);
+        if (tab === "stats") {
+            url.searchParams.set("tab", "stats");
+        } else {
+            url.searchParams.delete("tab");
+        }
+        window.history.pushState({}, "", url.toString());
+    }, []);
 
     return (
         <div className="w-full max-w-full p-2">
@@ -635,8 +714,36 @@ const App: React.FC = () => {
                     </a>
                 </div>
 
-                {/* デスクトップ表示時 */}
-                <div className="hidden lg:flex items-center">
+                {/* タブ切り替え（一覧 / 統計） */}
+                <div className="flex items-center gap-1 bg-slate-800/60 rounded-lg p-1">
+                    <button
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                            activeTab === "list"
+                                ? "bg-blue-600 text-white shadow"
+                                : "text-slate-300 hover:bg-slate-700/70 hover:text-white"
+                        }`}
+                        onClick={() => handleTabChange("list")}
+                        aria-pressed={activeTab === "list"}
+                    >
+                        <Icon name="list-bullet" className="size-4" />
+                        <span>一覧</span>
+                    </button>
+                    <button
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                            activeTab === "stats"
+                                ? "bg-blue-600 text-white shadow"
+                                : "text-slate-300 hover:bg-slate-700/70 hover:text-white"
+                        }`}
+                        onClick={() => handleTabChange("stats")}
+                        aria-pressed={activeTab === "stats"}
+                    >
+                        <Icon name="chart-bar" className="size-4" />
+                        <span>統計</span>
+                    </button>
+                </div>
+
+                {/* デスクトップ表示時（統計タブでは自動更新ステータスは非表示） */}
+                <div className={`items-center ${activeTab === "list" ? "hidden lg:flex" : "hidden"}`}>
                     <div className="px-3 py-2">
                         <span
                             className={`inline-flex items-center px-3 py-1.5 text-base rounded cursor-pointer ${isConnected ? "bg-sky-400/90 text-white" : "bg-amber-400 text-slate-800"}`}
@@ -666,8 +773,8 @@ const App: React.FC = () => {
                     )}
                 </div>
 
-                {/* モバイル/タブレット表示時 */}
-                <div className="lg:hidden flex items-center">
+                {/* モバイル/タブレット表示時（統計タブでは非表示） */}
+                <div className={`items-center ${activeTab === "list" ? "lg:hidden flex" : "hidden"}`}>
                     <div className="px-3 py-2">
                         <span
                             className={`inline-flex items-center px-2 py-1 text-sm rounded cursor-pointer ${isConnected ? "bg-sky-400/90 text-white" : "bg-amber-400 text-slate-800"}`}
@@ -724,6 +831,10 @@ const App: React.FC = () => {
                 </div>
             )}
 
+            {activeTab === "stats" && <StatisticsPage />}
+
+            {activeTab === "list" && (
+            <>
             {/* モバイル/タブレット表示時: 画像を先に表示 */}
             <div className="lg:hidden">
                 <div className="mt-2">
@@ -1083,6 +1194,8 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </div>
+            </>
+            )}
 
             <Footer />
         </div>

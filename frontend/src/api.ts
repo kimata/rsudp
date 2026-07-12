@@ -1,21 +1,27 @@
 import axios from "axios";
-import type { Screenshot, ScreenshotListResponse, StatisticsResponse } from "./types";
+import type {
+    Screenshot,
+    ScreenshotListResponse,
+    StatisticsResponse,
+    DailyDetectionResponse,
+    DistributionResponse,
+    AssociationResponse,
+    SensitivityResponse,
+} from "./types";
 import { TIMEOUTS } from "./utils/constants";
 
 // ホスト名を含まない相対パス（React アプリは /rsudp でホストされている）
 const API_BASE_URL = "/rsudp/api/screenshot";
-
-console.log("API Base URL:", API_BASE_URL);
+const STATISTICS_BASE_URL = "/rsudp/api/statistics";
 
 const api = axios.create({
     baseURL: API_BASE_URL,
     timeout: TIMEOUTS.API_REQUEST,
 });
 
-// デバッグ用のリクエストインターセプター
-api.interceptors.request.use((config) => {
-    console.log("Final request URL:", (config.baseURL || "") + (config.url || ""));
-    return config;
+const statsApi = axios.create({
+    baseURL: STATISTICS_BASE_URL,
+    timeout: TIMEOUTS.API_REQUEST,
 });
 
 export const screenshotApi = {
@@ -76,6 +82,32 @@ export const screenshotApi = {
             skipped: boolean;
             scan_type?: string;
         }>("/scan/", { full });
+        return response.data;
+    },
+};
+
+export const statisticsApi = {
+    // 日別検出数
+    getDaily: async (days: number = 90): Promise<DailyDetectionResponse> => {
+        const response = await statsApi.get<DailyDetectionResponse>("/daily", { params: { days } });
+        return response.data;
+    },
+
+    // MaxCount 分布
+    getDistribution: async (): Promise<DistributionResponse> => {
+        const response = await statsApi.get<DistributionResponse>("/distribution");
+        return response.data;
+    },
+
+    // JMA 照合率の推移
+    getAssociation: async (days: number = 90): Promise<AssociationResponse> => {
+        const response = await statsApi.get<AssociationResponse>("/association", { params: { days } });
+        return response.data;
+    },
+
+    // 検出感度: 震央距離 × MaxCount
+    getSensitivity: async (): Promise<SensitivityResponse> => {
+        const response = await statsApi.get<SensitivityResponse>("/sensitivity");
         return response.data;
     },
 };
