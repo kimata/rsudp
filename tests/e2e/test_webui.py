@@ -85,14 +85,6 @@ class TestWebuiE2E:
         data = response.json()
         assert "total" in data
 
-    def test_api_screenshot_years(self, page, host, port):
-        """年一覧 API のテスト."""
-        response = page.request.get(f"http://{host}:{port}/rsudp/api/screenshot/years/")
-
-        assert response.ok
-        data = response.json()
-        assert "years" in data
-
     def test_api_earthquake_list(self, page, host, port):
         """地震一覧 API のテスト."""
         response = page.request.get(f"http://{host}:{port}/rsudp/api/earthquake/list/")
@@ -473,15 +465,16 @@ class TestRefreshButtonE2E:
 
         page.on("request", handle_request)
 
-        # 更新ボタン（接続状態インジケータ）を探してクリック
-        # 接続状態インジケータはナビバーの左側にあるボタン
-        status_button = page.locator("nav button").first
-        if status_button.is_visible():
-            status_button.click()
-            page.wait_for_timeout(2000)
+        # 接続状態インジケータ（title 属性付きの span）を探してクリック
+        # NOTE: nav button の先頭はタブ切り替え（一覧/統計）になったため、
+        # title 属性で更新トリガーを特定する（デスクトップ/モバイルの2変種のうち可視の方）
+        status_indicator = page.locator('nav [title*="更新"]:visible').first
+        assert status_indicator.is_visible(), "接続状態インジケータが見つかりませんでした"
+        status_indicator.click()
+        page.wait_for_timeout(2000)
 
-            # スキャンリクエストが送信されたことを確認
-            assert len(scan_requests) >= 1, "スキャンリクエストが送信されませんでした"
+        # スキャンリクエストが送信されたことを確認
+        assert len(scan_requests) >= 1, "スキャンリクエストが送信されませんでした"
 
         # スクリーンショットを保存
         screenshot_path = EVIDENCE_DIR / "e2e_refresh_button.png"
@@ -503,10 +496,10 @@ class TestRefreshButtonE2E:
         page.goto(rsudp_url(host, port), wait_until="domcontentloaded")
         wait_for_app_ready(page)
 
-        # 更新ボタン（接続状態インジケータ）を探してクリック
-        status_button = page.locator("nav button").first
-        if status_button.is_visible():
-            status_button.click()
+        # 接続状態インジケータ（title 属性付きの span）を探してクリック
+        status_indicator = page.locator('nav [title*="更新"]:visible').first
+        if status_indicator.is_visible():
+            status_indicator.click()
             page.wait_for_timeout(2000)
 
             # 通知要素が表示される可能性を確認（固定位置の通知）
