@@ -12,55 +12,32 @@ Options:
 """
 
 import logging
-import os
 import pathlib
-import signal
-import sys
 
 import flask
 import flask_cors
 import my_lib.config
-import my_lib.logger
-import my_lib.proc_util
 import my_lib.webapp.event
+import my_lib.webapp.runner
 
 import rsudp.config
 import rsudp.monitor
 
 _SCHEMA_CONFIG = "schema/config.schema"
 
-# バックグラウンド監視インスタンス（main() で初期化）
+# バックグラウンド監視インスタンス（_app_factory() で初期化）
 _background_monitor: rsudp.monitor.BackgroundMonitor | None = None
-
-
-def _term():
-    # バックグラウンド監視を停止
-    if _background_monitor is not None:
-        _background_monitor.stop()
-
-    # 子プロセスを終了
-    my_lib.proc_util.kill_child()
-
-    # プロセス終了
-    logging.info("Graceful shutdown completed")
-    sys.exit(0)
-
-
-def _sig_handler(num, frame):
-    logging.warning("receive signal %d", num)
-
-    if num in (signal.SIGTERM, signal.SIGINT):
-        _term()
-
 
 _URL_PREFIX = "/rsudp"
 
 
 def _create_app(config: rsudp.config.Config):
-    # NOTE: アクセスログは無効にする
-    logging.getLogger("werkzeug").setLevel(logging.ERROR)
-
+    # NOTE: 関数内 import は my_lib をローカル変数にするため、モジュールレベルの
+    # my_lib.* 参照より先にまとめて行う
     import my_lib.webapp.config
+
+    # NOTE: アクセスログは無効にする
+    my_lib.webapp.runner.silence_werkzeug_log()
 
     # Config.__post_init__ で絶対パスであることが保証されている
     webapp_config = my_lib.webapp.config.WebappConfig(static_dir_path=config.webapp.static_dir_path)
@@ -93,82 +70,42 @@ def _create_app(config: rsudp.config.Config):
     return app
 
 
-def main() -> None:
-    """Console script entry point."""
-    import atexit
-    import contextlib
-
-    import docopt
-
-    assert __doc__ is not None  # noqa: S101 - type narrowing for pyright
-    args = docopt.docopt(__doc__)
-
-    config_file = args["-c"]
-    port = args["-p"]
-    debug_mode = args["-D"]
-
-    my_lib.logger.init("rsudp", level=logging.DEBUG if debug_mode else logging.INFO)
-
+def _load_config(config_file, args):
     config_dict = my_lib.config.load(config_file, pathlib.Path(_SCHEMA_CONFIG))
-    config = rsudp.config.load_from_dict(config_dict, pathlib.Path.cwd())
+    return rsudp.config.load_from_dict(config_dict, pathlib.Path.cwd())
 
+
+def _app_factory(config, ctx):
     app = _create_app(config)
 
-    # プロセスグループリーダーとして実行（リローダープロセスの適切な管理のため）
-    with contextlib.suppress(PermissionError):
-        os.setpgrp()
-
-    # 異常終了時のクリーンアップ処理を登録
-    def cleanup_on_exit():
-        try:
-            current_pid = os.getpid()
-            pgid = os.getpgid(current_pid)
-            if current_pid == pgid:
-                # プロセスグループ内の他のプロセスを終了
-                os.killpg(pgid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
-            pass
-
-    atexit.register(cleanup_on_exit)
-
-    # Enhanced signal handler for process group management
-    def enhanced_sig_handler(num, frame):
-        logging.warning("receive signal %d", num)
-
-        if num in (signal.SIGTERM, signal.SIGINT):
-            # Flask reloader の子プロセスも含めて終了する
-            try:
-                # 現在のプロセスがプロセスグループリーダーの場合、全体を終了
-                current_pid = os.getpid()
-                pgid = os.getpgid(current_pid)
-                if current_pid == pgid:
-                    logging.info("Terminating process group %d", pgid)
-                    os.killpg(pgid, signal.SIGTERM)
-            except (ProcessLookupError, PermissionError):
-                # プロセスグループ操作に失敗した場合は通常の終了処理
-                pass
-
-            _term()
-
-    signal.signal(signal.SIGTERM, enhanced_sig_handler)
-    signal.signal(signal.SIGINT, enhanced_sig_handler)
-
-    # バックグラウンド監視をバックグラウンドで開始
-    # use_reloader=True の場合、親プロセスと子プロセスの2つが起動する
-    # 親プロセスでは WERKZEUG_RUN_MAIN が未設定、子プロセスでは "true"
-    # 監視は子プロセスでのみ開始する
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    # バックグラウンド監視はリローダーの子プロセスでのみ開始する（二重起動の防止）
+    if my_lib.webapp.runner.should_init(ctx.use_reloader):
         monitor = rsudp.monitor.BackgroundMonitor(config)
         monitor.start()
         global _background_monitor
         _background_monitor = monitor
 
-    # Flaskアプリケーションを実行
-    try:
-        app.run(host="0.0.0.0", port=port, threaded=True, use_reloader=True, debug=debug_mode)  # noqa: S104
-    except KeyboardInterrupt:
-        logging.info("Received KeyboardInterrupt, shutting down...")
-        enhanced_sig_handler(signal.SIGINT, None)
+    return app
+
+
+def _stop_monitor():
+    if _background_monitor is not None:
+        logging.info("Stopping background monitor...")
+        _background_monitor.stop()
+
+
+SPEC = my_lib.webapp.runner.WebAppSpec(
+    logger_name="rsudp",
+    config_loader=_load_config,
+    app_factory=_app_factory,
+    term_hooks=(_stop_monitor,),
+)
+
+
+def main() -> None:
+    """Console script entry point."""
+    assert __doc__ is not None  # noqa: S101 - type narrowing for pyright
+    my_lib.webapp.runner.run(SPEC, __doc__)
 
 
 if __name__ == "__main__":

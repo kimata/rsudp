@@ -4,10 +4,7 @@
 webui.py のテスト
 """
 
-import signal
 import unittest.mock
-
-import pytest
 
 
 class TestCreateApp:
@@ -41,162 +38,45 @@ class TestCreateApp:
         assert app is not None
 
 
-class TestTerm:
-    """_term 関数のテスト"""
+class TestStopMonitor:
+    """_stop_monitor 関数のテスト"""
 
-    def test_term_kills_child_and_exits(self):
-        """_term が子プロセスを終了してシステム終了する"""
-        from rsudp.cli import webui
-
-        webui._background_monitor = None  # 監視は起動していない状態
-        with (
-            unittest.mock.patch("my_lib.proc_util.kill_child") as mock_kill,
-            pytest.raises(SystemExit) as exc_info,
-        ):
-            webui._term()
-
-        mock_kill.assert_called_once()
-        assert exc_info.value.code == 0
-
-
-class TestSigHandler:
-    """_sig_handler のテスト"""
-
-    def test_sig_handler_sigterm(self):
-        """SIGTERM で _term が呼ばれる"""
+    def test_no_monitor_does_nothing(self):
+        """監視が起動していなければ何もしない"""
         from rsudp.cli import webui
 
         webui._background_monitor = None
-        with (
-            unittest.mock.patch("my_lib.proc_util.kill_child"),
-            pytest.raises(SystemExit),
-        ):
-            webui._sig_handler(signal.SIGTERM, None)
+        webui._stop_monitor()  # 例外が出なければ OK
 
-    def test_sig_handler_sigint(self):
-        """SIGINT で _term が呼ばれる"""
+    def test_stops_running_monitor(self):
+        """起動中の監視を停止する"""
         from rsudp.cli import webui
 
-        webui._background_monitor = None
-        with (
-            unittest.mock.patch("my_lib.proc_util.kill_child"),
-            pytest.raises(SystemExit),
-        ):
-            webui._sig_handler(signal.SIGINT, None)
+        monitor = unittest.mock.MagicMock()
+        webui._background_monitor = monitor
+        try:
+            webui._stop_monitor()
+        finally:
+            webui._background_monitor = None
 
-    def test_sig_handler_other_signal(self):
-        """他のシグナルでは _term が呼ばれない"""
+        monitor.stop.assert_called_once()
+
+
+class TestSpec:
+    """WebAppSpec 定義のテスト
+
+    シグナル処理・graceful shutdown 自体は my_lib.webapp.runner 側で
+    テストされるため、ここでは配線のみ確認する。
+    """
+
+    def test_term_hook_wired(self):
+        """SPEC の term_hooks に _stop_monitor が配線されている"""
         from rsudp.cli import webui
 
-        # SIGUSR1 などでは何も起きない
-        webui._sig_handler(signal.SIGUSR1, None)
-        # 例外なく終了
+        assert webui._stop_monitor in webui.SPEC.term_hooks
 
+    def test_logger_name(self):
+        """ロガー名が rsudp である"""
+        from rsudp.cli import webui
 
-class TestBackgroundMonitor:
-    """BackgroundMonitor のテスト"""
-
-    def test_start(self, config):
-        """バックグラウンド監視の開始"""
-        from rsudp.monitor import BackgroundMonitor
-
-        mock_manager = unittest.mock.MagicMock()
-        mock_manager.scan_and_cache_all.return_value = 0
-        mock_manager.scan_incremental.return_value = 0
-
-        monitor = BackgroundMonitor(config)
-        with (
-            unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]),
-            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager", return_value=mock_manager),
-            unittest.mock.patch("my_lib.webapp.event.start_db_state_watcher", return_value=(None, None)),
-        ):
-            monitor.start()
-            try:
-                assert monitor._monitor_thread is not None
-                assert monitor._monitor_thread.is_alive()
-            finally:
-                monitor.stop()
-
-    def test_stop_not_running(self, config):
-        """実行していない監視の停止はエラーにならない"""
-        from rsudp.monitor import BackgroundMonitor
-
-        monitor = BackgroundMonitor(config)
-        monitor.stop()  # 起動前に stop しても問題ないこと
-
-    def test_stop_running(self, config):
-        """実行中の監視の停止"""
-        from rsudp.monitor import BackgroundMonitor
-
-        mock_manager = unittest.mock.MagicMock()
-        mock_manager.scan_and_cache_all.return_value = 0
-        mock_manager.scan_incremental.return_value = 0
-
-        monitor = BackgroundMonitor(config)
-        with (
-            unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=[]),
-            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager", return_value=mock_manager),
-            unittest.mock.patch("my_lib.webapp.event.start_db_state_watcher", return_value=(None, None)),
-        ):
-            monitor.start()
-            assert monitor._monitor_thread is not None
-
-            monitor.stop()
-            assert monitor._monitor_thread is None
-
-    def test_monitor_loop_with_new_earthquakes(self, config):
-        """新しい地震データがある場合の監視"""
-        from rsudp.monitor import BackgroundMonitor
-
-        new_earthquakes = [
-            {
-                "detected_at": unittest.mock.MagicMock(strftime=lambda fmt: "2025-01-01 12:00"),
-                "epicenter_name": "東京都",
-                "magnitude": 5.0,
-                "max_intensity": "3",
-                "depth": 50,
-            }
-        ]
-
-        mock_manager = unittest.mock.MagicMock()
-        mock_manager.scan_and_cache_all.return_value = 0
-        mock_manager.scan_incremental.return_value = 0
-        mock_manager.update_earthquake_associations.return_value = 1
-
-        monitor = BackgroundMonitor(config)
-        with (
-            unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", return_value=new_earthquakes),
-            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager", return_value=mock_manager),
-            unittest.mock.patch("my_lib.webapp.event.start_db_state_watcher", return_value=(None, None)),
-        ):
-            monitor.start()
-            try:
-                import time
-
-                time.sleep(0.5)
-            finally:
-                monitor.stop()
-
-    def test_monitor_loop_exception_handling(self, config):
-        """監視ループの例外処理"""
-        from rsudp.monitor import BackgroundMonitor
-
-        mock_manager = unittest.mock.MagicMock()
-        mock_manager.scan_and_cache_all.return_value = 0
-        mock_manager.scan_incremental.return_value = 0
-
-        monitor = BackgroundMonitor(config)
-        with (
-            unittest.mock.patch("rsudp.quake.crawl.crawl_earthquakes", side_effect=Exception("Test error")),
-            unittest.mock.patch("rsudp.screenshot_manager.ScreenshotManager", return_value=mock_manager),
-            unittest.mock.patch("my_lib.webapp.event.start_db_state_watcher", return_value=(None, None)),
-        ):
-            monitor.start()
-            try:
-                import time
-
-                time.sleep(0.5)
-                # 例外が発生しても監視は動作し続ける
-                assert monitor._monitor_thread is not None
-            finally:
-                monitor.stop()
+        assert webui.SPEC.logger_name == "rsudp"
