@@ -4,6 +4,7 @@ variables:
     UV_LINK_MODE: copy
     UV_CACHE_DIR: .uv-cache
     PYRIGHT_PYTHON_FORCE_VERSION: latest
+    UV_HTTP_TIMEOUT: "120"
 
     UV_EXTRA_INDEX_URL: "http://proxy:3141/simple/"
     UV_INSECURE_HOST: "proxy"
@@ -34,7 +35,7 @@ build-react:
 
     needs: []
 
-    image: node:22.15@sha256:e558507eb799e3a76fcdaaee5e48dce1a00aebc85892128a9fca59f63bd49511
+    image: node:24.17@sha256:733e1c06ada118ed9f6133a31aa1290be6929664026fb28821500437c61f2c6f
 
     before_script: []
 
@@ -72,23 +73,21 @@ build-image:
         - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.green-rabbit.net/kimata/font.git private_font
         - mv private_font/* font
 
-        - |
-            docker buildx create \
-                --name ${BUILDER} \
-                --use \
-                --config /etc/buildkitd.toml
-
+        - docker buildx create --driver docker-container --name ${BUILDER} --use --config /etc/buildkitd.toml
         - docker buildx use ${BUILDER}
         - docker buildx inspect --bootstrap
         - >
-            docker buildx build --provenance=false --progress=plain --platform linux/amd64
+            docker buildx build
+            --provenance=false
+            --progress=plain
+            --platform linux/amd64
             --cache-from type=registry,ref=${CI_REGISTRY_IMAGE}:cache
             --cache-from type=registry,ref=${CI_REGISTRY_IMAGE}:latest
-            --cache-to type=inline --cache-to type=registry,ref=${CI_REGISTRY_IMAGE}:cache,mode=max
+            --cache-to type=inline
+            --cache-to type=registry,ref=${CI_REGISTRY_IMAGE}:cache,mode=max
             --build-arg IMAGE_BUILD_DATE=$(date --iso-8601=seconds)
-            --tag ${CI_REGISTRY_IMAGE}:${TAG} --push .
-    # after_script:
-    #     - docker buildx rm ${BUILDER} || true
+            --tag ${CI_REGISTRY_IMAGE}:${TAG}
+            --push .
 
 test-typecheck:
     stage: test
@@ -100,6 +99,7 @@ test-typecheck:
 
     script:
         - uv run python -m pyright
+        - uv run mypy src/
         - uv run ty check src/
 
     cache:
@@ -110,6 +110,7 @@ test-typecheck:
               - uv-cache-${CI_PROJECT_ID}
           paths:
               - ${UV_CACHE_DIR}
+              - .mypy_cache/
 
 test-pytest:
     stage: test
@@ -121,6 +122,8 @@ test-pytest:
 
     script:
         - uv run pytest
+
+    coverage: '/TOTAL.*\s+(\d+%)/'
 
     cache:
         - key:
@@ -137,16 +140,15 @@ test-pytest:
             - reports/**
         reports:
             junit: reports/junit-report.xml
+            coverage_report:
+                coverage_format: cobertura
+                path: reports/coverage.xml
 
 test-webui:
     stage: test
     needs:
         - generate-tag
         - build-image
-
-    before_script:
-        - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-        - uv sync --locked --no-editable
 
     script:
         # NOTE: テストに失敗するとテスト用のコンテナが残るので削除する
@@ -155,14 +157,13 @@ test-webui:
             cut -d " " -f1 |
             while read id; do docker stop -t 5 $id; done || true
 
-        # コンテナを起動
+        - uv sync --locked --no-editable
+
         - >
             docker run --rm --detach=true --tty=true
             --name ${CI_JOB_NAME}-${CI_JOB_ID} --label job=${CI_JOB_NAME}
             --publish :5000
             ${CI_REGISTRY_IMAGE}:${TAG} sleep infinity
-
-        # webui を起動（/opt/rsudp/webui から実行、ログをファイルに出力）
         - >
             docker exec --detach --workdir /opt/rsudp/webui ${CI_JOB_NAME}-${CI_JOB_ID}
             sh -c ".venv/bin/rsudp-webui > /tmp/flask.log 2>&1"
@@ -178,7 +179,7 @@ test-webui:
             \"http://${DOCKER_GATEWAY}:${APP_PORT}/rsudp/api/screenshot/\" > /dev/null 2>&1;
             do echo 'Retrying in 5 seconds...'; sleep 5; done" || ACCESS_FAILED=1
 
-        - docker exec ${CI_JOB_NAME}-${CI_JOB_ID} cat /tmp/flask.log > flask_log.txt || true
+        - docker logs ${CI_JOB_NAME}-${CI_JOB_ID} > flask_log.txt
         - |
             if [ "$ACCESS_FAILED" = "1" ]; then
                 echo "Failed to access App"
@@ -191,7 +192,7 @@ test-webui:
             --host ${DOCKER_GATEWAY} --port ${APP_PORT}
             --junit-xml=reports/e2e-junit.xml
 
-        - docker exec ${CI_JOB_NAME}-${CI_JOB_ID} cat /tmp/flask.log > flask_log.txt || true
+        - docker logs ${CI_JOB_NAME}-${CI_JOB_ID} > flask_log.txt
         - docker stop ${CI_JOB_NAME}-${CI_JOB_ID}
 
     cache:
@@ -227,8 +228,10 @@ tag-latest:
           artifacts: false
 
     script:
-        - 'echo "Tagging multi-arch image ${CI_REGISTRY_IMAGE}:${TAG} as latest"'
-        - docker buildx imagetools create -t ${CI_REGISTRY_IMAGE}:latest ${CI_REGISTRY_IMAGE}:${TAG}
+        - 'echo "Tagging ${CI_REGISTRY_IMAGE}:${TAG} as latest"'
+        - docker pull ${CI_REGISTRY_IMAGE}:${TAG}
+        - docker tag ${CI_REGISTRY_IMAGE}:${TAG} ${CI_REGISTRY_IMAGE}:latest
+        - docker push ${CI_REGISTRY_IMAGE}:latest
 
     rules:
         - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
@@ -257,11 +260,10 @@ deploy:
         - 'echo "Deploying image: $IMAGE"'
 
         - kubectl config get-contexts
-        - kubectl config use-context kimata/rsudp:pod-rollout
 
+        - kubectl config use-context kimata/rsudp:pod-rollout
         - kubectl -n sensor set image deployment/rsudp rsudp=${IMAGE}
         - kubectl -n sensor set image deployment/rsudp-webui rsudp-webui=${IMAGE}
-
         - kubectl -n sensor rollout status deployment/rsudp --timeout=300s
         - kubectl -n sensor rollout status deployment/rsudp-webui --timeout=300s
 
