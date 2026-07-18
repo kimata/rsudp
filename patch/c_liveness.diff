@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..577480f
 --- /dev/null
 +++ b/rsudp/c_liveness.py
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,144 @@
 +import os
 +import time
 +from threading import Thread
@@ -15,8 +15,13 @@ index 0000000..577480f
 +
 +def touch_liveness_file(liveness_file=LIVENESS_FILE):
 +    """
-+    Touch the liveness file to indicate the application is starting/running.
++    Update the liveness file to indicate the application is starting/running.
 +    This is a standalone function that can be called before the Liveness thread starts.
++
++    The checker (my_lib.footprint) parses the file content as a UNIX time,
++    so the current time is written as text. The write goes to a temporary
++    file first and is renamed into place so the checker never reads a
++    partially written file.
 +
 +    :param str liveness_file: Path to the liveness file
 +    :return: True if successful, False otherwise
@@ -28,12 +33,13 @@ index 0000000..577480f
 +        if parent_dir:
 +            os.makedirs(parent_dir, exist_ok=True)
 +
-+        # Touch the file
-+        with open(liveness_file, 'a'):
-+            os.utime(liveness_file, None)
++        tmp_file = liveness_file + '.tmp'
++        with open(tmp_file, 'w') as f:
++            f.write(str(time.time()))
++        os.rename(tmp_file, liveness_file)
 +        return True
 +    except Exception as e:
-+        printW('Failed to touch liveness file: %s' % str(e), 'Init')
++        printW('Failed to update liveness file: %s' % str(e), 'Init')
 +        return False
 +
 +
